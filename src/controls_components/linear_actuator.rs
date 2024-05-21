@@ -1,6 +1,7 @@
 #[allow(unused_imports)]
 use std::sync::{Arc};
 use std::error::Error;
+use std::time::Duration;
 #[allow(unused_imports)]
 use tokio::sync::{Mutex, oneshot, mpsc};
 use crate::controls_components::controller::Controller;
@@ -29,7 +30,7 @@ impl LinearActuator {
     }
     
     pub async fn actuate(&self, power: isize) -> Result<(), Box<dyn Error>> {
-        let prefix = [2, b'I', self.output + 48];
+        let prefix = [2, b'O', self.output + 48];
         let power = int_to_bytes(power);
         let mut cmd: Vec<u8> = Vec::with_capacity(prefix.len() + power.len()+1);
         cmd.extend_from_slice(prefix.as_slice());
@@ -79,15 +80,18 @@ impl MPlexActuatorPair {
     }
     
     pub async fn actuate(&self, channel: ActuatorCh, power: isize) -> Result<(), Box<dyn Error>> {
-        let cmd = match channel {
+        //Yeah, this sucks change later
+        let cmd1 = match channel {
             ActuatorCh::Cha => {
-                [2, b'O', self.relay_out+ 48, 0, 0 ,0 , 13]
+                [2, b'O', self.relay_out + 48, 48 , 13].to_vec()
+                
             }
             ActuatorCh::Chb => {
-                [2, b'O', self.relay_out+ 48, 2,5,5, 13]
+                [2, b'O', self.relay_out + 48, 2 + 48,5 + 48 ,5+48, 13].to_vec()
             }
         };
-        self.drive.write(cmd.as_slice()).await?;
+        println!("Relay command sent: {:?}", cmd1);
+        self.drive.write(cmd1.as_slice()).await?;
         let prefix = [2, b'O', self.h_bridge + 48];
         let power = int_to_bytes(power);
         let mut cmd: Vec<u8> = Vec::with_capacity(prefix.len() + power.len()+1);
@@ -157,10 +161,13 @@ async fn integration_test(){
     let (tx, rx) = mpsc::channel::<Message>(10);
 
     let la_task_read_pos = tokio::spawn( async move { 
-        let actuator = LinearActuator::new(4, 9 , Controller::new(tx));
+        let actuator = LinearActuator::new(5, 3 , Controller::new(tx));
         let pos = actuator.get_feedback().await.expect("Failed to read");
-        // let _ = actuator.actuate(32000).await;
-        // let _ = actuator.actuate(-32000).await;
+        println!("Actuator position: {} .", pos);
+        let _ = actuator.actuate(32000).await;
+        tokio::time::sleep(Duration::from_millis(3000)).await;
+        let _ = actuator.actuate(0).await;
+        let pos = actuator.get_feedback().await.expect("Failed to read");
         println!("Actuator position: {} .", pos);
     });
     
@@ -170,4 +177,39 @@ async fn integration_test(){
     let _ = la_task_read_pos.await;
     let _ = client.await;
     
+}
+
+#[tokio::test]
+async fn test_mplex_actuator() {
+    let (tx, rx) = mpsc::channel::<Message>(10);
+    
+    let actuator_task =  tokio::spawn(async move { 
+        let actuators_1 = MPlexActuatorPair::new(
+            2, 4,5, 6,Controller::new(tx)
+        );
+        tokio::time::sleep(Duration::from_millis(5000)).await;
+        let a1_fb_a = actuators_1.get_feedback(ActuatorCh::Cha).await.unwrap();
+        println!("A1 CH A pos: {a1_fb_a}");
+        actuators_1.actuate(ActuatorCh::Chb, 32000).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(3000)).await;
+        actuators_1.actuate(ActuatorCh::Chb, 0).await.unwrap();
+        let a1_fb_a_post = actuators_1.get_feedback(ActuatorCh::Cha).await.unwrap();
+        println!("A1 CH A pos: {a1_fb_a}");
+        //assert_ne!(a1_fb_a_post, a1_fb_a);
+        
+
+        // let a1_fb_b = actuators_1.get_feedback(ActuatorCh::Chb).await.unwrap();
+        // println!("A1 CH B pos: {a1_fb_b}");
+        // actuators_1.actuate(ActuatorCh::Chb, 32000).await.unwrap();
+        // tokio::time::sleep(Duration::from_millis(3000)).await;
+        // actuators_1.actuate(ActuatorCh::Chb, 0).await.unwrap();
+        // let a1_fb_b_post = actuators_1.get_feedback(ActuatorCh::Chb).await.unwrap();
+        // println!("A1 CH B pos: {a1_fb_b}");
+        // //assert_ne!(a1_fb_b_post, a1_fb_b);
+
+        
+    });
+    let client = tokio::spawn(tcp_client::client("192.168.1.12:8888", rx));
+    let _ = actuator_task.await.unwrap();
+    let _ = client.await.unwrap();
 }

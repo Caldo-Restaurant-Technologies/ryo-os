@@ -33,10 +33,15 @@ pub const NODE_D_FB: u8 = 6;
 
 
 
-struct Gantry {
-    drive_id: usize,
-    motor_id: usize
+pub struct Gantry {
+    drive_id: u8,
+    motor_id: u8
 }
+
+pub const GANTRY: Gantry = Gantry{
+    drive_id:GANTRY_MOTOR_ID,
+    motor_id:GANTRY_MOTOR_ID
+};
 
 struct Gripper {
     drive_id: usize,
