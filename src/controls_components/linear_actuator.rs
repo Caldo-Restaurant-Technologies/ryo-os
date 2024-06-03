@@ -190,7 +190,7 @@ async fn test_mplex_actuator() {
         tokio::time::sleep(Duration::from_millis(5000)).await;
         let a1_fb_a = actuators_1.get_feedback(ActuatorCh::Cha).await.unwrap();
         println!("A1 CH A pos: {a1_fb_a}");
-        actuators_1.actuate(ActuatorCh::Chb, 32000).await.unwrap();
+        actuators_1.actuate(ActuatorCh::Chb, -32000).await.unwrap();
         tokio::time::sleep(Duration::from_millis(3000)).await;
         actuators_1.actuate(ActuatorCh::Chb, 0).await.unwrap();
         let a1_fb_a_post = actuators_1.get_feedback(ActuatorCh::Cha).await.unwrap();

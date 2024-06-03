@@ -9,12 +9,12 @@ pub mod ryo;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // let (tx, rx) = mpsc::channel(1);
-    // let server = tokio::spawn(hmi::ui_server(tx));
-    // let sys_controls = tokio::spawn(hmi::ui_request_handler(rx));
-    // 
-    // sys_controls.await.unwrap();
-    // server.await.unwrap()
+    let (tx, rx) = mpsc::channel(1);
+    let server = tokio::spawn(hmi::ui_server(tx));
+    //let sys_controls = tokio::spawn(hmi::ui_request_handler(rx));
+    
+    //sys_controls.await.unwrap();
+    server.await.unwrap()?;
     Ok(())
 }
 
