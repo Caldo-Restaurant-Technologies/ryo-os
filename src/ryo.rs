@@ -61,11 +61,11 @@ struct Hatch {
     motor_id: usize,
 }
 
-struct Dispenser {
+struct Conveyor {
     drive_id: usize,
     motor_id: usize,
 }
 struct Node {
     scale: Scale,
-    dispenser: Dispenser
+    conveyor: Conveyor
 }

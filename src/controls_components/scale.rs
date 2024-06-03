@@ -1,6 +1,5 @@
-use ndarray::prelude::*;
-use ndarray::linalg::Dot;
-use ndarray_linalg::Solve;
+use linalg;
+use std::io::Error;
 
 struct LoadCell {
     phidget_id: usize,
@@ -8,37 +7,53 @@ struct LoadCell {
 }
 
 impl LoadCell {
-    async fn get_reading(&self) -> f64 {
+    fn get_reading(&self) -> Result<f64, Error> {
         // Gets the reading of a load cell from
         // Phidget.
 
-        0.0
+        Ok(0.)
     }
 }
 
 pub struct Scale {
     cells: [LoadCell; 4],
-    coefficients: Array2<f64>,
+    coefficients: Vec<Vec<f64>>,
 }
 
 impl Scale {
-    async fn get_readings(&self) -> Array2<f64> {
+    fn get_readings(&self) -> Result<Vec<Vec<f64>>, Error> {
         // Gets each load cell reading from Phidget
         // and returns them in an array. 
         
-        let arr = Array2::from_elem((4, 1), 0.0);
-        arr
+        let mut readings = vec![vec![0.; 1]; 4];
+        for cell in 0..self.cells.len() {
+            // readings[cell] = self.cells.get(cell).unwrap().get_reading();
+            match self.cells.get(cell).unwrap().get_reading() {
+                Ok(reading) => {
+                    readings[cell] = vec![reading];
+                },
+                Err(error) => panic!("Problem reading load cell: {:?}", error),
+            }
+        }
+        Ok(readings)
     }
 
-    async fn live_weigh(&self) -> f64 {
+    fn live_weigh(&self) -> Result<f64, std::Error> {
         // Gets the instantaneous weight measurement
         // from the scale by taking the sum of each
         // load cell's reading, weighted by its 
         // coefficient.
-        let readings = self.get_readings().await;
-        // weight = mat.dot{}
-
-        0.0
+        let mut readings = vec![vec![0.; 1]; 4];
+        for cell in 0..self.cells.len() {
+            // readings[cell] = self.cells.get(cell).unwrap().get_reading();
+            match self.cells.get(cell).unwrap().get_reading() {
+                Ok(reading) => {
+                    readings[cell] = vec![reading];
+                },
+                Err(error) => panic!("Problem reading load cell: {:?}", error),
+            }
+        }
+        Ok(linalg::LinearSystem::multiply(&readings, &self.coefficients).first().unwrap())
     }
 
 }

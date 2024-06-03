@@ -15,3 +15,4 @@ env_logger = "0.11.3"
 log = "0.4.21"
 ndarray = "0.15.0"
 ndarray-linalg = "0.15.0"
+linalg = { path = "../linalg" }
