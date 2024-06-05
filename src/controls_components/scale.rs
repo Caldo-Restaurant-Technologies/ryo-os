@@ -1,31 +1,67 @@
 use linalg;
-// use phidget;
+use phidget::{devices::VoltageRatioInput, Phidget};
 use std::{thread, time, io};
+use std::time::Duration;
+use std::error::Error;
 use linalg::{LinearSystem, MatrixError};
 use linalg::MatrixError::{EmptyVector, InvalidMatrix};
 
+const TIMEOUT: Duration = phidget::TIMEOUT_DEFAULT;
+
 
 struct LoadCell {
-    phidget_id: usize,
-    channel_id: usize
+    phidget_id: i32,
+    channel_id: i32,
+    vin: VoltageRatioInput,
 }
 
 impl LoadCell {
+    
+    pub fn new(phidget_id: i32, channel_id: i32) -> Self {
+        let mut vin = VoltageRatioInput::new();
+        vin.set_serial_number(phidget_id)?;
+        vin.set_channel(channel_id)?;
+        vin.open_wait(TIMEOUT)?;
+        let min_data_interval = vin.min_data_interval()?;
+        vin.set_data_interval(min_data_interval)?;
+        thread::sleep(Duration::from_millis(3000));
+        println!("Channel {:} set for Phidget {:}", channel_id, phidget_id);
+        
+        Self { phidget_id, channel_id, vin }
+    }
     fn get_reading(&self) -> Result<f64, ScaleError> {
         // Gets the reading of a load cell from
         // Phidget.
-
-        Ok(0.)
+        let reading = self.vin.voltage_ratio()?;
+        Ok(reading)
     }
 }
 
 pub struct Scale {
+    phidget_id: i32,
     cells: [LoadCell; 4],
     cell_coefficients: Vec<Vec<f64>>,
     tare_offset: f64,
 }
 
 impl Scale {
+    pub fn new(phidget_id: i32) -> Self {
+        let cells = [
+            LoadCell::new(phidget_id, 0),
+            LoadCell::new(phidget_id, 1),
+            LoadCell::new(phidget_id, 2),
+            LoadCell::new(phidget_id, 3)
+        ];
+        
+        Self {
+            phidget_id,
+            cells,
+            // filler coefficients for now
+            cell_coefficients: vec![vec![0.]; 4],
+            tare_offset: 0.
+        }
+    }
+    
     fn get_readings(&self) -> Result<Vec<Vec<f64>>, ScaleError> {
         // Gets each load cell reading from Phidget
         // and returns them in a matrix.
@@ -35,7 +71,7 @@ impl Scale {
         }).collect()
     }
 
-    pub fn live_weigh(&self) -> Result<f64, ScaleError> {
+    pub fn live_weigh(&self) -> Result<f64,  ScaleError> {
         // Gets the instantaneous weight measurement
         // from the scale by taking the sum of each
         // load cell's reading, weighted by its 
@@ -46,6 +82,7 @@ impl Scale {
             .map_err(ScaleError::MatrixError)?;
         LinearSystem::unpack(weight)
             .map_err(ScaleError::MatrixError)
+        
     }
 
 
