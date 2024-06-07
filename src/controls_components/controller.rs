@@ -33,8 +33,8 @@ pub struct Output{
 
 impl Output {
     pub fn new(id: u8) -> Self {
-        let on_cmd = [STX, b'O', int_to_byte(id), 3 , 2, 0, 0, 0, 0];
-        let off_cmd = [STX, b'O', int_to_byte(id), 0 , CR, 0, 0, 0, 0];
+        let on_cmd = [STX, b'O', int_to_byte(id), b'3' , b'2', b'7', b'0', b'0', CR];
+        let off_cmd = [STX, b'O', int_to_byte(id), b'0', CR, 0, 0, 0, 0];
         Output{id, on_cmd, off_cmd}
     }
     

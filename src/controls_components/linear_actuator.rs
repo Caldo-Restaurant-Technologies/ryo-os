@@ -2,6 +2,7 @@
 use std::sync::{Arc};
 use std::error::Error;
 use std::time::Duration;
+use ndarray::AssignElem;
 #[allow(unused_imports)]
 use tokio::sync::{Mutex, oneshot, mpsc};
 use crate::controls_components::controller::{
@@ -17,25 +18,27 @@ use crate::controls_components::helper::{bytes_to_int};
 use crate::tcp_client;
 pub use crate::tcp_client::Message;
 
+
+//TODO: Move this to a hatches module
 #[allow(unused)]
 const ACTUONIX_LA_MAX_STROKE: isize = 34000;
-
+//TODO: Move this to a hatches module
 #[allow(unused)]
 const ACTUONIX_LA_MIN_STROKE: isize = 400;
-
+//TODO: Move this to a hatches module
 #[allow(unused)]
 const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
 
 
-pub struct LinearActuator {
+pub struct SimpleLinearActuator {
     output: HBridge,
     feedback: Input,
     drive: Controller,
 }
 
-impl LinearActuator {
+impl SimpleLinearActuator {
     pub fn new(output: HBridge, feedback: Input, drive: Controller) -> Self {
-        LinearActuator{ output, feedback, drive}
+        SimpleLinearActuator { output, feedback, drive}
     }
 
     async fn actuate(&self, state: HBridgeState) -> Result<(), Box<dyn Error>> {
@@ -47,7 +50,7 @@ impl LinearActuator {
         let res = self.drive.write(self.feedback.cmd.as_slice()).await?;
         Ok(bytes_to_int(&res[2..]))
     }
-    
+    //TODO: Move this to a hatches module
     pub async fn open(&self, set_point: isize, timeout: Duration) -> Result<(), Box<dyn Error>> {
         self.actuate(HBridgeState::Pos).await?;
         let start_time = tokio::time::Instant::now();
@@ -62,7 +65,7 @@ impl LinearActuator {
         self.actuate(HBridgeState::Off).await?;
         Ok(())
     }
-
+    //TODO: Move this to a hatches module
     pub async fn close(&self, set_point: isize, timeout: Duration) -> Result<(), Box<dyn Error>> {
         self.actuate(HBridgeState::Neg).await?;
         let start_time = tokio::time::Instant::now();
@@ -127,6 +130,8 @@ impl MPlexActuatorPair {
         self.drive.write(relay_cmd.as_slice()).await?;
         Ok(())
     }
+
+    //TODO: Move this to a hatches module
     pub async fn open(
         &self, 
         channel: ActuatorCh, 
@@ -147,7 +152,8 @@ impl MPlexActuatorPair {
         //TODO: Add Error Log or figure out what custom error to return
         Ok(())
     }
-    
+
+    //TODO: Move this to a hatches module
     pub async fn close(&self, channel: ActuatorCh, set_point: isize, timeout: Duration) -> Result<(), Box<dyn Error>> {
         self.actuate(channel, HBridgeState::Neg).await?;
         let start_time = tokio::time::Instant::now();
@@ -165,10 +171,6 @@ impl MPlexActuatorPair {
     }
 }
 
-pub enum RelayHBridgeOut{
-    Output(Output),
-    HBridge(HBridge)
-}
 
 pub struct RelayHBridge {
     fb_pair: (Input,Input),
@@ -203,6 +205,7 @@ impl RelayHBridge {
             HBridgeState::Pos => {
                 let msg_a = self.output_pair.0.command_builder(OutputState::On);
                 self.drive.write(msg_a.as_slice()).await?;
+
             }
             HBridgeState::Neg => {
                 let msg_b = self.output_pair.1.command_builder(OutputState::On);
@@ -219,12 +222,25 @@ impl RelayHBridge {
     }
 }
 
+pub enum LinearActuator {
+    Simple(SimpleLinearActuator),
+    MPlex(MPlexActuatorPair),
+    HBridge(RelayHBridge)
+}
+
+impl LinearActuator {
+    
+    async fn actuate(channel: ActuatorCh)
+    )
+}
+
+
 #[tokio::test]
 async fn linear_actuator_feedback_test() {
     let (tx, rx) = mpsc::channel::<Message>(10);
 
     let la_task_read_pos = tokio::spawn( async move {
-        let actuator = LinearActuator::new(
+        let actuator = SimpleLinearActuator::new(
             HBridge::new(4,CLEAR_CORE_H_BRIDGE_MAX),
             Input::new(3),
             Controller::new(tx));
@@ -241,7 +257,7 @@ async fn linear_actuator_feedback_test() {
 async fn la_negative_dir_test() {
     let (tx, rx) = mpsc::channel::<Message>(10);
     let la_task = tokio::spawn( async move {
-        let actuator = LinearActuator::new(
+        let actuator = SimpleLinearActuator::new(
             HBridge::new(5,CLEAR_CORE_H_BRIDGE_MAX),
             Input::new(4),
             Controller::new(tx)
@@ -256,41 +272,12 @@ async fn la_negative_dir_test() {
     let _ = client.await;
 }
 
-#[tokio::test]
-async fn linear_actuator_actuation_test() {
-    let (tx, rx) = mpsc::channel::<Message>(10);
-    let la_task = tokio::spawn( async move {
-        let actuator = LinearActuator::new(
-            HBridge::new(4,CLEAR_CORE_H_BRIDGE_MAX),
-            Input::new(3),
-            Controller::new(tx));
-        // let pos = actuator.get_feedback().await.expect("Failed to read");
-        // println!("Actuator position: {} .", pos);
-        // if pos < ACTUONIX_LA_MIN_STROKE {
-        //     let _ = actuator.actuate(HBridgeState::Pos).await;
-        //     tokio::time::sleep(Duration::from_secs(5)).await;
-        //     let pos = actuator.get_feedback().await.expect("Failed to read");
-        //     println!("Actuator position: {} .", pos);
-        //     assert_eq!(pos > ACTUONIX_LA_MIN_STROKE, true);
-        // } else {
-        //     let _ = actuator.actuate(HBridgeState::Pos).await;
-        //     tokio::time::sleep(Duration::from_secs(5)).await;
-        //     let pos = actuator.get_feedback().await.expect("Failed to read");
-        //     println!("Actuator position: {} .", pos);
-        //     assert_eq!(pos < ACTUONIX_LA_MIN_STROKE, true);
-        // }
-        let _ = actuator.actuate(HBridgeState::Off).await;
-    });
-    let client = tokio::spawn(tcp_client::client("192.168.1.11:8888", rx));
-    let _ = la_task.await;
-    let _ = client.await;
-}
 
 #[tokio::test]
-async fn integration_test(){
+async fn test_simple_linear_actuator(){
     let (tx, rx) = mpsc::channel::<Message>(10);
     let la_task_read_pos = tokio::spawn( async move { 
-        let actuator = LinearActuator::new(
+        let actuator = SimpleLinearActuator::new(
             HBridge::new(4,CLEAR_CORE_H_BRIDGE_MAX),
             Input::new(3), 
             Controller::new(tx)
@@ -306,7 +293,7 @@ async fn integration_test(){
     });
     
     let client = tokio::spawn(tcp_client::client("192.168.1.11:8888", rx));
-    //let client = tokio::spawn(tcp_client::echo_client(rx));
+
     
     let _ = la_task_read_pos.await;
     let _ = client.await;
@@ -325,32 +312,28 @@ async fn test_mplex_actuator() {
             (Input::new(3), Input::new(4)),
             Controller::new(tx.clone())
         );
-        
 
-        let actuators_c_d = MPlexActuatorPair::new(
-            (Output::new(3), HBridge::new(5, CLEAR_CORE_H_BRIDGE_MAX)),
-            (Input::new(5), Input::new(6)),
-            Controller::new(tx.clone())
-        );
         let fb_a  = actuators_a_b.get_feedback(ActuatorCh::Cha).await.unwrap();
         println!("Actuator A, currently at {fb_a}.");
-        actuators_a_b.close(ActuatorCh::Cha, 34000, Duration::from_secs(2)).await
-            .expect("ConnectionError");
-        
-        //actuators_c_d.close(ActuatorCh::Cha, 54000, Duration::from_secs(3)).await.unwrap();
+
+        actuators_a_b.actuate(ActuatorCh::Cha, HBridgeState::Pos).await.unwrap();
         tokio::time::sleep(Duration::from_secs(2)).await;
-        // actuators_a_b.close(ActuatorCh::Chb, 44000, Duration::from_secs(3)).await.unwrap();
-        // tokio::time::sleep(Duration::from_secs(6)).await;
-        // actuators_c_d.close(ActuatorCh::Chb, 64000, Duration::from_secs(3)).await.unwrap();
-        // tokio::time::sleep(Duration::from_secs(6)).await;
-        // // println!("Opening!!!!");
-        actuators_a_b.open(ActuatorCh::Cha, 400, Duration::from_secs(2)).await.unwrap();
-        // tokio::time::sleep(Duration::from_secs(6)).await;
-        //actuators_c_d.open(ActuatorCh::Cha, 600, Duration::from_secs(3)).await.unwrap();
-        // tokio::time::sleep(Duration::from_secs(6)).await;
-        // actuators_a_b.open(ActuatorCh::Chb, 500, Duration::from_secs(3)).await.unwrap();
-        // tokio::time::sleep(Duration::from_secs(6)).await;
-        // actuators_c_d.open(ActuatorCh::Chb, 700, Duration::from_secs(3)).await.unwrap();
+
+        actuators_a_b.actuate(ActuatorCh::Cha, HBridgeState::Neg).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        actuators_a_b.actuate(ActuatorCh::Cha, HBridgeState::Off).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        actuators_a_b.actuate(ActuatorCh::Chb, HBridgeState::Pos).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        actuators_a_b.actuate(ActuatorCh::Chb, HBridgeState::Neg).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        actuators_a_b.actuate(ActuatorCh::Chb, HBridgeState::Off).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
     });
     let client = tokio::spawn(tcp_client::client("192.168.1.11:8888", rx));
     let _ = actuator_task.await.unwrap();
@@ -358,107 +341,31 @@ async fn test_mplex_actuator() {
 }
 
 #[tokio::test]
-async fn test_mplex_actuator_open_close_sp() {
+async fn test_relay_h_bridge() {
     let (tx, rx) = mpsc::channel::<Message>(10);
-    
-    let actuator_task =  tokio::spawn(async move { 
-        
-        let actuators_a_b = MPlexActuatorPair::new(
-            (Output::new(2), HBridge::new(4, CLEAR_CORE_H_BRIDGE_MAX)),
-            (Input::new(3), Input::new(4)),
-             Controller::new(tx.clone())
-        );
-        
-        
-        let actuator_a_fb = actuators_a_b.get_feedback(ActuatorCh::Cha).await.unwrap();
-        println!("Actuator A is at {actuator_a_fb} position.");
-        let actuator_b_fb = actuators_a_b.get_feedback(ActuatorCh::Chb).await.unwrap();
-        println!("Actuator B is at {actuator_b_fb} position.");
-        
-        let actuator_a_open = actuator_a_fb < 3500;
-        let actuator_b_open = actuator_b_fb < 3500;
-        
-        if actuator_a_open {
-            println!("Actuator A Open");
-            actuators_a_b.close(
-                ActuatorCh::Cha, 
-                ACTUONIX_LA_MAX_STROKE, 
-                Duration::from_secs(5)
-            ).await.unwrap();
-        } else {
-            println!("Actuator A Closed");
-            actuators_a_b.open(
-                ActuatorCh::Cha,
-                ACTUONIX_LA_MIN_STROKE,
-                Duration::from_secs(5)
-            ).await.unwrap();
-        }
+    let relay_h_bridge = RelayHBridge::new(
+        (Input::new(3), Input::new(4)),
+        (Output::new(3), Output::new(2)),
+        Controller::new(tx)
+    );
 
-        if actuator_b_open {
-            println!("Actuator B Open");
-            actuators_a_b.close(
-                ActuatorCh::Chb,
-                ACTUONIX_LA_MAX_STROKE,
-                Duration::from_secs(5)
-            ).await.unwrap();
-        } else {
-            println!("Actuator B closed");
-            actuators_a_b.open(
-                ActuatorCh::Chb,
-                ACTUONIX_LA_MIN_STROKE,
-                Duration::from_secs(5)
-            ).await.unwrap();
-        }
-
-        let actuators_c_d = MPlexActuatorPair::new(
-            (Output::new(3), HBridge::new(5, CLEAR_CORE_H_BRIDGE_MAX)),
-            (Input::new(5), Input::new(6)),
-            Controller::new(tx.clone())
-        );
-
-        let actuator_c_fb = actuators_c_d.get_feedback(ActuatorCh::Cha).await.unwrap();
-        println!("Actuator C is at {actuator_c_fb} position.");
-        let actuator_d_fb = actuators_c_d.get_feedback(ActuatorCh::Chb).await.unwrap();
-        println!("Actuator D is at {actuator_d_fb} position.");
-
-        let actuator_c_open = actuator_c_fb < 3500;
-        let actuator_d_open = actuator_d_fb < 3500;
-
-        if actuator_c_open {
-            println!("Actuator C Open");
-            actuators_c_d.close(
-                ActuatorCh::Cha,
-                ACTUONIX_LA_MAX_STROKE,
-                Duration::from_secs(5)
-            ).await.unwrap();
-        } else {
-            println!("Actuator C Closed");
-            actuators_c_d.open(
-                ActuatorCh::Cha,
-                ACTUONIX_LA_MIN_STROKE,
-                Duration::from_secs(5)
-            ).await.unwrap();
-        }
-
-        if actuator_d_open {
-            println!("Actuator D Open");
-            actuators_c_d.close(
-                ActuatorCh::Chb,
-                ACTUONIX_LA_MAX_STROKE,
-                Duration::from_secs(5)
-            ).await.unwrap();
-        } else {
-            println!("Actuator D Closed");
-            actuators_c_d.open(
-                ActuatorCh::Chb,
-                ACTUONIX_LA_MIN_STROKE,
-                Duration::from_secs(5)
-            ).await.unwrap();
-        }
-
-        
+    let actuator_task = tokio::spawn(async move {
+        let feedback = relay_h_bridge.get_feedback(ActuatorCh::Cha)
+            .await.unwrap();
+        tokio::time::sleep(Duration::from_secs(6)).await;
+        //If feedback is plugged in this will never be 0
+        assert_ne!(feedback, 0);
+        relay_h_bridge.actuate(HBridgeState::Pos).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        relay_h_bridge.actuate(HBridgeState::Off).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        relay_h_bridge.actuate(HBridgeState::Neg).await.unwrap();
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        relay_h_bridge.actuate(HBridgeState::Off).await.unwrap();
     });
+
     let client = tokio::spawn(tcp_client::client("192.168.1.12:8888", rx));
     let _ = actuator_task.await.unwrap();
     let _ = client.await.unwrap();
+
 }
