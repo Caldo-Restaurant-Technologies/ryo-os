@@ -5,31 +5,37 @@ use std::time::Duration;
 use std::error::Error;
 use linalg::{LinearSystem, MatrixError};
 use linalg::MatrixError::{EmptyVector, InvalidMatrix};
+use tokio::sync::mpsc;
+use crate::controls_components::controller::Controller;
+use crate::controls_components::node::Node;
 
 const TIMEOUT: Duration = phidget::TIMEOUT_DEFAULT;
-
+// const TIMEOUT: Duration = Duration::from_secs(3);
 
 struct LoadCell {
     phidget_id: i32,
     channel_id: i32,
     vin: VoltageRatioInput,
 }
-
 impl LoadCell {
     
-    pub fn new(phidget_id: i32, channel_id: i32) -> Self {
-        let mut vin = VoltageRatioInput::new();
-        vin.set_serial_number(phidget_id)?;
-        vin.set_channel(channel_id)?;
-        vin.open_wait(TIMEOUT)?;
-        let min_data_interval = vin.min_data_interval()?;
-        vin.set_data_interval(min_data_interval)?;
-        thread::sleep(Duration::from_millis(3000));
-        println!("Channel {:} set for Phidget {:}", channel_id, phidget_id);
-        
-        Self { phidget_id, channel_id, vin }
+    pub fn new(phidget_id: i32, channel_id: i32) -> Result<Self, Box<dyn Error>> {
+        let vin = VoltageRatioInput::new();
+        Ok(Self { phidget_id, channel_id, vin })
     }
-    fn get_reading(&self) -> Result<f64, ScaleError> {
+
+    pub fn connect(&mut self) -> Result<(), Box<dyn Error>> {
+        self.vin.set_serial_number(self.phidget_id)?;
+        self.vin.set_channel(self.channel_id)?;
+        self.vin.open_wait(TIMEOUT).expect("Load Cell Attachment Failed");
+        let min_data_interval = self.vin.min_data_interval()?;
+        self.vin.set_data_interval(min_data_interval)?;
+        thread::sleep(Duration::from_millis(3000));
+        println!("Channel {:} set for Phidget {:}", self.channel_id, self.phidget_id);
+        Ok(())
+    }
+
+    fn get_reading(&self) -> Result<f64, Box<dyn Error>> {
         // Gets the reading of a load cell from
         // Phidget.
         let reading = self.vin.voltage_ratio()?;
@@ -45,24 +51,31 @@ pub struct Scale {
 }
 
 impl Scale {
-    pub fn new(phidget_id: i32) -> Self {
+    pub fn new(phidget_id: i32) -> Result<Self, Box<dyn Error>> {
         let cells = [
-            LoadCell::new(phidget_id, 0),
-            LoadCell::new(phidget_id, 1),
-            LoadCell::new(phidget_id, 2),
-            LoadCell::new(phidget_id, 3)
+            LoadCell::new(phidget_id, 0)?,
+            LoadCell::new(phidget_id, 1)?,
+            LoadCell::new(phidget_id, 2)?,
+            LoadCell::new(phidget_id, 3)?
         ];
         
-        Self {
+        Ok(Self {
             phidget_id,
             cells,
             // filler coefficients for now
-            cell_coefficients: vec![vec![0.]; 4],
+            cell_coefficients: vec![vec![1.]; 4],
             tare_offset: 0.
-        }
+        })
+    }
+
+    pub fn connect(&mut self) -> Result<(), Box<dyn Error>> {
+        self.cells.iter_mut().for_each(|cell| cell.connect().expect(
+            "Load Cell Attachment Failed"
+        ));
+        Ok(())
     }
     
-    fn get_readings(&self) -> Result<Vec<Vec<f64>>, ScaleError> {
+    fn get_readings(&self) -> Result<Vec<Vec<f64>>, Box<dyn Error>> {
         // Gets each load cell reading from Phidget
         // and returns them in a matrix.
 
@@ -71,22 +84,23 @@ impl Scale {
         }).collect()
     }
 
-    pub fn live_weigh(&self) -> Result<f64,  ScaleError> {
+    pub fn live_weigh(&self) -> Result<f64,  Box<dyn Error>> {
         // Gets the instantaneous weight measurement
         // from the scale by taking the sum of each
         // load cell's reading, weighted by its 
         // coefficient.
 
         let readings = self.get_readings()?;
-        let weight = LinearSystem::multiply(&readings, &self.cell_coefficients)
-            .map_err(ScaleError::MatrixError)?;
-        LinearSystem::unpack(weight)
-            .map_err(ScaleError::MatrixError)
+        // println!("DEBUG:");
+        // println!("Readings: {:?}", readings);
+        // println!("Coefficients: {:?}", self.cell_coefficients);
+        let weight = LinearSystem::dot(&readings, &self.cell_coefficients)?;
+        Ok(weight)
         
     }
 
 
-    pub fn weight_by_median(&self, samples: usize, sample_rate: usize) -> Result<f64, ScaleError> {
+    pub fn weight_by_median(&self, samples: usize, sample_rate: usize) -> Result<f64, Box<dyn Error>> {
         let mut weights = Vec::new();
         let delay = time::Duration::from_millis(1000/sample_rate as u64);
         let _start_time = time::Instant::now();
@@ -104,32 +118,24 @@ impl Scale {
 
     }
 
-    pub fn tare(&mut self, samples: usize, sample_rate: usize) -> Result<(), ScaleError> {
-        match self.weight_by_median(samples, sample_rate) {
-            Ok(weight) => {
-                self.tare_offset += weight;
-                Ok(())
-            }
-            Err(error) => Err(error)
-        }
+    pub fn tare(&mut self, samples: usize, sample_rate: usize) -> Result<(), Box<dyn Error>> {
+        let weight = self.weight_by_median(samples, sample_rate)?;
+        self.tare_offset += weight;
+        Ok(())
     }
 
-    pub fn calibrate(&mut self, test_mass: f64) -> Result<(), ScaleError> {
+    pub fn calibrate(&mut self, test_mass: f64) -> Result<(), Box<dyn Error>> {
         let mut trial_readings = vec![vec![0.; self.cells.len()]; self.cells.len()];
         let test_mass_vector = vec![vec![test_mass]; self.cells.len()];
         for trial in 0..self.cells.len() {
             println!("Place/move test mass and press key");
             let mut input = String::new();
-            match io::stdin().read_line(&mut input) {
-                Ok(_user_input) => {
-                    println!("Weighing...");
-                    let readings = self.get_readings()?;
-                    trial_readings[trial].clone_from(&readings[0]);
-                },
-                Err(error) => return Err(ScaleError::IoError(error))
-            }
+            let _user_input = io::stdin().read_line(&mut input);
+            println!("Weighting...");
+            let readings = self.get_readings()?;
+            trial_readings[trial].clone_from(&readings[0]);
         }
-        let mut system = LinearSystem::new(trial_readings, test_mass_vector).map_err(|_arg: &str| ScaleError::MatrixError(InvalidMatrix))?;
+        let mut system = LinearSystem::new(trial_readings, test_mass_vector)?;
         self.cell_coefficients = system.solve();
         
         Ok(())
@@ -142,4 +148,79 @@ pub enum ScaleError {
     LoadCellError,
     MatrixError(MatrixError),
     IoError(std::io::Error),
+}
+
+#[test]
+fn create_load_cell() -> Result<(), Box<dyn Error>> {
+    let cell = LoadCell::new(716709, 0)?;
+    Ok(())
+}
+
+#[test]
+fn connect_load_cell() -> Result<(), Box<dyn Error>> {
+    let mut cell = LoadCell::new(716709, 0)?;
+    cell.connect()?;
+    Ok(())
+}
+
+#[test]
+fn read_load_cell() -> Result<(), Box<dyn Error>> {
+    let mut cell = LoadCell::new(716709, 0)?;
+    cell.connect()?;
+    let reading = cell.get_reading()?;
+    println!("Load Cell Reading: {:?}", reading);
+    Ok(())
+}
+
+#[test]
+fn create_scale() -> Result<(), Box<dyn Error>> {
+    let scale = Scale::new(716709)?;
+    // println!("{:?}", scale.phidget_id);
+    Ok(())
+}
+
+#[test]
+fn connect_scale_cells() -> Result<(), Box<dyn Error>> {
+    let mut scale = Scale::new(716709)?;
+    scale.connect()?;
+    Ok(())
+}
+
+#[test]
+fn read_scale() -> Result<(), Box<dyn Error>> {
+    let mut scale = Scale::new(716709)?;
+    scale.connect()?;
+    let readings = scale.get_readings()?;
+    println!("Scale Readings: {:?}", readings);
+    Ok(())
+}
+
+#[test]
+fn live_weigh_scale() -> Result<(), Box<dyn Error>> {
+    let mut scale = Scale::new(716709)?;
+    scale.connect()?;
+    scale.cell_coefficients = vec![vec![-4832237.786999262],
+                                   vec![-2679438.3255438516],
+                                   vec![-4443388.581829642],
+                                   vec![-4666590.62744391],
+    ];
+    let weight = scale.live_weigh()?;
+    println!("Weight: {:?}", weight);
+
+    Ok(())
+}
+
+#[test]
+fn weigh_scale() -> Result<(), Box<dyn Error>> {
+    let mut scale = Scale::new(716709)?;
+    scale.connect()?;
+    scale.cell_coefficients = vec![vec![-4832237.786999262],
+                                   vec![-2679438.3255438516],
+                                   vec![-4443388.581829642],
+                                   vec![-4666590.62744391],
+    ];
+    let weight = scale.weight_by_median(300, 50)?;
+    println!("Weight: {:?}", weight);
+    
+    Ok(())
 }
