@@ -2,12 +2,17 @@ use crate::controls_components::controller::Controller;
 use crate::controls_components::motor::AsyncMotor;
 use crate::controls_components::scale::{Scale, ScaleError};
 use std::{error::Error};
-use std::time::Duration;
-use tokio::sync::mpsc;
+use std::sync::Arc;
+// use std::time::Duration;
+use tokio::sync::{mpsc, Mutex};
+use tokio::time::{sleep, Duration};
+use tokio::{task, time};
+use tokio::runtime::Runtime;
+use crate::tcp_client::{client, Message};
 
 pub struct Node {
-    conveyor: AsyncMotor,
-    scale: Scale,
+    conveyor: Option<AsyncMotor>,
+    scale: Option<Scale>,
 }
 
 pub struct Data {
@@ -28,116 +33,96 @@ impl Data {
 impl Node {
     pub fn new(motor_id: u8,
                motor_scaling: isize,
-               motor_drive: Controller,
+               motor_drive: Option<Controller>,
                phidget_id: i32
     ) -> Result<Self, Box<dyn Error>> {
-        let conveyor = AsyncMotor::new(motor_id, motor_scaling, motor_drive);
+        // let conveyor = AsyncMotor::new(motor_id, motor_scaling, motor_drive);
         let scale = Scale::new(phidget_id)?;
         Ok(Self {
-            conveyor,
-            scale,
+            // conveyor,
+            conveyor: None,
+            // scale,
+            scale: None
         })
     }
     
     pub fn connect(&mut self) -> Result<(), Box<dyn Error>> {
-        self.scale.connect()
+        // self.scale.connect()
+        Ok(())
     }
-
-    pub async fn dispense(&self, 
-                          serving: f64, 
-                          sample_rate: usize,
-                          cutoff_frequency: f64,
-                          motor_rpm: isize, 
-                          _weight_offset: f64, 
-                          let_pass: usize
+    
+    pub async fn test_dispense(&self,
+                               // weight: Arc<Mutex<f64>>,
+                               serving: f64
     ) -> Result<Data, Box<dyn Error>> {
-        // Set LPF values
-        let lpf_period = 1. / (sample_rate as f64);
-        let lpf_rc = 1. / (cutoff_frequency * 2. * std::f64::consts::PI);
-        let lpf_a = lpf_period / (lpf_period + lpf_rc);
-        let lpf_b = lpf_rc / (lpf_period + lpf_rc);
-    
-        // Reverse motor to prime scale
-        self.conveyor.enable().await?;
-        self.conveyor.set_velocity(motor_rpm).await?;
-        // figure out how long to prime for
-        self.conveyor.relative_move(1000).await?;
-    
-        // Initialize dispensing variables
-        let mut passed = 0;
-        let initial_weight = self.scale.weight_by_median(200, 100)?;
-        let initial_time = tokio::time::Instant::now();
-        let target = initial_weight - serving;
-        let last_sent = initial_time.duration_since(initial_time);
-        let mut filtered_weight = initial_weight;
-        let mut data = Data {
-            time: vec![initial_time.duration_since(initial_time)],
-            weight: vec![initial_weight]
-        };
-    
-        while passed < let_pass {
-            let weight = self.scale.live_weigh()?;
-            filtered_weight = lpf_a*weight + lpf_b*filtered_weight;
-            let curr_time = tokio::time::Instant::now() - initial_time;
-            if curr_time - last_sent > Duration::from_millis(250) {
-                let err = (filtered_weight-target) / serving;
-                let new_rpm = err as isize * motor_rpm;
-                if new_rpm > 50 && new_rpm < motor_rpm {
-                    self.conveyor.set_velocity(new_rpm).await?;
+
+        let rt = Runtime::new().unwrap();
+
+        let live_weight = Arc::new(Mutex::new(0.0));
+        let weight_clone = Arc::clone(&live_weight);
+
+        rt.spawn_blocking(move || {
+            let mut scale = Scale::new(716709).unwrap();
+            scale.connect().expect("Failed to attach load cells");
+            loop {
+                let new_weight = scale.live_weigh().expect("Weighing failed");
+                let mut weight = weight_clone.blocking_lock();
+                *weight = new_weight;
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        });
+        let test = 0.;
+        
+        let motor_task = tokio::spawn(async move {
+            // connect motor
+            let (m1tx, rx) = mpsc::channel::<Message>(100);
+            let client = tokio::spawn(client("192.168.1.12:8888", rx));
+            let motor = AsyncMotor::new(0, 800, Controller::new(m1tx));
+            motor.enable().await.expect("No msg received...");
+            tokio::time::sleep(Duration::from_millis(1000)).await;
+            let m_status = motor.get_status().await.expect("No msg received...");
+
+            // set weight variables
+            let initial_weight = {
+                let live_weight = live_weight.lock().await;
+                *live_weight
+            };
+            let target_weight = initial_weight - serving;
+            let data_interval = Duration::from_millis(20);
+            let initial_time = tokio::time::Instant::now();
+            let end_time = initial_time + Duration::from_secs(10);
+
+            // start motor
+            motor.set_velocity(800).await.expect("Set velocity failed");
+            motor.relative_move(6400000).await.expect("Relative move failed");
+
+
+            let final_weight = loop {
+                // pull current weight from scale task
+                let current_weight = {
+                    let live_weight = live_weight.lock().await;
+                    *live_weight
+                };
+                if current_weight < target_weight {
+                    break current_weight
                 }
-            }
-            data.log(curr_time, filtered_weight);
-            // dummy increment
-            passed += 1;
-        }
-        let final_weight = self.scale.weight_by_median(300, 100)?;
-        println!("Total dispensed: {}", final_weight);
-        Ok(data)
+                let current_time = tokio::time::Instant::now();
+                if current_time > end_time {
+                    break current_weight
+                }
+                sleep(data_interval).await;
+            };
+            motor.abrupt_stop().await.expect("Stop failed");
+            println!("Final Weight: {:?}", final_weight);
+        });
+
+        // let data = rt.block_on(motor_task);
+        motor_task.await.expect("Failed...");
+        
+        Ok(Data{ time: Vec::new(), weight: Vec::new()})
+        
     }
-
-    pub async fn mock_dispense(&self,
-                          _serving: f64,
-                          sample_rate: usize,
-                          cutoff_frequency: f64,
-                          motor_rpm: isize,
-                          _weight_offset: f64,
-                          _let_pass: usize
-    ) -> Result<Data, Box<dyn Error>> {
-        // Set LPF values
-        let lpf_period = 1. / (sample_rate as f64);
-        let lpf_rc = 1. / (cutoff_frequency * 2. * std::f64::consts::PI);
-        let lpf_a = lpf_period / (lpf_period + lpf_rc);
-        let lpf_b = lpf_rc / (lpf_period + lpf_rc);
-
-        // Reverse motor to prime scale
-        self.conveyor.enable().await?;
-        self.conveyor.set_velocity(motor_rpm).await?;
-        // figure out how long to prime for
-        self.conveyor.relative_move(1000).await?;
-
-        // Initialize dispensing variables
-        let initial_weight = self.scale.weight_by_median(200, 100)?;
-        let initial_time = tokio::time::Instant::now();
-        let end_time = tokio::time::Duration::from_secs(15);
-        let mut filtered_weight = initial_weight;
-        let mut data = Data {
-            time: vec![initial_time.duration_since(initial_time)],
-            weight: vec![initial_weight]
-        };
-
-        loop {
-            let weight = self.scale.live_weigh()?;
-            filtered_weight = lpf_a*weight + lpf_b*filtered_weight;
-            let curr_time = tokio::time::Instant::now() - initial_time;
-            data.log(curr_time, filtered_weight);
-            if curr_time > end_time {
-                break
-            }
-        }
-        let final_weight = self.scale.weight_by_median(300, 100)?;
-        println!("Total dispensed: {}", final_weight);
-        Ok(data)
-    }
+    
     
 }
 
@@ -148,10 +133,90 @@ enum NodeError {
 
 #[tokio::test]
 async fn test_node_weighing() -> Result<(), Box<dyn Error>> {
-    let (tx, rx) = mpsc::channel(1);
-    let mut node = Node::new(0, 800, Controller::new(tx), 716620)?;
-    node.connect()?;
-    let weight = node.scale.weight_by_median(200, 50);
-    println!("Node {} Weight: {:?}", 0, weight);
+    // // let (tx, rx) = mpsc::channel(1);
+    // let mut node = Node::new(0, 800, None, 716620)?;
+    // node.connect()?;
+    // let weight = node.scale.weight_by_median(200, 50);
+    // println!("Node {} Weight: {:?}", 0, weight);
+    Ok(())
+}
+
+#[test]
+fn test_dispense() -> Result<(), Box<dyn Error>> {
+    // let (tx, rx) = mpsc::channel::<Message>(1);
+    // let node = Arc::new(Mutex::new(Node::new(0, 800, None, 716620)?));
+    // node.lock().await.test_dispense(50.).await.expect("TODO: panic message");
+     let serving = 100.0;
+
+    let rt = Runtime::new().unwrap();
+
+    let live_weight = Arc::new(Mutex::new(0.0));
+    let weight_clone = Arc::clone(&live_weight);
+
+    let (m1tx, rx) = mpsc::channel::<Message>(100);
+   // let client = client("192.168.1.12:8888", rx);
+    
+    let test = rt.spawn_blocking(move || {
+        let mut scale = Scale::new(716709).unwrap();
+       // std::thread::sleep(Duration::from_secs(3));
+        scale.connect().expect("Failed to attach load cells");
+       // std::thread::sleep(Duration::from_secs(3));
+       // loop {
+            let new_weight = scale.live_weigh().expect("Weighing failed");
+            let mut weight = weight_clone.blocking_lock();
+            *weight = new_weight;
+            println!("{weight}")
+           // std::thread::sleep(Duration::from_millis(100));
+       // }//
+    });
+
+
+    // let motor_task = rt.spawn_blocking(async move {
+    //     // connect motor
+    //     let motor = AsyncMotor::new(0, 800, Controller::new(m1tx));
+    //     motor.enable().await.expect("No msg received...");
+    //     tokio::time::sleep(Duration::from_millis(1000)).await;
+    //    // let m_status = motor.get_status().await.expect("No msg received...");
+    // 
+    //     // set weight variables
+    //     let initial_weight = {
+    //         let live_weight = live_weight.lock().await;
+    //         *live_weight
+    //     };
+    //     let target_weight = initial_weight - serving;
+    //     let data_interval = Duration::from_millis(20);
+    //     let initial_time = tokio::time::Instant::now();
+    //     let end_time = initial_time + Duration::from_secs(10);
+    // 
+    //     // start motor
+    //     motor.set_velocity(800).await.expect("Set velocity failed");
+    //     motor.relative_move(6400000).await.expect("Relative move failed");
+    // 
+    // 
+    //     let final_weight = loop {
+    //         // pull current weight from scale task
+    //         let current_weight = {
+    //             let live_weight = live_weight.lock().await;
+    //             *live_weight
+    //         };
+    //         if current_weight < target_weight {
+    //             break current_weight
+    //         }
+    //         let current_time = tokio::time::Instant::now();
+    //         if current_time > end_time {
+    //             break current_weight
+    //         }
+    //         sleep(data_interval).await;
+    //     };
+    //     motor.abrupt_stop().await.expect("Stop failed");
+    //     println!("Final Weight: {:?}", final_weight);
+    // });
+
+        //let data = rt.block_on(motor_task);
+       // motor_task.await.expect("Failed...");
+    // rt.block_on(motor_task).expect("TODO: panic message");
+   // rt.block_on(client).unwrap();
+        // Ok(Data{ time: Vec::new(), weight: Vec::new()})
+    
     Ok(())
 }
