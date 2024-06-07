@@ -9,7 +9,7 @@ use crate::controls_components::controller::{Controller};
 
 #[derive(Debug, PartialOrd, PartialEq)]
 pub enum Status {
-    Disabled,
+    Disabled, 
     Enabling,
     Faulted,
     Ready,
