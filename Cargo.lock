@@ -805,6 +805,7 @@ dependencies = [
  "log",
  "ndarray",
  "ndarray-linalg",
+ "serde",
  "tokio",
 ]
 

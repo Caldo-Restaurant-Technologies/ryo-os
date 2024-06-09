@@ -1,39 +1,88 @@
 use std::error::Error;
-//use fmt::Display;
-//use std::fmt;
-//use std::fmt::Formatter;
 use tokio::sync::{mpsc, oneshot};
+use crate::controls_components::helper::{int_to_byte, int_to_bytes};
 use crate::tcp_client::Message;
 
-// #[derive(Debug)]
-// pub enum ControllerError {
-//     InvalidCmd,
-//     Network(std::io::Error)
-// }
+const STX: u8 = 2;
+const CR: u8 = 13;
 
-// impl Display for ControllerError {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-//         match self {
-//             ControllerError::InvalidCmd => {write!(f, "Invalid command sent to drive")}
-//             ControllerError::Network(err) => err.fmt(f)
-//         }
-//     }
-// }
-// 
-// impl Error for ControllerError {
-//     fn source(&self) -> Option<&(dyn Error + 'static)> {
-//         match self {
-//             ControllerError::InvalidCmd => None,
-//             ControllerError::Network(err) => Some(err)
-//         }
-//     }
-// }
-// 
-// impl From<std::io::Error> for ControllerError {
-//     fn from(err: std::io::Error) -> Self {
-//         ControllerError::Network(err)
-//     }
-// }
+
+pub struct Input{
+    id: u8,
+    pub cmd: [u8;4]
+}
+
+impl Input {
+    pub fn new(id: u8) -> Self {
+        let cmd = [STX, b'I', int_to_byte(id), CR];
+        Input{ id, cmd }
+    }
+    
+}
+
+pub enum OutputState {
+    Off,
+    On
+}
+
+pub struct Output{
+    id: u8,
+    on_cmd: [u8; 9],
+    off_cmd: [u8; 9]
+}
+
+impl Output {
+    pub fn new(id: u8) -> Self {
+        let on_cmd = [STX, b'O', int_to_byte(id), b'3' , b'2', b'7', b'0', b'0', CR];
+        let off_cmd = [STX, b'O', int_to_byte(id), b'0', CR, 0, 0, 0, 0];
+        Output{id, on_cmd, off_cmd}
+    }
+    
+    pub fn command_builder(&self, state: OutputState) -> [u8;9] {
+        match state {
+            OutputState::Off => {self.off_cmd}
+            OutputState::On => {self.on_cmd}
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum HBridgeState {
+    Pos,
+    Neg,
+    Off
+}
+
+pub struct HBridge {
+    id: u8,
+    power: i16,
+    prefix: [u8;3]
+}
+
+impl HBridge {
+    pub fn new(id: u8, power: i16) -> Self {
+        let prefix = [STX, b'O', int_to_byte(id)];
+        HBridge{id, power, prefix}
+    }
+    
+    pub fn command_builder(&self, state: HBridgeState) -> Vec<u8> {
+        let state = match state {
+            HBridgeState::Pos => {int_to_bytes(self.power)}
+            HBridgeState::Neg => {int_to_bytes(-self.power)}
+            HBridgeState::Off => {int_to_bytes(0)}
+        };
+        let mut cmd: Vec<u8> = Vec::with_capacity(self.prefix.len() + state.len() + 1);
+        cmd.extend_from_slice(self.prefix.as_slice());
+        cmd.extend_from_slice(state.as_slice());
+        cmd.push(13);
+        cmd
+    }
+}
+
+pub struct Motor {
+    id: u8,
+}
+
 
 pub struct Controller{
     sender: mpsc::Sender<Message>

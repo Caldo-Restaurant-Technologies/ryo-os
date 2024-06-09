@@ -38,22 +38,22 @@ impl Scale {
         Ok(readings)
     }
 
-    fn live_weigh(&self) -> Result<f64, std::Error> {
-        // Gets the instantaneous weight measurement
-        // from the scale by taking the sum of each
-        // load cell's reading, weighted by its 
-        // coefficient.
-        let mut readings = vec![vec![0.; 1]; 4];
-        for cell in 0..self.cells.len() {
-            // readings[cell] = self.cells.get(cell).unwrap().get_reading();
-            match self.cells.get(cell).unwrap().get_reading() {
-                Ok(reading) => {
-                    readings[cell] = vec![reading];
-                },
-                Err(error) => panic!("Problem reading load cell: {:?}", error),
-            }
-        }
-        Ok(linalg::LinearSystem::multiply(&readings, &self.coefficients).first().unwrap())
-    }
+    // fn live_weigh(&self) -> Result<f64, Error> {
+    //     // Gets the instantaneous weight measurement
+    //     // from the scale by taking the sum of each
+    //     // load cell's reading, weighted by its 
+    //     // coefficient.
+    //     let mut readings = vec![vec![0.; 1]; 4];
+    //     for cell in 0..self.cells.len() {
+    //         // readings[cell] = self.cells.get(cell).unwrap().get_reading();
+    //         match self.cells.get(cell).unwrap().get_reading() {
+    //             Ok(reading) => {
+    //                 readings[cell] = vec![reading];
+    //             },
+    //             Err(error) => panic!("Problem reading load cell: {:?}", error),
+    //         }
+    //     }
+    //     Ok(linalg::LinearSystem::multiply(&readings, &self.coefficients).first().unwrap())
+    // }
 
 }

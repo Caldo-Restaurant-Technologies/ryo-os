@@ -10,6 +10,10 @@
             .collect()
     }
     
+    pub fn int_to_byte(number: u8) -> u8 {
+        number + 48
+    }
+    
     pub fn bytes_to_int(bytes: &[u8]) -> isize {
         let sign = if bytes[0] == 45 {-1} else {1};
         let int = bytes.iter()
@@ -22,7 +26,8 @@
             });
         int * sign
     }
-
+    
+   
 #[cfg(test)]
 mod tests {
     use crate::controls_components::helper::{bytes_to_int, int_to_bytes, make_prefix};
@@ -42,7 +47,7 @@ mod tests {
     
     #[test]
     fn test_bytes_to_int() {
-        let int = bytes_to_int([45, 51, 52, 48, 48].as_slice());
+        let int = bytes_to_int([45, 51, 52, 48, 48,13].as_slice());
         assert_eq!(-3400, int);
         let int = bytes_to_int([50,51,48,48].as_slice());
         assert_eq!(2300, int);
