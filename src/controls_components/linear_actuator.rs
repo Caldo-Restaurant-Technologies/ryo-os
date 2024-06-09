@@ -1,8 +1,8 @@
 #[allow(unused_imports)]
 use std::sync::{Arc};
 use std::error::Error;
+use std::future::Future;
 use std::time::Duration;
-use ndarray::AssignElem;
 #[allow(unused_imports)]
 use tokio::sync::{Mutex, oneshot, mpsc};
 use crate::controls_components::controller::{
@@ -29,6 +29,10 @@ const ACTUONIX_LA_MIN_STROKE: isize = 400;
 #[allow(unused)]
 const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
 
+pub trait LinearActuator {
+    fn get_feedback(&self) -> impl Future<Output = Result<isize, Box<dyn Error>>> + Send;
+    fn actuate(&self, power: HBridgeState) -> impl Future<Output = Result<(), Box<dyn Error>>> + Send;
+}
 
 pub struct SimpleLinearActuator {
     output: HBridge,
@@ -36,50 +40,21 @@ pub struct SimpleLinearActuator {
     drive: Controller,
 }
 
-impl SimpleLinearActuator {
-    pub fn new(output: HBridge, feedback: Input, drive: Controller) -> Self {
-        SimpleLinearActuator { output, feedback, drive}
+impl LinearActuator for SimpleLinearActuator {
+    async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
+        let res = self.drive.write(self.feedback.cmd.as_slice()).await?;
+        Ok(bytes_to_int(&res[2..]))
     }
 
     async fn actuate(&self, state: HBridgeState) -> Result<(), Box<dyn Error>> {
         self.drive.write(self.output.command_builder(state).as_slice()).await?;
         Ok(())
     }
-    
-    pub async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
-        let res = self.drive.write(self.feedback.cmd.as_slice()).await?;
-        Ok(bytes_to_int(&res[2..]))
-    }
-    //TODO: Move this to a hatches module
-    pub async fn open(&self, set_point: isize, timeout: Duration) -> Result<(), Box<dyn Error>> {
-        self.actuate(HBridgeState::Pos).await?;
-        let start_time = tokio::time::Instant::now();
-        while self.get_feedback().await? >= set_point {
-            let curr_time = tokio::time::Instant::now();
-            if (curr_time - start_time) >= timeout {
-                //TODO: Add some proper error handling
-                println!("TIMED OUT!");
-                break
-            }
-        }
-        self.actuate(HBridgeState::Off).await?;
-        Ok(())
-    }
-    //TODO: Move this to a hatches module
-    pub async fn close(&self, set_point: isize, timeout: Duration) -> Result<(), Box<dyn Error>> {
-        self.actuate(HBridgeState::Neg).await?;
-        let start_time = tokio::time::Instant::now();
-        while self.get_feedback().await? <= set_point {
-            let curr_time = tokio::time::Instant::now();
-            if (curr_time - start_time) >= timeout {
-                //TODO: Add some proper error handling
-                println!("TIMED OUT!");
-                break
-            }
-        }
-        self.actuate(HBridgeState::Off).await?;
-        //TODO: Add Error Log or figure out what custom error to return
-        Ok(())
+}
+
+impl SimpleLinearActuator {
+    pub fn new(output: HBridge, feedback: Input, drive: Controller) -> Self {
+        SimpleLinearActuator { output, feedback, drive}
     }
 }
 
@@ -93,6 +68,8 @@ pub struct MPlexActuatorPair {
     feedback_pair: (Input, Input),
     drive: Controller
 }
+
+
 
 impl MPlexActuatorPair {
     pub fn new(output_pair: (Output,HBridge), feedback_pair:(Input,Input), drive: Controller) -> Self {
@@ -111,7 +88,7 @@ impl MPlexActuatorPair {
         Ok(bytes_to_int(&res[2..]))
     }
     
-    async fn actuate(&self, channel: ActuatorCh, power: HBridgeState) -> Result<(), Box<dyn Error>> {
+    pub async fn actuate(&self, channel: ActuatorCh, power: HBridgeState) -> Result<(), Box<dyn Error>> {
         let relay_state = match channel {
             ActuatorCh::Cha => OutputState::On,
             ActuatorCh::Chb => OutputState::Off
@@ -122,85 +99,56 @@ impl MPlexActuatorPair {
         self.drive.write(h_bridge_cmd.as_slice()).await?;
         Ok(())
     }
-    
-    async fn all_off(&self) -> Result<(), Box<dyn Error>> {
-        let h_bridge_cmd = self.output_pair.1.command_builder(HBridgeState::Off);
-        self.drive.write(h_bridge_cmd.as_slice()).await?;
-        let relay_cmd = self.output_pair.0.command_builder(OutputState::Off);
-        self.drive.write(relay_cmd.as_slice()).await?;
-        Ok(())
-    }
-
-    //TODO: Move this to a hatches module
-    pub async fn open(
-        &self, 
-        channel: ActuatorCh, 
-        set_point: isize, 
-        timeout: Duration
-    ) -> Result<(), Box<dyn Error>> {
-        self.actuate(channel, HBridgeState::Pos).await?;
-        let start_time = tokio::time::Instant::now();
-        while self.get_feedback(channel).await? >= set_point {
-            let curr_time = tokio::time::Instant::now();
-            if (curr_time - start_time) > timeout {
-                //TODO: Add some proper error handling
-                println!("TIMED OUT!");
-                break
-            }
-        }
-        self.all_off().await?;
-        //TODO: Add Error Log or figure out what custom error to return
-        Ok(())
-    }
-
-    //TODO: Move this to a hatches module
-    pub async fn close(&self, channel: ActuatorCh, set_point: isize, timeout: Duration) -> Result<(), Box<dyn Error>> {
-        self.actuate(channel, HBridgeState::Neg).await?;
-        let start_time = tokio::time::Instant::now();
-        while self.get_feedback(channel).await? <= set_point {
-            let curr_time = tokio::time::Instant::now();
-            if (curr_time - start_time) > timeout {
-                //TODO: Add some proper error handling
-                println!("TIMED OUT!");
-                break
-            }
-        }
-        self.all_off().await?;
-        //TODO: Add Error Log or figure out what custom error to return
-        Ok(())
-    }
 }
 
+pub struct MPlexActuator{
+    channel: ActuatorCh,
+    actuator_pair: MPlexActuatorPair
+}
 
+impl LinearActuator for  MPlexActuator {
+    async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
+        self.actuator_pair.get_feedback(self.channel).await
+    }
+    async fn actuate(&self, state: HBridgeState) -> Result<(), Box<dyn Error>> {
+        self.actuator_pair.actuate(self.channel,state).await
+    }
+}
 pub struct RelayHBridge {
-    fb_pair: (Input,Input),
+    fb_pair: (Input,Option<Input>),
     output_pair: (Output,Output),
     drive: Controller
 }
 
+
 impl RelayHBridge {
-    pub fn new(fb_pair: (Input, Input), output_pair: (Output, Output), drive: Controller) -> Self {
-        RelayHBridge {
-            fb_pair,
-            output_pair,
-            drive
-        }
+    pub fn new(feedback: Input, output_pair: (Output, Output), drive: Controller) -> Self {
+        Self { fb_pair: (feedback, None), output_pair, drive }
     }
 
-    pub async fn get_feedback(&self, channel: ActuatorCh) -> Result<isize, Box<dyn Error>> {
-        let feedback = match channel{
-            ActuatorCh::Cha => {
-                &self.fb_pair.0
-            }
-            ActuatorCh::Chb => {
-                &self.fb_pair.1
-            }
-        };
-        let res = self.drive.write(feedback.cmd.as_slice()).await?;
-        Ok(bytes_to_int(&res[2..]))
+    pub fn with_dual_feedback(
+        feedback: (Input, Input),
+        output_pair: (Output, Output),
+        drive: Controller
+    ) -> Self {
+        Self { fb_pair: (feedback.0, Some(feedback.1)), output_pair, drive }
+    }
+}
+
+impl LinearActuator for RelayHBridge {
+    
+    async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
+        let reply = self.drive.write(self.fb_pair.0.cmd.as_slice()).await?;
+        let mut position = bytes_to_int(&reply[2..]);
+        if let Some(fb) = &self.fb_pair.1 {
+            let res_b = self.drive.write(fb.cmd.as_slice()).await?;
+            let pos_b = bytes_to_int(&res_b[2..]);
+            position = (position + pos_b)/2
+        }
+        Ok(position)
     }
     
-    pub async fn actuate(&self, power: HBridgeState) -> Result<(), Box<dyn Error>> {
+    async fn actuate(&self, power: HBridgeState) -> Result<(), Box<dyn Error>> {
         match power {
             HBridgeState::Pos => {
                 let msg_a = self.output_pair.0.command_builder(OutputState::On);
@@ -221,19 +169,6 @@ impl RelayHBridge {
         Ok(())
     }
 }
-
-pub enum LinearActuator {
-    Simple(SimpleLinearActuator),
-    MPlex(MPlexActuatorPair),
-    HBridge(RelayHBridge)
-}
-
-impl LinearActuator {
-    
-    async fn actuate(channel: ActuatorCh)
-    )
-}
-
 
 #[tokio::test]
 async fn linear_actuator_feedback_test() {
@@ -270,34 +205,6 @@ async fn la_negative_dir_test() {
     let client = tokio::spawn(tcp_client::client("192.168.1.11:8888", rx));
     let _ = la_task.await;
     let _ = client.await;
-}
-
-
-#[tokio::test]
-async fn test_simple_linear_actuator(){
-    let (tx, rx) = mpsc::channel::<Message>(10);
-    let la_task_read_pos = tokio::spawn( async move { 
-        let actuator = SimpleLinearActuator::new(
-            HBridge::new(4,CLEAR_CORE_H_BRIDGE_MAX),
-            Input::new(3), 
-            Controller::new(tx)
-        );
-        tokio::time::sleep(Duration::from_secs(3)).await;
-        //let _ = actuator.open(ACTUONIX_LA_MIN_STROKE, Duration::from_secs(3)).await;
-        let pos = actuator.get_feedback().await.expect("Failed to read");
-        println!("Actuator position: {} .", pos);
-        let _ = actuator.close(ACTUONIX_LA_MAX_STROKE, Duration::from_secs(3)).await;
-        let _ = actuator.actuate(HBridgeState::Off).await;
-        let pos = actuator.get_feedback().await.expect("Failed to read");
-        println!("Actuator position: {} .", pos);
-    });
-    
-    let client = tokio::spawn(tcp_client::client("192.168.1.11:8888", rx));
-
-    
-    let _ = la_task_read_pos.await;
-    let _ = client.await;
-    
 }
 
 #[tokio::test]
@@ -344,14 +251,13 @@ async fn test_mplex_actuator() {
 async fn test_relay_h_bridge() {
     let (tx, rx) = mpsc::channel::<Message>(10);
     let relay_h_bridge = RelayHBridge::new(
-        (Input::new(3), Input::new(4)),
+        Input::new(3),
         (Output::new(3), Output::new(2)),
         Controller::new(tx)
     );
 
     let actuator_task = tokio::spawn(async move {
-        let feedback = relay_h_bridge.get_feedback(ActuatorCh::Cha)
-            .await.unwrap();
+        let feedback = relay_h_bridge.get_feedback().await.unwrap();
         tokio::time::sleep(Duration::from_secs(6)).await;
         //If feedback is plugged in this will never be 0
         assert_ne!(feedback, 0);
