@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use bytes::Bytes;
@@ -6,10 +7,69 @@ use hyper::{Method, Request, Response, StatusCode};
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
+use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="UPPERCASE")]
+enum Config {
+    Auto,
+    Manual,
+    Action
+}
 
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all="camelCase")]
+struct Step {
+    confirm_configuration: Config,
+    load_detect: bool,
+    position: u8,
+    status: bool,
+    step_description: &'static str,
+    step_id: &'static str,
+    step_tutorial: &'static str,
+    title: &'static str,
+    visible_check: bool
+}
+
+#[derive(Serialize)]
+#[serde(rename_all="camelCase")]
+struct JobSetupStep {
+    job_setup_step: HashMap<String, Step>
+}
+
+
+type JobProgress = u32;
+
+enum NodeLevel {
+    Loaded,
+    Medium,
+    Low,
+    Empty
+}
+
+enum TunnelState {
+    ConveyorLoaded,
+    TunnelLoaded,
+    NoTunnel
+}
+
+struct NodeWeight {
+    raw: u32,
+    scaled: f32
+}
+
+
+struct Node {
+    tunnel_state: TunnelState,
+    level: NodeLevel,
+    weight: NodeWeight
+    //time_loaded
+    //time_unloaded
+}
+
+type NodeArray<Nodes, const N: usize> = [Nodes;N];
 
 #[derive(Debug, Clone)]
 pub enum HmiState {
@@ -31,6 +91,7 @@ pub async fn ui_request_handler(
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => Ok(Response::new(full("Hola, soy Ryo!"))),
         (&Method::POST, "/echo") => { Ok(Response::new(req.into_body().boxed()))}
+        (&Method::GET, "/v1/api/recipe/all") => {Ok(Response::new(full("WIP")))},
         (_, _) => {
             let mut not_found = Response::new(empty());
             *not_found.status_mut() = StatusCode::NOT_FOUND;
@@ -55,7 +116,7 @@ pub async fn ui_request_handler_(mut ui_state: mpsc::Receiver<HmiState>) {
 pub async fn ui_server(
     tx: mpsc::Sender<HmiState>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     // We create a TcpListener and bind it to 127.0.0.1:3000
     let listener = TcpListener::bind(addr).await?;
     loop {

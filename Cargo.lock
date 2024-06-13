@@ -785,9 +785,11 @@ dependencies = [
  "hyper-util",
  "linalg",
  "log",
+
  "phidget",
  "serde",
  "serde_json",
+
  "tokio",
 ]
 
