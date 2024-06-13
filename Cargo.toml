@@ -13,7 +13,8 @@ bytes = "1.6.0"
 http-body-util = "0.1.1"
 env_logger = "0.11.3"
 log = "0.4.21"
-ndarray = "0.15.0"
-ndarray-linalg = "0.15.0"
 linalg = { path = "../linalg" }
-serde = { version = "1.0.202", features = ["derive"] }
+phidget = "0.1.4"
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.117"
+

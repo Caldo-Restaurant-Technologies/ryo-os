@@ -1,5 +1,7 @@
 use tokio::sync::{mpsc};
 use crate::controls_components::hmi;
+use crate::controls_components::{node::Node, scale::Scale};
+use crate::controls_components::controller::Controller;
 
 
 pub mod controls_components;

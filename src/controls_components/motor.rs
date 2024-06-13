@@ -2,6 +2,7 @@ use std::error::Error;
 use std::result::Result;
 pub use std::time::Duration;
 pub use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 pub use crate::tcp_client::{client, Message};
 use crate::controls_components::helper::{make_prefix, int_to_bytes, bytes_to_int};
 use crate::controls_components::controller::{Controller};
@@ -158,6 +159,34 @@ impl AsyncMotor {
         self.drive.write(clear_cmd.as_slice()).await?;
         Ok(())
     }
+
+    pub fn get_enable_handle(motor: AsyncMotor) -> JoinHandle<AsyncMotor> {
+        tokio::spawn(async move {
+            motor.enable().await.expect("Motor failed to enable");
+            let status = motor.get_status().await.expect("Motor failed to check status");
+            println!("{:?}", status);
+            motor
+        })
+    }
+    pub fn get_relative_move_handle(motor: AsyncMotor, speed: isize, steps: isize) -> JoinHandle<AsyncMotor> {
+        tokio::spawn(async move {
+            // motor.enable().await.expect("Motor enable failed") // TODO: Should be enabled when used
+            motor.set_velocity(speed).await.expect("Motor failed to set velocity");
+            motor.relative_move(steps).await.expect("Motor failed to relative move");
+            let status = motor.get_status().await.expect("Motor failed to check status");
+            println!("{:?}", status);
+            motor
+        })
+    }
+
+    pub fn get_stop_handle(motor: AsyncMotor) -> JoinHandle<AsyncMotor> {
+        tokio::spawn(async move {
+            motor.abrupt_stop().await.expect("Motor failed to stop");
+            let status = motor.get_status().await.expect("Motor failed to check status");
+            println!("{:?}", status);
+            motor
+        })
+    }
 }
 
 #[tokio::test]
@@ -213,4 +242,55 @@ pub async fn test_motor_enable_disable() {
     enable.await.unwrap();
 }
 
+#[tokio::test]
+pub async fn laptop_motor_enable_disable() {
+    //NOTE: It is UNSAFE to test motion unless we are right in front of Ryo therefore we're only 
+    //Testing enable/disable and status in this automated test. For motion, we should test manually
+    let (m1tx, rx) = mpsc::channel::<Message>(100);
+    let m2tx = m1tx.clone();
+    let m3tx = m1tx.clone();
+    let m4tx = m1tx.clone();
 
+    let client = tokio::spawn(client("192.168.1.12:8888", rx));
+
+    let enable = tokio::spawn(async move {
+        let motor1 = AsyncMotor::new(0,800, Controller::new(m1tx));
+        let motor2 = AsyncMotor::new(1,800, Controller::new(m2tx));
+        let motor3 = AsyncMotor::new(2, 800, Controller::new(m3tx));
+        let motor4 = AsyncMotor::new(2, 800, Controller::new(m4tx));
+        motor1.enable().await.expect("No msg received...");
+        motor2.enable().await.expect("No msg received...");
+        motor3.enable().await.expect("No msg received...");
+        motor4.enable().await.expect("No msg received...");
+
+        //Give clear core and ethernet time to enable
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        //If a motor drive is not connected then Status will return faulted unless HLFB is disabled
+        //on ClearCore
+        let m1_status = motor1.get_status().await.expect("No msg received...");
+        assert_eq!(m1_status, Status::Ready);
+        let m2_status = motor2.get_status().await.expect("No msg received...");
+        assert_eq!(m2_status, Status::Ready);
+        let m3_status = motor3.get_status().await.expect("No msg received...");
+        assert_eq!(m3_status, Status::Ready);
+        let m4_status = motor4.get_status().await.expect("No msg received...");
+        assert_eq!(m4_status, Status::Ready);
+
+        motor1.disable().await.expect("No msg received...");
+        motor2.disable().await.expect("No msg received...");
+        motor3.disable().await.expect("No msg received...");
+        motor4.disable().await.expect("No msg received...");
+
+        let m1_status = motor1.get_status().await.expect("No msg received...");
+        assert_eq!(m1_status, Status::Disabled);
+        let m2_status = motor2.get_status().await.expect("No msg received...");
+        assert_eq!(m2_status, Status::Disabled);
+        let m3_status = motor3.get_status().await.expect("No msg received...");
+        assert_eq!(m3_status, Status::Disabled);
+        let m4_status = motor4.get_status().await.expect("No msg received...");
+        assert_eq!(m4_status, Status::Disabled);
+
+    });
+    client.await.unwrap().expect("TODO: panic message");
+    enable.await.unwrap();
+}
