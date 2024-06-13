@@ -5,5 +5,5 @@ pub mod linear_actuator;
 pub mod controller;
 pub mod hmi;
 pub mod scale;
-pub(crate) mod node;
+pub mod node;
 

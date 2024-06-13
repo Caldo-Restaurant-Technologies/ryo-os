@@ -2,6 +2,7 @@ use std::error::Error;
 use std::result::Result;
 pub use std::time::Duration;
 pub use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 pub use crate::tcp_client::{client, Message};
 use crate::controls_components::helper::{make_prefix, int_to_bytes, bytes_to_int};
 use crate::controls_components::controller::{Controller};
@@ -157,6 +158,34 @@ impl AsyncMotor {
         let clear_cmd = [2, b'M', self.id + 48, b'C', b'A', 13];
         self.drive.write(clear_cmd.as_slice()).await?;
         Ok(())
+    }
+
+    pub fn get_enable_handle(motor: AsyncMotor) -> JoinHandle<AsyncMotor> {
+        tokio::spawn(async move {
+            motor.enable().await.expect("Motor failed to enable");
+            let status = motor.get_status().await.expect("Motor failed to check status");
+            println!("{:?}", status);
+            motor
+        })
+    }
+    pub fn get_relative_move_handle(motor: AsyncMotor, speed: isize, steps: isize) -> JoinHandle<AsyncMotor> {
+        tokio::spawn(async move {
+            // motor.enable().await.expect("Motor enable failed") // TODO: Should be enabled when used
+            motor.set_velocity(speed).await.expect("Motor failed to set velocity");
+            motor.relative_move(steps).await.expect("Motor failed to relative move");
+            let status = motor.get_status().await.expect("Motor failed to check status");
+            println!("{:?}", status);
+            motor
+        })
+    }
+
+    pub fn get_stop_handle(motor: AsyncMotor) -> JoinHandle<AsyncMotor> {
+        tokio::spawn(async move {
+            motor.abrupt_stop().await.expect("Motor failed to stop");
+            let status = motor.get_status().await.expect("Motor failed to check status");
+            println!("{:?}", status);
+            motor
+        })
     }
 }
 
