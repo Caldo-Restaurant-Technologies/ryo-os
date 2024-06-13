@@ -156,6 +156,7 @@ impl Scale {
 
 }
 
+
 #[derive(Debug)]
 pub enum ScaleError {
     LoadCellError,
