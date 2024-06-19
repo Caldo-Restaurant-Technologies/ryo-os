@@ -1,4 +1,4 @@
-use crate::controls_components::scale::Scale;
+
 //E-Stop
 pub const E_STOP_INPUT_ID: u8 = 0; // 0 is the same as DI6 in CC, also valid for CC2
 pub const E_STOP_OUTPUT_ID: u8 = 0;// I/O 0 in CC
