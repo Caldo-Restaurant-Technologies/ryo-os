@@ -44,28 +44,28 @@ pub const GANTRY: Gantry = Gantry{
     motor_id:GANTRY_MOTOR_ID
 };
 
-struct Gripper {
-    drive_id: usize,
-    motor_id: usize,
-    linear_actuator_out: usize,
-}
-
-struct BagRoller {
-    drive_id: usize,
-    motor_id: usize,
-    photo_eye_id: usize
-}
-
-struct Hatch {
-    drive_id: usize,
-    motor_id: usize,
-}
-
-struct Conveyor {
-    drive_id: usize,
-    motor_id: usize,
-}
-struct Node {
-    scale: Scale,
-    conveyor: Conveyor
-}
+// struct Gripper {
+//     drive_id: usize,
+//     motor_id: usize,
+//     linear_actuator_out: usize,
+// }
+// 
+// struct BagRoller {
+//     drive_id: usize,
+//     motor_id: usize,
+//     photo_eye_id: usize
+// }
+// 
+// struct Hatch {
+//     drive_id: usize,
+//     motor_id: usize,
+// }
+// 
+// struct Conveyor {
+//     drive_id: usize,
+//     motor_id: usize,
+// }
+// struct Node {
+//     scale: Scale,
+//     conveyor: Conveyor
+// }
