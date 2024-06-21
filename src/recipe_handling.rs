@@ -1,7 +1,5 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-
-
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Ingredient {
@@ -26,7 +24,7 @@ pub struct Ingredient {
 pub struct Recipe {
     id: String,
     name: String,
-    pub ingredients: Vec<Ingredient>
+    pub ingredients: Vec<Ingredient>,
 }
 
 pub fn get_sample_recipe() -> HashMap<String, Recipe> {
@@ -88,8 +86,9 @@ pub fn get_sample_recipe() -> HashMap<String, Recipe> {
     ]"#;
 
     let recipes: Vec<Recipe> = serde_json::from_str(json_str).unwrap();
-    
+
     recipes
         .into_iter()
-        .map(|recipe|{ (recipe.id.clone(), recipe)}).collect()
+        .map(|recipe| (recipe.id.clone(), recipe))
+        .collect()
 }
