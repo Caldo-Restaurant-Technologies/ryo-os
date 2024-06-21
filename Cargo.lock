@@ -203,16 +203,11 @@ checksum = "0b6a852b24ab71dffc585bcb46eaf7959d175cb865a7152e35b348d1b2960422"
 [[package]]
 name = "control-components"
 version = "0.1.0"
-source = "git+https://github.com/jaguerra767/control-components.git#39348f39862788b2a549f7e3e8b7d19f743e3dd8"
+source = "git+https://github.com/jaguerra767/control-components.git#b50fc3d38b18daa45d6101881fa5ceffdfe1b435"
 dependencies = [
- "bytes",
- "http-body-util",
- "hyper",
- "hyper-util",
  "linalg",
  "phidget",
  "serde",
- "serde_json",
  "tokio",
 ]
 
