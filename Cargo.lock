@@ -203,7 +203,7 @@ checksum = "0b6a852b24ab71dffc585bcb46eaf7959d175cb865a7152e35b348d1b2960422"
 [[package]]
 name = "control-components"
 version = "0.1.0"
-source = "git+https://github.com/jaguerra767/control-components.git#b50fc3d38b18daa45d6101881fa5ceffdfe1b435"
+source = "git+https://github.com/jaguerra767/control-components.git#2d3840986dfe8360afaa75b37bb0d55803fff959"
 dependencies = [
  "linalg",
  "phidget",
