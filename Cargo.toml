@@ -16,4 +16,6 @@ log = "0.4.21"
 serde = { version = "1.0.203", features = ["derive"] }
 serde_json = "1.0.117"
 control-components = {git = "https://github.com/jaguerra767/control-components.git"}
+signal-hook = "0.3.17"
+ethercrab = "0.4.2"
 

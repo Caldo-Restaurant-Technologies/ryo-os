@@ -305,42 +305,48 @@ pub async fn ui_request_handler(
                 .get("0")
                 .unwrap()
                 .ingredients
-                .as_slice().first()
+                .as_slice()
+                .first()
                 .unwrap()
                 .weight;
             let motor_speed = sample_recipe
                 .get("0")
                 .unwrap()
                 .ingredients
-                .as_slice().first()
+                .as_slice()
+                .first()
                 .unwrap()
                 .motor_speed;
             let sample_rate = sample_recipe
                 .get("0")
                 .unwrap()
                 .ingredients
-                .as_slice().first()
+                .as_slice()
+                .first()
                 .unwrap()
                 .sample_rate;
             let cutoff_freq = sample_recipe
                 .get("0")
                 .unwrap()
                 .ingredients
-                .as_slice().first()
+                .as_slice()
+                .first()
                 .unwrap()
                 .cutoff_frequency;
             let check_offset = sample_recipe
                 .get("0")
                 .unwrap()
                 .ingredients
-                .as_slice().first()
+                .as_slice()
+                .first()
                 .unwrap()
                 .check_offset;
             let stop_offset = sample_recipe
                 .get("0")
                 .unwrap()
                 .ingredients
-                .as_slice().first()
+                .as_slice()
+                .first()
                 .unwrap()
                 .stop_offset;
 
