@@ -10,8 +10,9 @@ use std::{
     },
     time::Duration,
 };
+use control_components::controllers::clear_core::Message;
 use tokio::sync::mpsc::error::TryRecvError;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::MissedTickBehavior;
 
 const MAX_SLAVES: usize = 16;

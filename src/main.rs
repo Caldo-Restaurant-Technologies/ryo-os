@@ -4,7 +4,7 @@ use crate::config::{
 };
 use crate::hmi::UISenders;
 use crate::sealer::{Sealer, SealerCommand};
-use control_components::components::clear_core_io::{DigitalInput, Output};
+use control_components::components::clear_core_io::{DigitalInput, Output, OutputState};
 use control_components::components::clear_core_motor::ClearCoreMotor;
 use control_components::interface::tcp;
 use control_components::interface::tcp::client;
@@ -125,26 +125,30 @@ async fn test_cycle() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (sealer_tx, sealer_rx) = mpsc::channel(10);
     let sealer_handler = tokio::spawn(async move { sealer.actor(sealer_rx).await });
 
-    info!("Setup: Closing Hatch D");
-    close_hatch(3, drive_1_tx.clone(), drive_2_tx.clone()).await;
-    info!("Setup: Closing Sealer Door");
+    // info!("Setup: Closing Hatch D");
+    // close_hatch(3, drive_1_tx.clone(), drive_2_tx.clone()).await;
+    // info!("Setup: Closing Sealer Door");
     close_sealer_door(sealer_tx.clone()).await;
-    info!("Setup: Homing Gantry");
-    gantry_to_home(gantry_tx.clone()).await;
-    info!("Dispensing");
-    dispense(node_tx.clone()).await;
-    info!("Loading bag");
-    load_bag(drive_1_tx.clone(), drive_2_tx.clone()).await;
-    info!("Moving gantry to Node D");
-    gantry_move_to(92., gantry_tx.clone()).await;
-    tokio::time::sleep(Duration::from_secs(30)).await;
-    info!("Opening Hatches");
-    open_all_hatches(drive_1_tx.clone(), drive_2_tx.clone()).await;
-    info!("Dropping bag");
-    drop_bag(drive_1_tx.clone(), drive_2_tx.clone()).await;
+    tokio::time::sleep(Duration::from_secs_f64(5.)).await;
+    // info!("Setup: Homing Gantry");
+    // gantry_to_home(gantry_tx.clone()).await;
+    // info!("Dispensing");
+    // dispense(node_tx.clone()).await;
+    // info!("Loading bag");
+    // load_bag(drive_1_tx.clone(), drive_2_tx.clone()).await;
+    // info!("Moving gantry to Node D");
+    // gantry_move_to(92., gantry_tx.clone()).await;
+    // tokio::time::sleep(Duration::from_secs(30)).await;
+    // info!("Opening Hatches");
+    // open_all_hatches(drive_1_tx.clone(), drive_2_tx.clone()).await;
+    // info!("Dropping bag");
+    // drop_bag(drive_1_tx.clone(), drive_2_tx.clone()).await;
     info!("Applying sealer");
     apply_sealer_heater(sealer_tx.clone()).await;
     info!("Removing sealer");
+    tokio::time::sleep(Duration::from_secs_f64(5.)).await;
+    turn_on_heater(drive_1_tx.clone()).await;
+    tokio::time::sleep(Duration::from_secs_f64(2.)).await;
     remove_sealer_heater(sealer_tx.clone()).await;
     info!("Opening Sealer Door");
     open_sealer_door(sealer_tx.clone()).await;
@@ -194,6 +198,12 @@ async fn close_all_hatches(drive_1_tx: Sender<Message>, drive_2_tx: Sender<Messa
     );
 }
 
+async fn turn_on_heater(drive_1_tx: Sender<Message>){
+    let output = Output::new(1, drive_1_tx);
+    output.set_state(OutputState::On).await.unwrap();
+    tokio::time::sleep(Duration::from_secs_f64(3.)).await;
+    output.set_state(OutputState::Off).await.unwrap();
+}
 async fn open_all_hatches(drive_1_tx: Sender<Message>, drive_2_tx: Sender<Message>) {
     let hatch_0 = Hatch::new(
         RelayHBridge::new(drive_1_tx.clone(), (2, 3), 3),
