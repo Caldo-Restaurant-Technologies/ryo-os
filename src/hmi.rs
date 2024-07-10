@@ -1,4 +1,4 @@
-use crate::bag_handler::{load_bag, BagHandlingCmd, ManualBagHandlingCmd};
+use crate::bag_handler::{load_bag, BagHandlingCmd, ManualBagHandlingCmd, BagHandler};
 use crate::recipe_handling::get_sample_recipe;
 use bytes::{Buf, Bytes};
 use control_components::controllers::{clear_core, ek1100_io};
@@ -14,10 +14,11 @@ use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::net::SocketAddr;
+use crate::manual_control;
 use std::time::Duration;
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::mpsc::Sender;
+use crate::ryo::{make_gripper, RyoIo};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -104,15 +105,25 @@ pub struct IOControllers {
 type HTTPResult = Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error>;
 type HTTPRequest = Request<hyper::body::Incoming>;
 
-pub async fn ui_request_handler(req: HTTPRequest, io: IOControllers) -> HTTPResult {
+pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => Ok(Response::new(full("Hola, soy Ryo!"))),
         (&Method::GET, "/job_progress") => Ok(Response::new(full("WIP"))),
         (&Method::GET, "/v1/api/recipe/all") => Ok(Response::new(full("WIP"))),
         (&Method::POST, "/echo") => Ok(Response::new(req.into_body().boxed())),
-        (&Method::POST, "/gripper") => Ok(Response::new(full("WIP"))),
-        (&Method::POST, "/load_bag") => Ok(Response::new(req.into_body().boxed())),
-        (&Method::POST, "/hatch") => Ok(Response::new(full("WIP"))),
+        (&Method::POST, "/gripper") => {
+            let body = req.collect().await?.to_bytes();
+            let gripper = make_gripper(io.cc1, io.cc2);
+            manual_control::handle_gripper_req(body, gripper).await;
+            Ok(Response::new(full("WIP")))},
+        (&Method::POST, "/load_bag") => {
+            BagHandler::new(io.cc1, io.cc2).load_bag().await;
+            Ok(Response::new(req.into_body().boxed()))},
+        (&Method::POST, "/hatch") => {
+            let body = req.collect().await?.to_bytes();
+            manual_control::handle_hatch_req(body, io).await;
+            Ok(Response::new(full("WIP")))
+        },
         (&Method::POST, "/hatches/all") => {
             let mut response = full("Ok!");
             let body = req.collect().await?.to_bytes();
@@ -209,10 +220,13 @@ pub async fn ui_request_handler(req: HTTPRequest, io: IOControllers) -> HTTPResu
     }
 }
 
-pub async fn ui_server(
+
+
+
+pub async fn ui_server<F, T: ToSocketAddrs>( 
+    addr: T,
     controllers: IOControllers,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     let listener = TcpListener::bind(addr).await?;
     loop {
         let (stream, _) = listener.accept().await?;
