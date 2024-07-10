@@ -1,24 +1,21 @@
+use control_components::components::clear_core_io::{DigitalInput, DigitalOutput};
+use control_components::subsystems::bag_handling::{BagDispenser, BagGripper};
 use std::future::Future;
 use tokio::time::Duration;
-use control_components::subsystems::bag_handling::{
-    BagDispenser,
-    BagGripper
-};
-use control_components::components::clear_core_io::{
-    DigitalInput,
-    DigitalOutput,
-};
 
+use crate::config::{
+    BAG_BLOWER, BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, GRIPPER_ACTUATOR,
+    GRIPPER_MOTOR_ID,
+};
 use control_components::controllers::clear_core::Controller;
 use control_components::subsystems::linear_actuator::SimpleLinearActuator;
 use tokio::sync::mpsc::Receiver;
-use crate::config::{BAG_BLOWER, BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, GRIPPER_MOTOR_ID, GRIPPER_ACTUATOR};
 
 pub struct BagHandler {
     bag_dispenser: BagDispenser,
     bag_gripper: BagGripper,
     blower: DigitalOutput,
-    bag_detect: DigitalInput
+    bag_detect: DigitalInput,
 }
 
 impl BagHandler {
@@ -27,9 +24,14 @@ impl BagHandler {
         let bag_gripper = make_bag_gripper(cc1.clone(), cc2.clone());
         let blower = cc2.get_output(BAG_BLOWER);
         let bag_detect = cc1.get_digital_input(BAG_DETECT_PE);
-        Self {bag_dispenser, bag_gripper, blower, bag_detect}
+        Self {
+            bag_dispenser,
+            bag_gripper,
+            blower,
+            bag_detect,
+        }
     }
-    
+
     pub async fn load_bag(&mut self) {
         load_bag(&self.bag_dispenser, &mut self.bag_gripper, &self.blower).await;
     }
@@ -37,26 +39,25 @@ impl BagHandler {
         self.bag_dispenser.dispense().await.unwrap();
     }
 }
-pub enum BagHandlingCmd{
+pub enum BagHandlingCmd {
     DispenseBag,
-    LoadBag
+    LoadBag,
 }
 
-pub enum ManualBagHandlingCmd{}
+pub enum ManualBagHandlingCmd {}
 pub async fn actor(cc1: Controller, cc2: Controller, mut rx: Receiver<BagHandlingCmd>) {
     let mut bag_handler = BagHandler::new(cc1, cc2);
     while let Some(cmd) = rx.recv().await {
         match cmd {
             BagHandlingCmd::LoadBag => {
                 bag_handler.load_bag().await;
-            },
+            }
             BagHandlingCmd::DispenseBag => {
                 bag_handler.dispense_bag().await;
             }
         }
     }
 }
-
 
 pub async fn load_bag(dispenser: &BagDispenser, gripper: &mut BagGripper, blower: &DigitalOutput) {
     blower.set_state(true).await;
@@ -71,14 +72,13 @@ pub async fn load_bag(dispenser: &BagDispenser, gripper: &mut BagGripper, blower
 pub fn make_bag_dispenser(drive: Controller) -> BagDispenser {
     BagDispenser::new(
         drive.get_motor(BAG_ROLLER_MOTOR_ID),
-        drive.get_digital_input(BAG_ROLLER_PE)
+        drive.get_digital_input(BAG_ROLLER_PE),
     )
 }
 pub fn make_bag_gripper(drive_1: Controller, drive_2: Controller) -> BagGripper {
     BagGripper::new(
         drive_1.get_motor(GRIPPER_MOTOR_ID),
         SimpleLinearActuator::new(drive_2.get_h_bridge(GRIPPER_ACTUATOR)),
-        [0.4, -0.8, 0.4].to_vec()
+        [0.4, -0.8, 0.4].to_vec(),
     )
 }
-

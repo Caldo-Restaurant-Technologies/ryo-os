@@ -1,16 +1,15 @@
+use crate::bag_handler::BagHandler;
 use crate::config::*;
-use log::info;
-use std::{array, env};
-use tokio::sync::mpsc::{channel, Receiver, Sender};
-use control_components::controllers::{clear_core, ek1100_io};
-use env_logger::Env;
-use std::time::Duration;
+use crate::ryo::{make_hatches, RyoIo};
 use control_components::components::clear_core_motor::Status;
 use control_components::components::scale::{Scale, ScaleCmd};
+use control_components::controllers::{clear_core, ek1100_io};
+use env_logger::Env;
+use log::info;
+use std::time::Duration;
+use std::{array, env};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinSet;
-use crate::bag_handler::BagHandler;
-use crate::ryo::make_hatches;
-
 
 pub mod config;
 
@@ -18,20 +17,11 @@ pub mod hmi;
 pub mod recipe_handling;
 
 pub mod bag_handler;
-mod ryo;
+pub mod manual_control;
+pub mod ryo;
 
 type CCController = clear_core::Controller;
 type EtherCATIO = ek1100_io::Controller;
-
-#[derive(Clone)]
-pub struct RyoIo{
-    pub cc1: CCController, 
-    pub cc2: CCController, 
-    pub etc_io: EtherCATIO, 
-    pub scale_txs: [Sender<ScaleCmd>; 4]
-}
-
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -43,16 +33,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     //TODO: Change so that interface can be defined as a compiler flag passed at compile time
     // Figure out a way to detect at launch
 
-    let interface = ||{
-        match host.as_str() {
-            "local-test" => {LOCAL_INTERFACE},
-            "ryo" => {RYO_INTERFACE},
-            _ => {RYO_INTERFACE}
-        }
+    let interface = || match host.as_str() {
+        "local-test" => LOCAL_INTERFACE,
+        "ryo" => RYO_INTERFACE,
+        _ => RYO_INTERFACE,
     };
-    
+
     let mut client_set = JoinSet::new();
-    
 
     //Create IO controllers and their relevant clients
     let (cc1, cl1) = CCController::with_client(CLEAR_CORE_1_ADDR, CC1_MOTORS.as_slice());
@@ -62,19 +49,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     client_set.spawn(cl1);
     client_set.spawn(cl2);
     client_set.spawn(cl3);
-   
-    let scale_txs : [Sender<ScaleCmd>; 4] = array::from_fn(|i|{
-        let (tx, actor) = Scale::actor_tx_pair(PHIDGET_SNS[i]);
+
+    let scale_txs: [Sender<ScaleCmd>; 4] = array::from_fn(|i| {
+        let phidget_id = PHIDGET_SNS[i];
+        let (tx, actor) = Scale::actor_tx_pair(phidget_id);
         client_set.spawn(actor);
+        info!("Spawned {phidget_id} client-actor");
         tx
     });
 
-   
     info!("Controller-Client pairs created successfully");
 
-
-
-    let ryo_io = RyoIo{cc1, cc2, etc_io, scale_txs};
+    let ryo_io = RyoIo {
+        cc1,
+        cc2,
+        etc_io,
+        scale_txs,
+    };
 
     let (_, cycle_rx) = channel::<CycleCmd>(10);
 
@@ -84,27 +75,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     Ok(())
 }
 
-
-
-pub enum CycleCmd{
+pub enum CycleCmd {
     Cycle(usize),
     Pause,
-    Cancel
+    Cancel,
 }
-
 
 async fn pull_before_flight(io: RyoIo) {
     let mut set = JoinSet::new();
     let hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
     let bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
     let gantry = io.cc1.get_motor(GANTRY_MOTOR_ID);
-    
+
     for mut hatch in hatches {
-        set.spawn(async move { hatch.timed_close(Duration::from_secs_f64(2.8)).await});
+        set.spawn(async move { hatch.timed_close(Duration::from_secs_f64(2.8)).await });
     }
-    
-    set.spawn(async move{bag_handler.dispense_bag().await});
-    set.spawn(async move{ 
+
+    set.spawn(async move { bag_handler.dispense_bag().await });
+    set.spawn(async move {
         gantry.enable().await.expect("Motor is faulted");
         let state = gantry.get_status().await;
         if state == Status::Moving {
@@ -118,48 +106,34 @@ async fn pull_before_flight(io: RyoIo) {
     while let Some(_) = set.join_next().await {}
 }
 
-
-
-async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>)  {
+async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
     // Create drive channels and spawn clients
 
-
     pull_before_flight(io.clone()).await;
-
 
     let mut batch_count = 0;
     let mut pause = false;
     loop {
-
         match auto_rx.try_recv() {
-            Ok(msg) => {
-                match msg {
-                    CycleCmd::Cycle(count) => {
-                        batch_count = count;
-                    }
-                    CycleCmd::Pause => {
-                        pause = true;
-                    }
-                    CycleCmd::Cancel => {
-                        batch_count = 0;
-                    }
+            Ok(msg) => match msg {
+                CycleCmd::Cycle(count) => {
+                    batch_count = count;
                 }
-            }
+                CycleCmd::Pause => {
+                    pause = true;
+                }
+                CycleCmd::Cancel => {
+                    batch_count = 0;
+                }
+            },
             _ => {}
         }
-
 
         if batch_count > 0 {
             while pause {
                 tokio::time::sleep(Duration::from_secs(2)).await;
                 info!("System Paused.");
             }
-
-
-
         }
-
     }
-
 }
-
