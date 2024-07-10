@@ -1,6 +1,13 @@
-use crate::bag_handler::{load_bag, BagHandlingCmd, ManualBagHandlingCmd, BagHandler};
+use crate::bag_handler::{load_bag, BagHandler, BagHandlingCmd, ManualBagHandlingCmd};
+use crate::manual_control;
+use crate::manual_control::{
+    handle_dispenser_req, handle_gantry_req, handle_gripper_req, handle_hatch_req,
+    handle_hatches_req,
+};
 use crate::recipe_handling::get_sample_recipe;
+use crate::ryo::{make_gripper, RyoIo};
 use bytes::{Buf, Bytes};
+use control_components::components::scale::ScaleCmd;
 use control_components::controllers::{clear_core, ek1100_io};
 use control_components::subsystems::bag_handling::{BagDispenser, BagGripper};
 use control_components::subsystems::gantry::GantryCommand;
@@ -14,11 +21,9 @@ use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::manual_control;
 use std::time::Duration;
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::mpsc::Sender;
-use crate::ryo::{make_gripper, RyoIo};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -95,11 +100,7 @@ pub struct IOControllers {
     pub cc1: clear_core::Controller,
     pub cc2: clear_core::Controller,
     pub etc: ek1100_io::Controller,
-    pub op_senders: (
-        Sender<NodeCommand>,
-        Sender<GantryCommand>,
-        Sender<ManualBagHandlingCmd>,
-    ),
+    pub scale_senders: [Sender<ScaleCmd>; 4],
 }
 
 type HTTPResult = Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error>;
@@ -107,6 +108,16 @@ type HTTPRequest = Request<hyper::body::Incoming>;
 
 pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
     match (req.method(), req.uri().path()) {
+        (&Method::OPTIONS, _) => {
+            let response = Response::builder()
+                .status(204)
+                .header("Access-Control-Allow-Origin", "*")
+                .header("Access-Control-Allow-Methods", "POST, OPTIONS, GET")
+                .header("Access-Control-Allow-Headers", "*")
+                .body(full("Granting Control"))
+                .unwrap();
+            Ok(response)
+        }
         (&Method::GET, "/") => Ok(Response::new(full("Hola, soy Ryo!"))),
         (&Method::GET, "/job_progress") => Ok(Response::new(full("WIP"))),
         (&Method::GET, "/v1/api/recipe/all") => Ok(Response::new(full("WIP"))),
@@ -114,103 +125,34 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
         (&Method::POST, "/gripper") => {
             let body = req.collect().await?.to_bytes();
             let gripper = make_gripper(io.cc1, io.cc2);
-            manual_control::handle_gripper_req(body, gripper).await;
-            Ok(Response::new(full("WIP")))},
+            handle_gripper_req(body, gripper).await;
+            Ok(Response::new(full("Gripper Moved")))
+        }
         (&Method::POST, "/load_bag") => {
             BagHandler::new(io.cc1, io.cc2).load_bag().await;
-            Ok(Response::new(req.into_body().boxed()))},
+            Ok(Response::new(req.into_body().boxed()))
+        }
         (&Method::POST, "/hatch") => {
             let body = req.collect().await?.to_bytes();
-            manual_control::handle_hatch_req(body, io).await;
-            Ok(Response::new(full("WIP")))
-        },
+            handle_hatch_req(body, io, None).await;
+            Ok(Response::new(full("Hatch Moved")))
+        }
         (&Method::POST, "/hatches/all") => {
-            let mut response = full("Ok!");
             let body = req.collect().await?.to_bytes();
-
-            Ok(Response::new(response))
+            handle_hatches_req(body, io).await;
+            Ok(Response::new(full("All Hatches Moved")))
         }
         (&Method::POST, "/gantry") => {
             let body = req.collect().await?.to_bytes();
-            let param = ascii_to_int(body.as_ref()) as usize;
-            let positions = [-0.25, 24.5, 47.0, 69.5, 92.0];
-            let mut response = full("Ok!");
-            // if param < positions.len() {
-            //     let msg = GantryCommand::GoTo(positions[param]);
-            //     if let Err(_) = tx_s.op_senders.1.send(msg).await {
-            //         response = full("Sender disconnected");
-            //     }
-            // } else {
-            //     response = full("invalid index");
-            // }
-            Ok(Response::new(response))
+            let gantry_position = ascii_to_int(body.as_ref()) as usize;
+            handle_gantry_req(gantry_position, io).await;
+            Ok(Response::new(full("Gantry to position")))
         }
         (&Method::POST, "/dispense") => {
-            let _ = req.collect().await?.aggregate();
-            //let data: serde_json::Value = serde_json::from_reader(res.reader()).unwrap();
-            let sample_recipe = get_sample_recipe();
-            let weight = sample_recipe
-                .get("0")
-                .unwrap()
-                .ingredients
-                .as_slice()
-                .first()
-                .unwrap()
-                .weight;
-            let motor_speed = sample_recipe
-                .get("0")
-                .unwrap()
-                .ingredients
-                .as_slice()
-                .first()
-                .unwrap()
-                .motor_speed;
-            let sample_rate = sample_recipe
-                .get("0")
-                .unwrap()
-                .ingredients
-                .as_slice()
-                .first()
-                .unwrap()
-                .sample_rate;
-            let cutoff_freq = sample_recipe
-                .get("0")
-                .unwrap()
-                .ingredients
-                .as_slice()
-                .first()
-                .unwrap()
-                .cutoff_frequency;
-            let check_offset = sample_recipe
-                .get("0")
-                .unwrap()
-                .ingredients
-                .as_slice()
-                .first()
-                .unwrap()
-                .check_offset;
-            let stop_offset = sample_recipe
-                .get("0")
-                .unwrap()
-                .ingredients
-                .as_slice()
-                .first()
-                .unwrap()
-                .stop_offset;
-
-            let params = DispensingParameters::only_timeout(
-                Duration::from_secs_f64(10.0),
-                motor_speed,
-                sample_rate,
-                cutoff_freq,
-                check_offset,
-                stop_offset,
-            );
-
-            let msg = NodeCommand::Dispense(params);
-            // tx_s.op_senders.0.send(msg).await.unwrap();
-            //println!("{:?}", data);
-            Ok(Response::new(full("Dispensing")))
+            let body = req.collect().await?.aggregate();
+            let params_json: serde_json::Value = serde_json::from_reader(body.reader()).unwrap();
+            handle_dispenser_req(params_json, io).await;
+            Ok(Response::new(full("Dispensed")))
         }
         (_, _) => {
             let mut not_found = Response::new(empty());
@@ -220,12 +162,9 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
     }
 }
 
-
-
-
-pub async fn ui_server<F, T: ToSocketAddrs>( 
+pub async fn ui_server<F, T: ToSocketAddrs>(
     addr: T,
-    controllers: IOControllers,
+    controllers: RyoIo,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(addr).await?;
     loop {

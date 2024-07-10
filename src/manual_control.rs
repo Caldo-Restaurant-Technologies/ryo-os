@@ -1,19 +1,29 @@
 use crate::bag_handler::{load_bag, BagHandlingCmd, ManualBagHandlingCmd};
+use crate::config::{
+    DISPENSER_TIMEOUT, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL,
+    HATCHES_OPEN_TIME, HATCH_CLOSE_TIMES,
+};
 use crate::hmi::{empty, full};
-use crate::ryo::{make_gripper, make_hatches, RyoIo};
+use crate::ryo::{make_dispenser, make_dispensers, make_gripper, make_hatch, make_hatches, RyoIo};
 use bytes::{Buf, Bytes};
 use control_components::controllers::{clear_core, ek1100_io};
 use control_components::subsystems::bag_handling::BagGripper;
+use control_components::subsystems::dispenser::{
+    DispenseParameters, Dispenser, Parameters, Setpoint, WeightedDispense,
+};
+use futures::future::join_all;
 use http_body_util::{combinators::BoxBody, BodyExt, Empty, Full};
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
-use log::info;
+use log::{error, info};
 use serde::{Deserialize, Serialize};
+use std::array;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::Sender;
+use tokio::task::JoinHandle;
 
 type HTTPResult = Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error>;
 type HTTPRequest = Request<hyper::body::Incoming>;
@@ -47,23 +57,105 @@ pub async fn handle_gripper_req(body: Bytes, mut gripper: BagGripper) {
     }
 }
 
-pub async fn handle_hatch_req(body: Bytes, io: RyoIo) {
+pub async fn handle_hatch_req(body: Bytes, io: RyoIo, hatch_id: Option<usize>) {
     if body.len() >= 2 {
-        let hatch_id = (body[0] -48) as usize;
-        let operation = body[1];
+        let (hatch_id, operation) = match hatch_id {
+            Some(hatch_id) => (hatch_id, body[0]),
+            None => ((body[0] - 48) as usize, body[1]),
+        };
         info!("Hatch {:}", hatch_id);
-        let mut hatches = make_hatches(io.cc1, io.cc2);
-        let hatch = hatches.get_mut(hatch_id);
-        if hatch.is_some() {
-            if operation == b'o' {
-                info!("Opening Hatch {:}", hatch_id);
-                hatch.unwrap().timed_open(Duration::from_secs_f64(2.1)).await;
-            } else if operation == b'c' {
-                info!("Closing Hatch {:}", hatch_id);
-                hatch.unwrap().timed_close(Duration::from_secs_f64(2.1)).await;
-            }
+        let mut hatch = make_hatch(hatch_id, io.cc1, io.cc2);
+        if operation == b'o' {
+            info!("Opening Hatch {:}", hatch_id);
+            hatch.timed_open(HATCHES_OPEN_TIME).await;
+        } else if operation == b'c' {
+            info!("Closing Hatch {:}", hatch_id);
+            hatch.timed_close(HATCH_CLOSE_TIMES[hatch_id]).await;
         }
     }
+}
+
+pub async fn handle_hatches_req(body: Bytes, io: RyoIo) {
+    let hatch_handles: [JoinHandle<()>; 4] = array::from_fn(|hatch_id| {
+        let hatch_io = io.clone();
+        let hatch_body = body.clone();
+        tokio::spawn(async move { handle_hatch_req(hatch_body, hatch_io, Some(hatch_id)).await })
+    });
+    join_all(hatch_handles).await;
+}
+
+pub async fn handle_gantry_req(gantry_position: usize, io: RyoIo) {
+    io.cc1
+        .get_motor(GANTRY_MOTOR_ID)
+        .relative_move(GANTRY_ALL_POSITIONS[gantry_position])
+        .await
+        .unwrap();
+    io.cc1
+        .get_motor(GANTRY_MOTOR_ID)
+        .wait_for_move(GANTRY_SAMPLE_INTERVAL)
+        .await;
+}
+
+pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
+    let node_id = json["node_id"]
+        .as_str()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap();
+    let dispense_type = json["dispense_type"].as_str().unwrap();
+    // placeholder
+    let timeout = Duration::from_secs(120);
+    // let timeout = json["timeout"].as_str().unwrap();
+    let serving_weight = json["serving_weight"]
+        .as_str()
+        .and_then(|s| s.parse::<f64>().ok())
+        .unwrap();
+    let motor_speed = json["motor_speed"]
+        .as_str()
+        .and_then(|s| s.parse::<f64>().ok())
+        .unwrap();
+    let sample_rate = json["sample_rate"]
+        .as_str()
+        .and_then(|s| s.parse::<f64>().ok())
+        .unwrap();
+    let cutoff_frequency = json["cutoff_frequency"]
+        .as_str()
+        .and_then(|s| s.parse::<f64>().ok())
+        .unwrap();
+    let check_offset = json["check_offset"]
+        .as_str()
+        .and_then(|s| s.parse::<f64>().ok())
+        .unwrap();
+    let stop_offset = json["stop_offset"]
+        .as_str()
+        .and_then(|s| s.parse::<f64>().ok())
+        .unwrap();
+    let parameters = Parameters {
+        motor_speed,
+        sample_rate,
+        cutoff_frequency,
+        check_offset,
+        stop_offset,
+    };
+    make_dispenser(
+        node_id,
+        io.cc2,
+        match dispense_type {
+            "timed" => Setpoint::Timed(timeout),
+            "weight" => Setpoint::Weight(WeightedDispense {
+                setpoint: serving_weight,
+                timeout,
+            }),
+            _ => {
+                error!("Invalid Dispense Type");
+                return;
+            }
+        },
+        parameters,
+        io.scale_txs[node_id].clone(),
+    )
+    .dispense(DISPENSER_TIMEOUT)
+    .await;
+    info!("Dispensed from Node {:}", node_id);
 }
 
 // pub async fn manual_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
@@ -90,7 +182,7 @@ pub async fn handle_hatch_req(body: Bytes, io: RyoIo) {
 //         (&Method::POST, "/gantry") => Ok(Response::new(full("WIP"))),
 //         (&Method::POST, "/dispense") => Ok(Response::new(full("WIP"))),
 //         (&Method::POST, "/cancel") => Ok(Response::new(full("WIP"))),
-// 
+//
 //         (_, _) => {
 //             let mut not_found = Response::new(empty());
 //             *not_found.status_mut() = StatusCode::NOT_FOUND;

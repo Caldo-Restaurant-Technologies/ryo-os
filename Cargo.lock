@@ -341,7 +341,7 @@ dependencies = [
 [[package]]
 name = "control-components"
 version = "0.1.0"
-source = "git+https://github.com/jaguerra767/control-components.git#7ed928b7cd2a22fb7413f12f1d993a74d618a9e0"
+source = "git+https://github.com/jaguerra767/control-components.git#2e5e72a5ed679ebfdc0bdefe3baae099bdc5aabb"
 dependencies = [
  "env_logger",
  "ethercrab",

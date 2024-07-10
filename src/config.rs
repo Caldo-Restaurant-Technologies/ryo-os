@@ -1,4 +1,5 @@
 use control_components::controllers::clear_core::MotorBuilder;
+use std::time::Duration;
 
 //E-Stop
 pub const E_STOP_INPUT_ID: usize = 0; // 0 is the same as DI6 in CC, also valid for CC2
@@ -20,7 +21,6 @@ pub const HATCH_A_CH_A: usize = 2;
 pub const HATCH_A_CH_B: usize = 3;
 pub const HATCH_B_CH_A: usize = 4;
 pub const HATCH_B_CH_B: usize = 5;
-
 pub const CC1_HATCH_IDS: [usize; 4] = [HATCH_A_CH_A, HATCH_A_CH_B, HATCH_B_CH_A, HATCH_B_CH_B];
 // Outputs CC2
 pub const HATCH_C_CH_A: usize = 0;
@@ -30,6 +30,32 @@ pub const HATCH_D_CH_B: usize = 3;
 pub const CC2_HATCH_IDS: [usize; 4] = [HATCH_C_CH_A, HATCH_C_CH_B, HATCH_D_CH_A, HATCH_D_CH_B];
 pub const GRIPPER_ACTUATOR: usize = 4;
 pub const BAG_BLOWER: usize = 5;
+
+pub const HATCHES_CH_A: [usize; 4] = [HATCH_A_CH_A, HATCH_B_CH_A, HATCH_C_CH_A, HATCH_D_CH_A];
+pub const HATCHES_CH_B: [usize; 4] = [HATCH_A_CH_B, HATCH_B_CH_B, HATCH_A_CH_B, HATCH_D_CH_B];
+pub const HATCH_A_ANALOG_INPUT: usize = 0;
+pub const HATCH_B_ANALOG_INPUT: usize = 0;
+pub const HATCH_C_ANALOG_INPUT: usize = 0;
+pub const HATCH_D_ANALOG_INPUT: usize = 0;
+pub const HATCHES_ANALOG_INPUTS: [usize; 4] = [
+    HATCH_A_ANALOG_INPUT,
+    HATCH_B_ANALOG_INPUT,
+    HATCH_C_ANALOG_INPUT,
+    HATCH_D_ANALOG_INPUT,
+];
+
+pub const HATCHES_OPEN_TIME: Duration = Duration::from_millis(1900);
+pub const HATCH_A_CLOSE_TIME: Duration = Duration::from_millis(1650);
+pub const HATCH_B_CLOSE_TIME: Duration = Duration::from_millis(1650);
+pub const HATCH_C_CLOSE_TIME: Duration = Duration::from_millis(1600);
+pub const HATCH_D_CLOSE_TIME: Duration = Duration::from_millis(1650);
+pub const HATCH_CLOSE_TIMES: [Duration; 4] = [
+    HATCH_A_CLOSE_TIME,
+    HATCH_B_CLOSE_TIME,
+    HATCH_C_CLOSE_TIME,
+    HATCH_D_CLOSE_TIME,
+];
+
 // Digital Inputs CC1
 pub const BAG_ROLLER_PE: usize = 1;
 pub const BAG_DETECT_PE: usize = 2;
@@ -91,3 +117,18 @@ pub const CC2_MOTORS: [MotorBuilder; 4] = [
 pub const PHIDGET_SNS: [i32; 4] = [716709, 716623, 716625, 716620];
 
 pub const GRIPPER_POSITIONS: [f64; 3] = [-0.4, 0.8, 0.4];
+
+pub const DISPENSER_TIMEOUT: Duration = Duration::from_secs(120);
+
+pub const GANTRY_NODE_POSITIONS: [f64; 4] = [24.5, 47.0, 69.5, 92.0];
+pub const GANTRY_HOME_POSITION: f64 = -0.25;
+pub const GANTRY_BAG_DROP_POSITION: f64 = 84.;
+pub const GANTRY_ALL_POSITIONS: [f64; 6] = [
+    GANTRY_HOME_POSITION,
+    GANTRY_NODE_POSITIONS[0],
+    GANTRY_NODE_POSITIONS[1],
+    GANTRY_NODE_POSITIONS[2],
+    GANTRY_NODE_POSITIONS[3],
+    GANTRY_BAG_DROP_POSITION,
+];
+pub const GANTRY_SAMPLE_INTERVAL: Duration = Duration::from_millis(250);

@@ -5,14 +5,16 @@ use std::array;
 
 use crate::config::{
     BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, GANTRY_MOTOR_ID, GRIPPER_ACTUATOR,
-    GRIPPER_MOTOR_ID, GRIPPER_POSITIONS, HATCH_A_CH_A, HATCH_A_CH_B, HATCH_B_CH_A, HATCH_B_CH_B,
-    HATCH_C_CH_A, HATCH_C_CH_B, HATCH_D_CH_A, HATCH_D_CH_B,
+    GRIPPER_MOTOR_ID, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CH_A, HATCHES_CH_B,
+    HATCH_A_CH_A, HATCH_A_CH_B, HATCH_B_CH_A, HATCH_B_CH_B, HATCH_C_CH_A, HATCH_C_CH_B,
+    HATCH_D_CH_A, HATCH_D_CH_B,
 };
 use crate::{CCController, EtherCATIO};
 use control_components::subsystems::bag_handling::{BagDispenser, BagGripper};
 use control_components::subsystems::dispenser::{Dispenser, Parameters, Setpoint};
 use control_components::subsystems::hatch::Hatch;
 use control_components::subsystems::linear_actuator::{Output, SimpleLinearActuator};
+use log::error;
 use tokio::sync::mpsc::Sender;
 
 #[derive(Clone)]
@@ -57,6 +59,22 @@ pub fn make_dispensers(
         )
     })
 }
+
+pub fn make_dispenser(
+    node_id: usize,
+    cc2: CCController,
+    set_point: Setpoint,
+    parameter: Parameters,
+    sender: Sender<ScaleCmd>,
+) -> Dispenser {
+    Dispenser::new(
+        cc2.get_motor(CC2_MOTORS[node_id].id as usize),
+        set_point,
+        parameter,
+        sender,
+    )
+}
+
 pub fn make_hatches(cc1: Controller, cc2: Controller) -> [Hatch; 4] {
     [
         Hatch::from_io(
@@ -80,4 +98,20 @@ pub fn make_hatches(cc1: Controller, cc2: Controller) -> [Hatch; 4] {
             cc1.get_analog_input(0),
         ),
     ]
+}
+
+pub fn make_hatch(hatch_id: usize, cc1: Controller, cc2: Controller) -> Hatch {
+    let cc = match hatch_id {
+        0 | 1 => cc1,
+        2 | 3 => cc2,
+        _ => {
+            error!("Invalid Hatch ID");
+            cc1
+        }
+    };
+    Hatch::from_io(
+        Output::ClearCore(cc.get_output(HATCHES_CH_A[hatch_id])),
+        Output::ClearCore(cc.get_output(HATCHES_CH_B[hatch_id])),
+        cc.get_analog_input(HATCHES_ANALOG_INPUTS[hatch_id]),
+    )
 }
