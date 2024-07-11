@@ -8,6 +8,8 @@ use env_logger::Env;
 use log::info;
 use std::time::Duration;
 use std::{array, env};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use futures::future::join_all;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinSet;
@@ -149,9 +151,17 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
 
     pull_before_flight(io.clone()).await;
 
+    let shutdown = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
+        .expect("Register hook");
+    
     let mut batch_count = 0;
     let mut pause = false;
     loop {
+
+        if shutdown.load(Ordering::Relaxed) {
+            break;
+        }
         match auto_rx.try_recv() {
             Ok(msg) => match msg {
                 CycleCmd::Cycle(count) => {
@@ -167,11 +177,11 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
             _ => {}
         }
 
-        if batch_count > 0 {
-            while pause {
-                tokio::time::sleep(Duration::from_secs(2)).await;
-                info!("System Paused.");
-            }
-        }
+        // if batch_count > 0 {
+        //     while pause {
+        //         tokio::time::sleep(Duration::from_secs(2)).await;
+        //         info!("System Paused.");
+        //     }
+        // }
     }
 }
