@@ -63,8 +63,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // info!("Spawned {phidget_id} client-actor");
         tx
     });
-    
-    sleep(Duration::from_secs(16)).await;
 
     //Create IO controllers and their relevant clients
     let (cc1, cl1) = CCController::with_client(CLEAR_CORE_1_ADDR, CC1_MOTORS.as_slice());
@@ -75,9 +73,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     sleep(Duration::from_secs(2)).await;
     client_set.spawn(cl1);
     client_set.spawn(cl2);
-    
-    sleep(Duration::from_secs(10)).await;
-
     
     info!("Controller-Client pairs created successfully");
 
@@ -141,7 +136,7 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
     let mut batch_count = 0;
     let mut pause = false;
     loop {
-
+        info!("Cycle loop");
         if shutdown.load(Ordering::Relaxed) {
             break;
         }
@@ -159,7 +154,7 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
             },
             _ => {}
         }
-
+        sleep(Duration::from_secs(1)).await;
         // if batch_count > 0 {
         //     while pause {
         //         tokio::time::sleep(Duration::from_secs(2)).await;
