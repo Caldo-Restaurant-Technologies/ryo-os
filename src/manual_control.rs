@@ -15,12 +15,13 @@ use futures::future::join_all;
 use http_body_util::{combinators::BoxBody, BodyExt, Empty, Full};
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
-use log::{error, info};
+use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::array;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
+use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
@@ -85,11 +86,25 @@ pub async fn handle_hatches_req(body: Bytes, io: RyoIo) {
 }
 
 pub async fn handle_gantry_req(gantry_position: usize, io: RyoIo) {
-    io.cc1
-        .get_motor(GANTRY_MOTOR_ID)
-        .relative_move(GANTRY_ALL_POSITIONS[gantry_position])
-        .await
-        .unwrap();
+    let gantry_motor = io.cc1.get_motor(GANTRY_MOTOR_ID);
+    match gantry_motor.relative_move(GANTRY_ALL_POSITIONS[gantry_position]).await {
+        Ok(_) => (),
+        Err(status) => {
+            warn!("Gantry Motor Status: {:?}", status);
+            match status {
+                Status::Disabled => {
+                    gantry_motor.enable().await.unwrap();
+                },
+                Status::Faulted => {
+                    gantry_motor.clear_alerts().await
+                },
+                _ => {
+                    error!("Could not handle gantry motor state");
+                    return
+                },
+            }
+        },
+    }
     io.cc1
         .get_motor(GANTRY_MOTOR_ID)
         .wait_for_move(GANTRY_SAMPLE_INTERVAL)
@@ -156,6 +171,26 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
     .dispense(DISPENSER_TIMEOUT)
     .await;
     info!("Dispensed from Node {:}", node_id);
+}
+
+pub async fn enable_and_clear_all(io: RyoIo) {
+    let cc1_motors: [ClearCoreMotor; 3] = array::from_fn(|motor_id| io.cc1.get_motor(motor_id));
+    let cc2_motors: [ClearCoreMotor; 4] = array::from_fn(|motor_id| io.cc2.get_motor(motor_id));
+
+    let enable_clear_cc1_handles = cc1_motors.iter().map(|motor|{
+        async move {
+            motor.enable().await.unwrap();
+            motor.clear_alerts().await;
+        }
+    });
+    let enable_clear_cc2_handles = cc2_motors.iter().map(|motor|{
+        async move {
+            motor.enable().await.unwrap();
+            motor.clear_alerts().await;
+        }
+    });
+    join_all(enable_clear_cc1_handles).await;
+    join_all(enable_clear_cc2_handles).await;
 }
 
 // pub async fn manual_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {

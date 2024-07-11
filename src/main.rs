@@ -8,12 +8,14 @@ use env_logger::Env;
 use log::info;
 use std::time::Duration;
 use std::{array, env};
+use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use futures::future::join_all;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::task::JoinSet;
+use tokio::task::{JoinHandle, JoinSet, spawn_blocking};
 use tokio::time::{sleep, sleep_until};
+use crate::manual_control::enable_and_clear_all;
 
 pub mod config;
 
@@ -45,12 +47,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     
     let mut client_set = JoinSet::new();
-
-    let scale_txs: [Sender<ScaleCmd>; 4] = array::from_fn(|i| {
-        let phidget_id = PHIDGET_SNS[i];
-        let (tx, actor) = Scale::actor_tx_pair(phidget_id);
+    
+    let scales_handles: [JoinHandle<Scale>; 4] = array::from_fn(|scale_id| {
+        spawn_blocking(
+            move || {
+            let scale = Scale::new(PHIDGET_SNS[scale_id]);
+            scale.connect().unwrap()
+        })
+    });
+    let mut scales = join_all(scales_handles).await;
+    scales.reverse();
+    let scale_txs: [Sender<ScaleCmd>; 4] = array::from_fn(|_scale_id| {
+        let (tx, actor) = scales.pop().unwrap().unwrap().actor_tx_pair();
         client_set.spawn(actor);
-        info!("Spawned {phidget_id} client-actor");
+        // info!("Spawned {phidget_id} client-actor");
         tx
     });
     
@@ -93,38 +103,7 @@ pub enum CycleCmd {
 }
 
 async fn pull_before_flight(io: RyoIo) {
-    let cc1_motors: [ClearCoreMotor; 3] = array::from_fn(|motor_id| io.cc1.get_motor(motor_id));
-    let cc2_motors: [ClearCoreMotor; 4] = array::from_fn(|motor_id| io.cc2.get_motor(motor_id));
-
-    let enable_cc1_handles = cc1_motors.iter().map(|motor|{
-        async move {
-            motor.enable().await.unwrap();
-        }
-    });
-    let enable_cc2_handles = cc2_motors.iter().map(|motor|{
-        async move {
-            motor.enable().await.unwrap();
-        }
-    });
-    join_all(enable_cc1_handles).await;
-    join_all(enable_cc2_handles).await;
-
-    let cc1_motors: [ClearCoreMotor; 3] = array::from_fn(|motor_id| io.cc1.get_motor(motor_id));
-    let cc2_motors: [ClearCoreMotor; 4] = array::from_fn(|motor_id| io.cc2.get_motor(motor_id));
-
-    let clear_cc1_handles = cc1_motors.iter().map(|motor|{
-        async move {
-            motor.clear_alerts().await;
-        }
-    });
-    let clear_cc2_handles = cc2_motors.iter().map(|motor|{
-        async move {
-            motor.clear_alerts().await;
-        }
-    });
-    join_all(clear_cc1_handles).await;
-    join_all(clear_cc2_handles).await;
-    
+    enable_and_clear_all(io.clone()).await;
     sleep(Duration::from_millis(500)).await;
     
     let mut set = JoinSet::new();
