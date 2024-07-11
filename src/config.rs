@@ -32,7 +32,7 @@ pub const GRIPPER_ACTUATOR: usize = 4;
 pub const BAG_BLOWER: usize = 5;
 
 pub const HATCHES_CH_A: [usize; 4] = [HATCH_A_CH_A, HATCH_B_CH_A, HATCH_C_CH_A, HATCH_D_CH_A];
-pub const HATCHES_CH_B: [usize; 4] = [HATCH_A_CH_B, HATCH_B_CH_B, HATCH_A_CH_B, HATCH_D_CH_B];
+pub const HATCHES_CH_B: [usize; 4] = [HATCH_A_CH_B, HATCH_B_CH_B, HATCH_C_CH_B, HATCH_D_CH_B];
 pub const HATCH_A_ANALOG_INPUT: usize = 0;
 pub const HATCH_B_ANALOG_INPUT: usize = 0;
 pub const HATCH_C_ANALOG_INPUT: usize = 0;

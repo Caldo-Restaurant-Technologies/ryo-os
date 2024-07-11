@@ -173,10 +173,9 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         hatches.reverse();
         for id in 0..hatches.len() {
             info!("Going to Node {:}", id);
-            gantry
+            let _ = gantry
                 .relative_move(GANTRY_NODE_POSITIONS[id])
-                .await
-                .unwrap();
+                .await;
             gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
             let mut hatch = hatches.pop().unwrap();
             hatch.timed_open(HATCHES_OPEN_TIME).await;
