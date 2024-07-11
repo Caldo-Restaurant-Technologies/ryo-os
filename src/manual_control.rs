@@ -180,11 +180,11 @@ pub async fn enable_and_clear_all(io: RyoIo) {
 
     let enable_clear_cc1_handles = cc1_motors.iter().map(|motor| async move {
         motor.clear_alerts().await;
-        motor.enable().await.unwrap();
+        let _ = motor.enable().await;
     });
     let enable_clear_cc2_handles = cc2_motors.iter().map(|motor| async move {
         motor.clear_alerts().await;
-        motor.enable().await.unwrap();
+        let _ = motor.enable().await;
     });
     join_all(enable_clear_cc1_handles).await;
     join_all(enable_clear_cc2_handles).await;
