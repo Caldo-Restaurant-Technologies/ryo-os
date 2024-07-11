@@ -49,10 +49,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (etc_io, cl3) = EtherCATIO::with_client(interface(), 2);
 
     client_set.spawn(cl3);
-    sleep(Duration::from_secs(10)).await;
+    sleep(Duration::from_secs(2)).await;
     client_set.spawn(cl1);
     client_set.spawn(cl2);
     
+    sleep(Duration::from_secs(10)).await;
 
     let scale_txs: [Sender<ScaleCmd>; 4] = array::from_fn(|i| {
         let phidget_id = PHIDGET_SNS[i];
