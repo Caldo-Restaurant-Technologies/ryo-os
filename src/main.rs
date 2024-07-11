@@ -1,13 +1,14 @@
 use crate::bag_handler::BagHandler;
 use crate::config::*;
 use crate::ryo::{make_hatches, RyoIo};
-use control_components::components::clear_core_motor::Status;
+use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
 use control_components::components::scale::{Scale, ScaleCmd};
 use control_components::controllers::{clear_core, ek1100_io};
 use env_logger::Env;
 use log::info;
 use std::time::Duration;
 use std::{array, env};
+use futures::future::join_all;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinSet;
 
@@ -82,6 +83,22 @@ pub enum CycleCmd {
 }
 
 async fn pull_before_flight(io: RyoIo) {
+    let cc1_motors: [ClearCoreMotor; 3] = array::from_fn(|motor_id| io.cc1.get_motor(motor_id));
+    let cc2_motors: [ClearCoreMotor; 4] = array::from_fn(|motor_id| io.cc2.get_motor(motor_id));
+
+    let enable_cc1_handles = cc1_motors.iter().map(|motor|{
+        async move {
+            motor.enable().await.unwrap();
+        }
+    });
+    let enable_cc2_handles = cc2_motors.iter().map(|motor|{
+        async move {
+            motor.enable().await.unwrap();
+        }
+    });
+    join_all(enable_cc1_handles).await;
+    join_all(enable_cc2_handles).await;
+    
     let mut set = JoinSet::new();
     let hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
     let bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
@@ -98,7 +115,6 @@ async fn pull_before_flight(io: RyoIo) {
         if state == Status::Moving {
             gantry.wait_for_move(Duration::from_secs(1)).await;
         }
-        gantry.enable().await.expect("Motor is faulted");
         gantry.absolute_move(-0.25).await.expect("Motor is faulted");
         gantry.wait_for_move(Duration::from_secs(1)).await;
     });
