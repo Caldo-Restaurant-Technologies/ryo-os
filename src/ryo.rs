@@ -105,7 +105,7 @@ pub fn make_hatch(hatch_id: usize, cc1: Controller, cc2: Controller) -> Hatch {
 pub fn make_sealer(mut io: RyoIo) -> Sealer {
     Sealer::new(
         io.cc1.get_output(SEALER_HEATER),
-        io.etc_io.get_io(SEALER_ACTUATOR_ID),
+        io.etc_io.get_io(0),
         SEALER_EXTEND_ID,
         SEALER_RETRACT_ID,
     )
@@ -114,8 +114,8 @@ pub fn make_sealer(mut io: RyoIo) -> Sealer {
 pub fn make_trap_door(mut io: RyoIo) -> RelayHBridge {
     RelayHBridge::new(
         (
-            Output::EtherCat(io.etc_io.get_io(1), 0, 2),
-            Output::EtherCat(io.etc_io.get_io(1), 0, 3),
+            Output::EtherCat(io.etc_io.get_io(0), 1, 2),
+            Output::EtherCat(io.etc_io.get_io(0), 1, 3),
         ),
         io.cc1.get_analog_input(0),
     )
