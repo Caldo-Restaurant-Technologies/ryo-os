@@ -126,7 +126,7 @@ async fn pull_before_flight(io: RyoIo) {
             .expect("Motor is faulted");
         gantry.wait_for_move(Duration::from_secs(1)).await;
     });
-    
+
     drop(io);
     info!("All systems go.");
     while let Some(_) = set.join_next().await {}
@@ -194,16 +194,16 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
 
         // Seal Bag
         make_sealer(io.clone()).seal().await;
-        
+
         // Finish Bag
         make_trap_door(io.clone()).actuate(HBridgeState::Neg).await;
-        
+
         sleep(Duration::from_secs(60)).await;
-        
-        
-        
-        
-        
+
+
+
+
+
         // match auto_rx.try_recv() {
         //     Ok(msg) => match msg {
         //         CycleCmd::Cycle(count) => {
