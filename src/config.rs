@@ -121,7 +121,8 @@ pub const GRIPPER_POSITIONS: [f64; 3] = [-0.4, 0.8, 0.4];
 
 pub const DISPENSER_TIMEOUT: Duration = Duration::from_secs(120);
 
-pub const GANTRY_NODE_POSITIONS: [f64; 4] = [24.5, 47.0, 69.5, 92.0];
+// pub const GANTRY_NODE_POSITIONS: [f64; 4] = [24.5, 47.0, 69.5, 92.0];
+pub const GANTRY_NODE_POSITIONS: [f64; 4] = [24.5, 47.0, 69.5, 80.];
 pub const GANTRY_HOME_POSITION: f64 = 0.;
 pub const GANTRY_BAG_DROP_POSITION: f64 = 84.;
 pub const GANTRY_ALL_POSITIONS: [f64; 6] = [
