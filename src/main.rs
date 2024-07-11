@@ -108,7 +108,8 @@ async fn pull_before_flight(io: RyoIo) {
     let bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
     let gantry = make_gantry(io.cc1.clone());
     make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
-
+    make_gripper(io.cc1.clone(), io.cc2.clone()).close().await;
+    
     for mut hatch in hatches {
         set.spawn(async move { hatch.timed_close(Duration::from_secs_f64(2.8)).await });
     }
@@ -120,10 +121,9 @@ async fn pull_before_flight(io: RyoIo) {
         if state == Status::Moving {
             gantry.wait_for_move(Duration::from_secs(1)).await;
         }
-        gantry
+        let _ = gantry
             .absolute_move(GANTRY_HOME_POSITION)
-            .await
-            .expect("Motor is faulted");
+            .await;
         gantry.wait_for_move(Duration::from_secs(1)).await;
     });
 
