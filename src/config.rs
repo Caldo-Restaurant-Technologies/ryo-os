@@ -45,10 +45,10 @@ pub const HATCHES_ANALOG_INPUTS: [usize; 4] = [
 ];
 
 pub const HATCHES_OPEN_TIME: Duration = Duration::from_millis(1900);
-pub const HATCH_A_CLOSE_TIME: Duration = Duration::from_millis(1650);
-pub const HATCH_B_CLOSE_TIME: Duration = Duration::from_millis(1650);
-pub const HATCH_C_CLOSE_TIME: Duration = Duration::from_millis(1600);
-pub const HATCH_D_CLOSE_TIME: Duration = Duration::from_millis(1650);
+pub const HATCH_A_CLOSE_TIME: Duration = Duration::from_millis(1550);
+pub const HATCH_B_CLOSE_TIME: Duration = Duration::from_millis(1550);
+pub const HATCH_C_CLOSE_TIME: Duration = Duration::from_millis(1500);
+pub const HATCH_D_CLOSE_TIME: Duration = Duration::from_millis(1550);
 pub const HATCH_CLOSE_TIMES: [Duration; 4] = [
     HATCH_A_CLOSE_TIME,
     HATCH_B_CLOSE_TIME,
@@ -61,8 +61,9 @@ pub const BAG_ROLLER_PE: usize = 1;
 pub const BAG_DETECT_PE: usize = 2;
 // Analog Inputs CC1
 pub const SEALER_TRAP_DOOR_FB: usize = 3;
-pub const SEALER_FB_CH_A: usize = 4;
-pub const SEALER_FB_CH_B: usize = 5;
+pub const SEALER_EXTEND_ID: u8 = 0;
+pub const SEALER_RETRACT_ID: u8 = 1;
+pub const SEALER_ACTUATOR_ID: usize = 1;
 
 //Analog Inputs CC2
 pub const NODE_A_FB: usize = 3;

@@ -1,3 +1,4 @@
+use control_components::components::clear_core_io::DigitalOutput;
 use control_components::components::clear_core_motor::ClearCoreMotor;
 use control_components::components::scale::ScaleCmd;
 use control_components::controllers::clear_core::Controller;
@@ -7,13 +8,15 @@ use crate::config::{
     BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, GANTRY_MOTOR_ID, GRIPPER_ACTUATOR,
     GRIPPER_MOTOR_ID, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CH_A, HATCHES_CH_B,
     HATCH_A_CH_A, HATCH_A_CH_B, HATCH_B_CH_A, HATCH_B_CH_B, HATCH_C_CH_A, HATCH_C_CH_B,
-    HATCH_D_CH_A, HATCH_D_CH_B,
+    HATCH_D_CH_A, HATCH_D_CH_B, SEALER_ACTUATOR_ID, SEALER_EXTEND_ID, SEALER_HEATER,
+    SEALER_RETRACT_ID,
 };
 use crate::{CCController, EtherCATIO};
 use control_components::subsystems::bag_handling::{BagDispenser, BagGripper};
 use control_components::subsystems::dispenser::{Dispenser, Parameters, Setpoint};
 use control_components::subsystems::hatch::Hatch;
-use control_components::subsystems::linear_actuator::{Output, SimpleLinearActuator};
+use control_components::subsystems::linear_actuator::{Output, RelayHBridge, SimpleLinearActuator};
+use control_components::subsystems::sealer::Sealer;
 use log::error;
 use tokio::sync::mpsc::Sender;
 
@@ -49,15 +52,17 @@ pub fn make_dispensers(
     set_points: &[Setpoint],
     parameters: &[Parameters],
     senders: &[Sender<ScaleCmd>],
-) -> [Dispenser; 4] {
-    array::from_fn(|i| {
-        Dispenser::new(
-            cc2.get_motor(CC2_MOTORS[i].id as usize),
-            set_points[i].clone(),
-            parameters[i].clone(),
-            senders[i].clone(),
-        )
-    })
+) -> Vec<Dispenser> {
+    (0..4)
+        .map(|dispenser_id| {
+            Dispenser::new(
+                cc2.get_motor(CC2_MOTORS[dispenser_id].id as usize),
+                set_points[dispenser_id].clone(),
+                parameters[dispenser_id].clone(),
+                senders[dispenser_id].clone(),
+            )
+        })
+        .collect()
 }
 
 pub fn make_dispenser(
@@ -75,29 +80,10 @@ pub fn make_dispenser(
     )
 }
 
-pub fn make_hatches(cc1: Controller, cc2: Controller) -> [Hatch; 4] {
-    [
-        Hatch::from_io(
-            Output::ClearCore(cc1.get_output(HATCH_A_CH_A)),
-            Output::ClearCore(cc1.get_output(HATCH_A_CH_B)),
-            cc1.get_analog_input(0),
-        ),
-        Hatch::from_io(
-            Output::ClearCore(cc1.get_output(HATCH_B_CH_A)),
-            Output::ClearCore(cc1.get_output(HATCH_B_CH_B)),
-            cc1.get_analog_input(0),
-        ),
-        Hatch::from_io(
-            Output::ClearCore(cc2.get_output(HATCH_C_CH_A)),
-            Output::ClearCore(cc2.get_output(HATCH_C_CH_B)),
-            cc1.get_analog_input(0),
-        ),
-        Hatch::from_io(
-            Output::ClearCore(cc2.get_output(HATCH_D_CH_A)),
-            Output::ClearCore(cc2.get_output(HATCH_D_CH_B)),
-            cc1.get_analog_input(0),
-        ),
-    ]
+pub fn make_hatches(cc1: Controller, cc2: Controller) -> Vec<Hatch> {
+    (0..4)
+        .map(|id| make_hatch(id, cc1.clone(), cc2.clone()))
+        .collect()
 }
 
 pub fn make_hatch(hatch_id: usize, cc1: Controller, cc2: Controller) -> Hatch {
@@ -113,5 +99,24 @@ pub fn make_hatch(hatch_id: usize, cc1: Controller, cc2: Controller) -> Hatch {
         Output::ClearCore(cc.get_output(HATCHES_CH_A[hatch_id])),
         Output::ClearCore(cc.get_output(HATCHES_CH_B[hatch_id])),
         cc.get_analog_input(HATCHES_ANALOG_INPUTS[hatch_id]),
+    )
+}
+
+pub fn make_sealer(mut io: RyoIo) -> Sealer {
+    Sealer::new(
+        io.cc1.get_output(SEALER_HEATER),
+        io.etc_io.get_io(SEALER_ACTUATOR_ID),
+        SEALER_EXTEND_ID,
+        SEALER_RETRACT_ID,
+    )
+}
+
+pub fn make_trap_door(mut io: RyoIo) -> RelayHBridge {
+    RelayHBridge::new(
+        (
+            Output::EtherCat(io.etc_io.get_io(1), 0, 2),
+            Output::EtherCat(io.etc_io.get_io(1), 0, 3),
+        ),
+        io.cc1.get_analog_input(0),
     )
 }
