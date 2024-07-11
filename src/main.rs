@@ -43,7 +43,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         _ => RYO_INTERFACE,
     };
 
+    
     let mut client_set = JoinSet::new();
+
+    let scale_txs: [Sender<ScaleCmd>; 4] = array::from_fn(|i| {
+        let phidget_id = PHIDGET_SNS[i];
+        let (tx, actor) = Scale::actor_tx_pair(phidget_id);
+        client_set.spawn(actor);
+        info!("Spawned {phidget_id} client-actor");
+        tx
+    });
+    
+    sleep(Duration::from_secs(16)).await;
 
     //Create IO controllers and their relevant clients
     let (cc1, cl1) = CCController::with_client(CLEAR_CORE_1_ADDR, CC1_MOTORS.as_slice());
@@ -57,14 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     
     sleep(Duration::from_secs(10)).await;
 
-    let scale_txs: [Sender<ScaleCmd>; 4] = array::from_fn(|i| {
-        let phidget_id = PHIDGET_SNS[i];
-        let (tx, actor) = Scale::actor_tx_pair(phidget_id);
-        client_set.spawn(actor);
-        info!("Spawned {phidget_id} client-actor");
-        tx
-    });
-
+    
     info!("Controller-Client pairs created successfully");
 
     let ryo_io = RyoIo {
