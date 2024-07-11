@@ -11,7 +11,7 @@ use std::{array, env};
 use futures::future::join_all;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinSet;
-use tokio::time::sleep;
+use tokio::time::{sleep, sleep_until};
 
 pub mod config;
 
@@ -48,9 +48,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (cc2, cl2) = CCController::with_client(CLEAR_CORE_2_ADDR, CC2_MOTORS.as_slice());
     let (etc_io, cl3) = EtherCATIO::with_client(interface(), 2);
 
+    client_set.spawn(cl3);
+    sleep(Duration::from_secs(10)).await;
     client_set.spawn(cl1);
     client_set.spawn(cl2);
-    client_set.spawn(cl3);
+    
 
     let scale_txs: [Sender<ScaleCmd>; 4] = array::from_fn(|i| {
         let phidget_id = PHIDGET_SNS[i];
