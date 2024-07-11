@@ -109,7 +109,7 @@ async fn pull_before_flight(io: RyoIo) {
     let gantry = make_gantry(io.cc1.clone());
     make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_gripper(io.cc1.clone(), io.cc2.clone()).close().await;
-    
+
     for mut hatch in hatches {
         set.spawn(async move { hatch.timed_close(Duration::from_secs_f64(2.8)).await });
     }
@@ -143,11 +143,11 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
 
     let mut batch_count = 0;
     let mut pause = false;
-    loop {
+    // loop {
         info!("Cycle loop");
-        if shutdown.load(Ordering::Relaxed) {
-            break;
-        }
+        // if shutdown.load(Ordering::Relaxed) {
+        //     break;
+        // }
         // Create Dispense Tasks
         let params: [Parameters; 4] = array::from_fn(|_| Parameters::default());
         let set_points: [Setpoint; 4] =
@@ -172,7 +172,7 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         let mut hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
         hatches.reverse();
         for id in 0..4 {
-            info!("Going to Node {:}", id);
+            info!("Going to Node {:}", GANTRY_NODE_POSITIONS[id]);
             let _ = gantry
                 .relative_move(GANTRY_NODE_POSITIONS[id])
                 .await;
@@ -225,5 +225,5 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         //         info!("System Paused.");
         //     }
         // }
-    }
+    // }
 }
