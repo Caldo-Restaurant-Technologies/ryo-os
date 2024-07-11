@@ -174,7 +174,7 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         for id in 0..4 {
             info!("Going to Node {:}", GANTRY_NODE_POSITIONS[id]);
             let _ = gantry
-                .relative_move(GANTRY_NODE_POSITIONS[id])
+                .absolute_move(GANTRY_NODE_POSITIONS[id])
                 .await;
             gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
             let mut hatch = hatches.pop().unwrap();
@@ -185,7 +185,7 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
 
         // Drop Bag
         let _ = gantry
-            .relative_move(GANTRY_BAG_DROP_POSITION)
+            .absolute_move(GANTRY_BAG_DROP_POSITION)
             .await;
         gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
         let mut gripper = make_gripper(io.cc1.clone(), io.cc2.clone());
