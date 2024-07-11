@@ -11,6 +11,7 @@ use std::{array, env};
 use futures::future::join_all;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinSet;
+use tokio::time::sleep;
 
 pub mod config;
 
@@ -114,6 +115,8 @@ async fn pull_before_flight(io: RyoIo) {
     });
     join_all(clear_cc1_handles).await;
     join_all(clear_cc2_handles).await;
+    
+    sleep(Duration::from_millis(500)).await;
     
     let mut set = JoinSet::new();
     let hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
