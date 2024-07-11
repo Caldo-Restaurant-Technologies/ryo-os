@@ -98,6 +98,22 @@ async fn pull_before_flight(io: RyoIo) {
     });
     join_all(enable_cc1_handles).await;
     join_all(enable_cc2_handles).await;
+
+    let cc1_motors: [ClearCoreMotor; 3] = array::from_fn(|motor_id| io.cc1.get_motor(motor_id));
+    let cc2_motors: [ClearCoreMotor; 4] = array::from_fn(|motor_id| io.cc2.get_motor(motor_id));
+
+    let clear_cc1_handles = cc1_motors.iter().map(|motor|{
+        async move {
+            motor.clear_alerts().await;
+        }
+    });
+    let clear_cc2_handles = cc2_motors.iter().map(|motor|{
+        async move {
+            motor.clear_alerts().await;
+        }
+    });
+    join_all(clear_cc1_handles).await;
+    join_all(clear_cc2_handles).await;
     
     let mut set = JoinSet::new();
     let hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
