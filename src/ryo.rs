@@ -106,16 +106,16 @@ pub fn make_sealer(mut io: RyoIo) -> Sealer {
     Sealer::new(
         io.cc1.get_output(SEALER_HEATER),
         io.etc_io.get_io(0),
-        SEALER_EXTEND_ID,
-        SEALER_RETRACT_ID,
+        2,
+        3,
     )
 }
 
 pub fn make_trap_door(mut io: RyoIo) -> RelayHBridge {
     RelayHBridge::new(
         (
-            Output::EtherCat(io.etc_io.get_io(0), 1, 2),
-            Output::EtherCat(io.etc_io.get_io(0), 1, 3),
+            Output::EtherCat(io.etc_io.get_io(0), 1, 0),
+            Output::EtherCat(io.etc_io.get_io(0), 1, 1),
         ),
         io.cc1.get_analog_input(0),
     )

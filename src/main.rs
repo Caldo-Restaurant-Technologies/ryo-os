@@ -107,6 +107,7 @@ async fn pull_before_flight(io: RyoIo) {
     let hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
     let bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
     let gantry = make_gantry(io.cc1.clone());
+    gantry.set_velocity(1.).await;
     make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_gripper(io.cc1.clone(), io.cc2.clone()).close().await;
 
@@ -143,7 +144,7 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
 
     let mut batch_count = 0;
     let mut pause = false;
-    // loop {
+    loop {
         info!("Cycle loop");
         // if shutdown.load(Ordering::Relaxed) {
         //     break;
@@ -191,14 +192,16 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         let mut gripper = make_gripper(io.cc1.clone(), io.cc2.clone());
         gripper.open().await;
         sleep(Duration::from_millis(500)).await;
+        gripper.close().await;
 
         // Seal Bag
         make_sealer(io.clone()).seal().await;
 
         // Finish Bag
         make_trap_door(io.clone()).actuate(HBridgeState::Neg).await;
+        make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
 
-        sleep(Duration::from_secs(60)).await;
+        sleep(Duration::from_secs(5)).await;
 
 
 
@@ -225,5 +228,5 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         //         info!("System Paused.");
         //     }
         // }
-    // }
+    }
 }
