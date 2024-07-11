@@ -131,8 +131,8 @@ async fn pull_before_flight(io: RyoIo) {
         if state == Status::Moving {
             gantry.wait_for_move(Duration::from_secs(1)).await;
         }
-        gantry.absolute_move(-0.25).await.expect("Motor is faulted");
-        gantry.wait_for_move(Duration::from_secs(1)).await;
+        // gantry.absolute_move(-0.25).await.expect("Motor is faulted");
+        // gantry.wait_for_move(Duration::from_secs(1)).await;
     });
     info!("All systems go.");
     while let Some(_) = set.join_next().await {}
