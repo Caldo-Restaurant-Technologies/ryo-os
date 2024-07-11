@@ -179,12 +179,12 @@ pub async fn enable_and_clear_all(io: RyoIo) {
     let cc2_motors: [ClearCoreMotor; 4] = array::from_fn(|motor_id| io.cc2.get_motor(motor_id));
 
     let enable_clear_cc1_handles = cc1_motors.iter().map(|motor| async move {
-        motor.enable().await.unwrap();
         motor.clear_alerts().await;
+        motor.enable().await.unwrap();
     });
     let enable_clear_cc2_handles = cc2_motors.iter().map(|motor| async move {
-        motor.enable().await.unwrap();
         motor.clear_alerts().await;
+        motor.enable().await.unwrap();
     });
     join_all(enable_clear_cc1_handles).await;
     join_all(enable_clear_cc2_handles).await;
