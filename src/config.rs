@@ -64,6 +64,7 @@ pub const SEALER_TRAP_DOOR_FB: usize = 3;
 pub const SEALER_EXTEND_ID: u8 = 0;
 pub const SEALER_RETRACT_ID: u8 = 1;
 pub const SEALER_ACTUATOR_ID: usize = 1;
+pub const SEALER_MOVE_DOOR_TIME: Duration = Duration::from_millis(3000);
 
 //Analog Inputs CC2
 pub const NODE_A_FB: usize = 3;

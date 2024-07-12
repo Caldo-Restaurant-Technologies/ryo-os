@@ -108,14 +108,22 @@ async fn pull_before_flight(io: RyoIo) {
     let bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
     let gantry = make_gantry(io.cc1.clone());
     gantry.set_velocity(100.).await;
-    make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
+    // make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_gripper(io.cc1.clone(), io.cc2.clone()).close().await;
-    
     make_sealer(io.clone()).seal().await;
+
     make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
+    sleep(SEALER_MOVE_DOOR_TIME).await;
+    make_trap_door(io.clone()).actuate(HBridgeState::Off).await;
+  
 
     for mut hatch in hatches {
-        set.spawn(async move { hatch.timed_close(Duration::from_secs_f64(2.8)).await });
+        set.spawn(
+            async move { 
+                hatch.timed_open(HATCHES_OPEN_TIME).await;
+                hatch.timed_close(Duration::from_secs_f64(1.6)).await;
+            }
+        );
     }
 
     set.spawn(async move { bag_handler.dispense_bag().await });
@@ -200,9 +208,14 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         // Seal Bag
         make_sealer(io.clone()).seal().await;
 
-        // Finish Bag
+        // Release Bag
         make_trap_door(io.clone()).actuate(HBridgeState::Neg).await;
+        sleep(SEALER_MOVE_DOOR_TIME).await;
+        make_trap_door(io.clone()).actuate(HBridgeState::Off).await;
+        sleep(Duration::from_millis(500)).await;
         make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
+        sleep(SEALER_MOVE_DOOR_TIME).await;
+        make_trap_door(io.clone()).actuate(HBridgeState::Off).await;
         
         // Re-home gantry and dispense new bag
         let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
@@ -237,4 +250,8 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         //     }
         // }
     }
+}
+
+async fn reset(io: RyoIo) {
+    
 }

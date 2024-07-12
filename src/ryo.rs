@@ -120,3 +120,4 @@ pub fn make_trap_door(mut io: RyoIo) -> RelayHBridge {
         io.cc1.get_analog_input(0),
     )
 }
+
