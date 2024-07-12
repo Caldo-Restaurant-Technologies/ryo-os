@@ -120,7 +120,7 @@ async fn pull_before_flight(io: RyoIo) {
     let hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
     let bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
     let gantry = make_gantry(io.cc1.clone());
-    gantry.set_velocity(100.).await;
+    gantry.set_velocity(50.).await;
     // make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_gripper(io.cc1.clone(), io.cc2.clone()).close().await;
     make_sealer(io.clone()).seal().await;

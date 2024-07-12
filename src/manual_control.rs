@@ -204,6 +204,8 @@ pub async fn disable_all(io: RyoIo) {
     join_all(disable_cc2_handles).await;
 }
 
+// pub async response_build()
+
 // pub async fn manual_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
 //     match (req.method(), req.uri().path()) {
 //         (&Method::OPTIONS, _) => {

@@ -109,7 +109,7 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
             let response = Response::builder()
                 .status(204)
                 .header("Access-Control-Allow-Origin", "*")
-                .header("Access-Control-Allow-Methods", "POST, OPTIONS, GET")
+                .header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
                 .header("Access-Control-Allow-Headers", "*")
                 .body(full("Granting Control"))
                 .unwrap();
