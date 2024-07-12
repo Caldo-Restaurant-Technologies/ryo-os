@@ -9,7 +9,7 @@ use control_components::subsystems::dispenser::{Parameters, Setpoint};
 use control_components::subsystems::sealer::Sealer;
 use env_logger::Env;
 use futures::future::join_all;
-use log::info;
+use log::{error, info};
 use std::error::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -41,6 +41,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let host = env::args()
         .nth(1)
         .expect("Is this running locally or on Ryo?");
+    
+    let task = env::args()
+        .nth(2)
+        .expect("Do you want to run a cycle or hmi?");
 
     //TODO: Change so that interface can be defined as a compiler flag passed at compile time
     // Figure out a way to detect at launch
@@ -89,7 +93,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let (_, cycle_rx) = channel::<CycleCmd>(10);
 
-    cycle(ryo_io, cycle_rx).await;
+    match task.as_str() {
+        "hmi" => hmi(ryo_io, cycle_rx).await,
+        "cycle" => cycle(ryo_io, cycle_rx).await,
+        _ => {
+            error!("Must enter hmi or cycle");
+            return Ok(())
+        }
+    }
 
     while let Some(_) = client_set.join_next().await {}
     Ok(())
@@ -114,7 +125,7 @@ async fn pull_before_flight(io: RyoIo) {
     make_gripper(io.cc1.clone(), io.cc2.clone()).close().await;
     make_sealer(io.clone()).seal().await;
 
-    
+
     make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     sleep(SEALER_MOVE_DOOR_TIME).await;
     make_trap_door(io.clone()).actuate(HBridgeState::Off).await;
@@ -152,8 +163,8 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
     let shutdown = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
         .expect("Register hook");
-    
-    
+
+
 
     let mut batch_count = 0;
     let mut pause = false;
@@ -162,7 +173,117 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         if shutdown.load(Ordering::Relaxed) {
             break;
         }
-        
+
+        pull_before_flight(io.clone()).await;
+
+        // Create Dispense Tasks
+        let params: [Parameters; 4] = array::from_fn(|_| Parameters::default());
+        let set_points: [Setpoint; 4] =
+            array::from_fn(|_| Setpoint::Timed(Duration::from_secs(15)));
+        let dispensers = make_dispensers(io.cc2.clone(), &set_points, &params, &io.scale_txs);
+        let dispense_tasks: Vec<JoinHandle<()>> = dispensers
+            .into_iter()
+            .map(|dispenser| {
+                tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await })
+            })
+            .collect();
+
+        // Create Bag Loading Task
+        let mut bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
+        let bag_load_task = tokio::spawn(async move { bag_handler.load_bag().await });
+
+        // Concurrently run Dispensing and Bag Loading
+        let _ = join!(join_all(dispense_tasks), bag_load_task);
+
+        // Fill Bag
+        let gantry = make_gantry(io.cc1.clone());
+        let mut hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
+        hatches.reverse();
+        for id in 0..4 {
+            info!("Going to Node {:}", id);
+            let _ = gantry
+                .absolute_move(GANTRY_NODE_POSITIONS[id])
+                .await;
+            gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+            let mut hatch = hatches.pop().unwrap();
+            hatch.timed_open(HATCHES_OPEN_TIME).await;
+            sleep(Duration::from_millis(500)).await;
+            hatch.timed_close(HATCH_CLOSE_TIMES[id]).await;
+        }
+
+        // Drop Bag
+        let _ = gantry
+            .absolute_move(GANTRY_BAG_DROP_POSITION)
+            .await;
+        gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+        let mut gripper = make_gripper(io.cc1.clone(), io.cc2.clone());
+        gripper.open().await;
+        sleep(Duration::from_millis(500)).await;
+        gripper.close().await;
+
+        // Seal Bag
+        make_sealer(io.clone()).seal().await;
+
+        // Release Bag
+        let mut trap_door =make_trap_door(io.clone());
+        trap_door.actuate(HBridgeState::Neg).await;
+        sleep(SEALER_MOVE_DOOR_TIME).await;
+        trap_door.actuate(HBridgeState::Off).await;
+        sleep(Duration::from_millis(500)).await;
+        trap_door.actuate(HBridgeState::Pos).await;
+        sleep(SEALER_MOVE_DOOR_TIME).await;
+        trap_door.actuate(HBridgeState::Off).await;
+
+        sleep(Duration::from_secs(10)).await;
+
+        // Re-home gantry and dispense new bag
+        let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
+        BagHandler::new(io.cc1.clone(), io.cc2.clone()).dispense_bag().await;
+        gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+
+        sleep(Duration::from_secs(5)).await;
+
+        // match auto_rx.try_recv() {
+        //     Ok(msg) => match msg {
+        //         CycleCmd::Cycle(count) => {
+        //             batch_count = count;
+        //         }
+        //         CycleCmd::Pause => {
+        //             pause = true;
+        //         }
+        //         CycleCmd::Cancel => {
+        //             batch_count = 0;
+        //         }
+        //     },
+        //     _ => {}
+        // }
+        // sleep(Duration::from_secs(1)).await;
+        // if batch_count > 0 {
+        //     
+        // }
+
+
+
+
+    }
+}
+
+async fn hmi(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
+
+    let shutdown = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
+        .expect("Register hook");
+
+
+
+    let mut batch_count = 0;
+    let mut pause = false;
+    loop {
+        info!("Cycle loop");
+        if shutdown.load(Ordering::Relaxed) {
+            break;
+        }
+
         // let (hmi_tx, mut hmi_rx) = channel(1);
         let state_server = tokio::spawn(
             hmi::ui_server(
@@ -175,7 +296,6 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         //         let a = 0;
         //     }
         // });
-        
         let _ = join!(state_server);
 
         match auto_rx.try_recv() {
@@ -196,7 +316,7 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         if batch_count > 0 {
             loop {
                 pull_before_flight(io.clone()).await;
-                
+
                 // Create Dispense Tasks
                 let params: [Parameters; 4] = array::from_fn(|_| Parameters::default());
                 let set_points: [Setpoint; 4] =
@@ -265,9 +385,9 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
                 sleep(Duration::from_secs(5)).await;
             }
         }
-        
-        
-        
-        
+
+
+
+
     }
 }
