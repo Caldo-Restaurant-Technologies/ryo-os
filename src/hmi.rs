@@ -122,6 +122,10 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
         (&Method::GET, "/job_progress") => Ok(Response::new(full("WIP"))),
         (&Method::GET, "/v1/api/recipe/all") => Ok(Response::new(full("WIP"))),
         (&Method::POST, "/echo") => Ok(Response::new(req.into_body().boxed())),
+        (&Method::POST, "/cycle") => {
+            
+            Ok(Response::new(req.into_body().boxed()))
+        },
         (&Method::POST, "/gripper") => {
             let body = req.collect().await?.to_bytes();
             let gripper = make_gripper(io.cc1, io.cc2);
@@ -162,7 +166,7 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
     }
 }
 
-pub async fn ui_server<F, T: ToSocketAddrs>(
+pub async fn ui_server<T: ToSocketAddrs>(
     addr: T,
     controllers: RyoIo,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
