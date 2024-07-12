@@ -1,9 +1,6 @@
 use crate::bag_handler::{load_bag, BagHandler, BagHandlingCmd, ManualBagHandlingCmd};
 use crate::manual_control;
-use crate::manual_control::{
-    handle_dispenser_req, handle_gantry_req, handle_gripper_req, handle_hatch_req,
-    handle_hatches_req,
-};
+use crate::manual_control::{disable_all, enable_and_clear_all, handle_dispenser_req, handle_gantry_req, handle_gripper_req, handle_hatch_req, handle_hatches_req};
 use crate::recipe_handling::get_sample_recipe;
 use crate::ryo::{make_gripper, RyoIo};
 use bytes::{Buf, Bytes};
@@ -161,6 +158,14 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
             let params_json: serde_json::Value = serde_json::from_reader(body.reader()).unwrap();
             handle_dispenser_req(params_json, io).await;
             Ok(Response::new(full("Dispensed")))
+        }
+        (&Method::POST, "/enable") => {
+            enable_and_clear_all(io.clone()).await;
+            Ok(Response::new(full("Enabled all")))
+        }
+        (&Method::POST, "/disable") => {
+            disable_all(io.clone()).await;
+            Ok(Response::new(full("Disabled all")))
         }
         (_, _) => {
             let mut not_found = Response::new(empty());
