@@ -107,7 +107,7 @@ async fn pull_before_flight(io: RyoIo) {
     let hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
     let bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
     let gantry = make_gantry(io.cc1.clone());
-    gantry.set_velocity(1.).await;
+    gantry.set_velocity(50.).await;
     make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_gripper(io.cc1.clone(), io.cc2.clone()).close().await;
 
@@ -200,6 +200,10 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         // Finish Bag
         make_trap_door(io.clone()).actuate(HBridgeState::Neg).await;
         make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
+        
+        // Re-home gantry
+        let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
+        gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
 
         sleep(Duration::from_secs(5)).await;
 
