@@ -184,7 +184,7 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         let mut hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
         hatches.reverse();
         for id in 0..4 {
-            info!("Going to Node {:}", GANTRY_NODE_POSITIONS[id]);
+            info!("Going to Node {:}", id);
             let _ = gantry
                 .absolute_move(GANTRY_NODE_POSITIONS[id])
                 .await;
