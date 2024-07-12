@@ -106,8 +106,8 @@ pub fn make_sealer(mut io: RyoIo) -> Sealer {
     Sealer::new(
         io.cc1.get_output(SEALER_HEATER),
         io.etc_io.get_io(0),
-        2,
         3,
+        2,
     )
 }
 

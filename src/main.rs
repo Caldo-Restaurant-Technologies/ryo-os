@@ -107,7 +107,7 @@ async fn pull_before_flight(io: RyoIo) {
     let hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
     let bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
     let gantry = make_gantry(io.cc1.clone());
-    gantry.set_velocity(50.).await;
+    gantry.set_velocity(100.).await;
     make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_gripper(io.cc1.clone(), io.cc2.clone()).close().await;
 
@@ -146,9 +146,9 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
     let mut pause = false;
     loop {
         info!("Cycle loop");
-        // if shutdown.load(Ordering::Relaxed) {
-        //     break;
-        // }
+        if shutdown.load(Ordering::Relaxed) {
+            break;
+        }
         // Create Dispense Tasks
         let params: [Parameters; 4] = array::from_fn(|_| Parameters::default());
         let set_points: [Setpoint; 4] =
@@ -201,8 +201,9 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         make_trap_door(io.clone()).actuate(HBridgeState::Neg).await;
         make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
         
-        // Re-home gantry
+        // Re-home gantry and dispense new bag
         let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
+        BagHandler::new(io.cc1.clone(), io.cc2.clone()).dispense_bag().await;
         gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
 
         sleep(Duration::from_secs(5)).await;
