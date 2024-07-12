@@ -110,6 +110,9 @@ async fn pull_before_flight(io: RyoIo) {
     gantry.set_velocity(100.).await;
     make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_gripper(io.cc1.clone(), io.cc2.clone()).close().await;
+    
+    make_sealer(io.clone()).seal().await;
+    make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
 
     for mut hatch in hatches {
         set.spawn(async move { hatch.timed_close(Duration::from_secs_f64(2.8)).await });
