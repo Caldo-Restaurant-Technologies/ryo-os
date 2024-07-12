@@ -1,6 +1,6 @@
 use crate::bag_handler::{load_bag, BagHandler, BagHandlingCmd, ManualBagHandlingCmd};
 use crate::manual_control;
-use crate::manual_control::{disable_all, enable_and_clear_all, handle_dispenser_req, handle_gantry_req, handle_gripper_req, handle_hatch_req, handle_hatches_req};
+use crate::manual_control::{disable_all, enable_and_clear_all, handle_dispenser_req, handle_gantry_req, handle_gripper_req, handle_hatch_req, handle_hatches_req, handle_sealer_req};
 use crate::recipe_handling::get_sample_recipe;
 use crate::ryo::{make_gripper, RyoIo};
 use bytes::{Buf, Bytes};
@@ -136,6 +136,11 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
         (&Method::POST, "/dispense_bag") => {
             BagHandler::new(io.cc1.clone(), io.cc2.clone()).dispense_bag().await;
             Ok(Response::new(req.into_body().boxed()))
+        }
+        (&Method::POST, "/sealer") => {
+            let body = req.collect().await?.to_bytes();
+            handle_sealer_req(body, io).await;
+            Ok(Response::new(full("Sealer actuated")))
         }
         (&Method::POST, "/hatch") => {
             let body = req.collect().await?.to_bytes();

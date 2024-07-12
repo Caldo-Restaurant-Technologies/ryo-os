@@ -273,9 +273,7 @@ async fn hmi(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
     let shutdown = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
         .expect("Register hook");
-
-
-
+    info!("HMI Ready");
     let mut batch_count = 0;
     let mut pause = false;
     loop {
@@ -366,7 +364,7 @@ async fn hmi(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
                 make_sealer(io.clone()).seal().await;
 
                 // Release Bag
-                let mut trap_door =make_trap_door(io.clone());
+                let mut trap_door = make_trap_door(io.clone());
                 trap_door.actuate(HBridgeState::Neg).await;
                 sleep(SEALER_MOVE_DOOR_TIME).await;
                 trap_door.actuate(HBridgeState::Off).await;

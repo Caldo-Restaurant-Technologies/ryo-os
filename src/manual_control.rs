@@ -1,10 +1,7 @@
 use crate::bag_handler::{load_bag, BagHandlingCmd, ManualBagHandlingCmd};
-use crate::config::{
-    DISPENSER_TIMEOUT, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL,
-    HATCHES_OPEN_TIME, HATCH_CLOSE_TIMES,
-};
+use crate::config::{DISPENSER_TIMEOUT, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL, HATCHES_OPEN_TIME, HATCH_CLOSE_TIMES, SEALER_MOVE_DOOR_TIME};
 use crate::hmi::{empty, full};
-use crate::ryo::{make_dispenser, make_dispensers, make_gripper, make_hatch, make_hatches, RyoIo};
+use crate::ryo::{make_dispenser, make_dispensers, make_gripper, make_hatch, make_hatches, make_sealer, make_trap_door, RyoIo};
 use bytes::{Buf, Bytes};
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
 use control_components::controllers::{clear_core, ek1100_io};
@@ -22,9 +19,11 @@ use std::array;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
+use control_components::components::clear_core_io::HBridgeState;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
+use tokio::time::sleep;
 
 type HTTPResult = Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error>;
 type HTTPRequest = Request<hyper::body::Incoming>;
@@ -172,6 +171,31 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
     .dispense(DISPENSER_TIMEOUT)
     .await;
     info!("Dispensed from Node {:}", node_id);
+}
+
+pub async fn handle_sealer_req(body: Bytes, io: RyoIo) {
+    match body[0] {
+        b's' => {
+            make_sealer(io.clone()).seal().await;       
+        } ,
+        b'o' => {
+            let mut trap_door = make_trap_door(io.clone());
+            trap_door.actuate(HBridgeState::Off).await;
+            trap_door.actuate(HBridgeState::Neg).await;
+            sleep(SEALER_MOVE_DOOR_TIME).await;
+            trap_door.actuate(HBridgeState::Off).await;
+        },
+        b'c' => {
+            let mut trap_door = make_trap_door(io.clone());
+            trap_door.actuate(HBridgeState::Off).await;
+            trap_door.actuate(HBridgeState::Pos).await;
+            sleep(SEALER_MOVE_DOOR_TIME).await;
+            trap_door.actuate(HBridgeState::Off).await;
+        },
+        _ => {
+            error!("Invalid sealer operation");
+        }
+    }
 }
 
 pub async fn enable_and_clear_all(io: RyoIo) {
