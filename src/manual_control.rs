@@ -45,7 +45,6 @@ pub enum ManualCmd {
 }
 
 pub async fn handle_gripper_req(body: Bytes, mut gripper: BagGripper) {
-    info!("{:?}", body);
     if body.len() > 0 {
         if body[0] == b'o' {
             info!("Opening Gripper");
@@ -63,13 +62,13 @@ pub async fn handle_hatch_req(body: Bytes, io: RyoIo, hatch_id: Option<usize>) {
             Some(hatch_id) => (hatch_id, body[0]),
             None => ((body[0] - 48) as usize, body[1]),
         };
-        info!("Hatch {:}", hatch_id);
         let mut hatch = make_hatch(hatch_id, io.cc1, io.cc2);
+        let names = ["A", "B", "C", "D"];
         if operation == b'o' {
-            info!("Opening Hatch {:}", hatch_id);
+            info!("Opening Hatch {:}", names[hatch_id]);
             hatch.timed_open(HATCHES_OPEN_TIME).await;
         } else if operation == b'c' {
-            info!("Closing Hatch {:}", hatch_id);
+            info!("Closing Hatch {:}", names[hatch_id]);
             hatch.timed_close(HATCH_CLOSE_TIMES[hatch_id]).await;
         }
     }
@@ -109,6 +108,8 @@ pub async fn handle_gantry_req(gantry_position: usize, io: RyoIo) {
         .get_motor(GANTRY_MOTOR_ID)
         .wait_for_move(GANTRY_SAMPLE_INTERVAL)
         .await;
+    let positions = ["Home", "Node A", "Node B", "Node C", "Node D", "Bag Drop"];
+    info!("Gantry to {:?}", positions[gantry_position]);
 }
 
 pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
@@ -212,6 +213,7 @@ pub async fn enable_and_clear_all(io: RyoIo) {
     });
     join_all(enable_clear_cc1_handles).await;
     join_all(enable_clear_cc2_handles).await;
+    info!("Cleared Alerts and Enabled All Motors");
 }
 
 pub async fn disable_all(io: RyoIo) {
@@ -226,9 +228,20 @@ pub async fn disable_all(io: RyoIo) {
     });
     join_all(disable_cc1_handles).await;
     join_all(disable_cc2_handles).await;
+    info!("Disabled All Motors");
 }
 
-// pub async response_build()
+pub async fn response_builder(chunk: &str) -> HTTPResult {
+    Ok(
+        Response::builder()
+            .status(204)
+            .header("Access-Control-Allow-Origin", "*")
+            .header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+            .header("Access-Control-Allow-Headers", "*")
+            .body(full(chunk.to_string()))
+            .unwrap()
+    )
+}
 
 // pub async fn manual_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
 //     match (req.method(), req.uri().path()) {

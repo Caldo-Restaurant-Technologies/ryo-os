@@ -19,6 +19,8 @@ use hyper_util::rt::TokioIo;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
+use futures::future::err;
+use log::error;
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::mpsc::Sender;
 
@@ -120,7 +122,7 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
         (&Method::GET, "/v1/api/recipe/all") => Ok(Response::new(full("WIP"))),
         (&Method::POST, "/echo") => Ok(Response::new(req.into_body().boxed())),
         (&Method::POST, "/cycle") => {
-            
+            error!("Cycle not yet functional :(");
             Ok(Response::new(req.into_body().boxed()))
         },
         (&Method::POST, "/gripper") => {
