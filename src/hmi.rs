@@ -136,6 +136,10 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
             BagHandler::new(io.cc1, io.cc2).load_bag().await;
             Ok(Response::new(req.into_body().boxed()))
         }
+        (&Method::POST, "/dispense_bag") => {
+            BagHandler::new(io.cc1.clone(), io.cc2.clone()).dispense_bag().await;
+            Ok(Response::new(req.into_body().boxed()))
+        }
         (&Method::POST, "/hatch") => {
             let body = req.collect().await?.to_bytes();
             handle_hatch_req(body, io, None).await;
