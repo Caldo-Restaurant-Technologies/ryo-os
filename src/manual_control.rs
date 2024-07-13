@@ -109,7 +109,7 @@ pub async fn handle_gantry_req(gantry_position: usize, io: RyoIo) {
         .wait_for_move(GANTRY_SAMPLE_INTERVAL)
         .await;
     let positions = ["Home", "Node A", "Node B", "Node C", "Node D", "Bag Drop"];
-    info!("Gantry to {:?}", positions[gantry_position]);
+    info!("Gantry to {:}", positions[gantry_position].to_string());
 }
 
 pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
