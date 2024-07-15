@@ -135,7 +135,12 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
     };
     let dispense_type = json["dispense_type"].as_str().unwrap();
     // placeholder
-    let timeout = Duration::from_secs(120);
+    let timeout = Duration::from_secs_f64(
+        json["timeout"]
+            .as_str()
+            .and_then(|s| s.parse::<f64>().ok())
+            .unwrap()
+    );
     // let timeout = json["timeout"].as_str().unwrap();
     let serving_weight = json["serving_weight"]
         .as_str()

@@ -18,6 +18,8 @@ use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use futures::future::err;
 use log::{error, warn};
@@ -186,9 +188,13 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
 pub async fn ui_server<T: ToSocketAddrs>(
     addr: T,
     controllers: RyoIo,
+    shutdown: Arc<AtomicBool>
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(addr).await?;
     loop {
+        if shutdown.load(Ordering::Relaxed) {
+            break;
+        }
         let (stream, _) = listener.accept().await?;
         let io = TokioIo::new(stream);
         let controller = controllers.clone();
@@ -207,6 +213,7 @@ pub async fn ui_server<T: ToSocketAddrs>(
             }
         });
     }
+    Ok(())
 }
 
 pub fn empty() -> BoxBody<Bytes, hyper::Error> {

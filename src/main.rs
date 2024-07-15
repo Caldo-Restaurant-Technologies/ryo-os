@@ -286,7 +286,8 @@ async fn hmi(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         let state_server = tokio::spawn(
             hmi::ui_server(
                 SocketAddr::from(([0, 0, 0, 0], 3000)),
-                io.clone()
+                io.clone(),
+                shutdown.clone(),
             )
         );
         // let server_handler = tokio::spawn(async move {
