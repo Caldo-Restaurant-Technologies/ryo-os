@@ -138,7 +138,7 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
             Ok(Response::new(req.into_body().boxed()))
         }
         (&Method::POST, "/dispense_bag") => {
-            BagHandler::new(io.cc1.clone(), io.cc2.clone()).dispense_bag().await;
+            BagHandler::new(io.cc1, io.cc2).dispense_bag().await;
             Ok(Response::new(req.into_body().boxed()))
         }
         (&Method::POST, "/sealer") => {
@@ -174,7 +174,7 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
             Ok(Response::new(full("Enabled all")))
         }
         (&Method::POST, "/disable") => {
-            disable_all(io.clone()).await;
+            disable_all(io).await;
             Ok(Response::new(full("Disabled all")))
         }
         (_, _) => {

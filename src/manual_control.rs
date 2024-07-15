@@ -131,7 +131,7 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
             error!("Invalid Node ID");
             return
         }
-         
+
     };
     let dispense_type = json["dispense_type"].as_str().unwrap();
     // placeholder
@@ -204,7 +204,7 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
 pub async fn handle_sealer_req(body: Bytes, io: RyoIo) {
     match body[0] {
         b's' => {
-            make_sealer(io.clone()).seal().await;       
+            make_sealer(io.clone()).seal().await;
         } ,
         b'o' => {
             let mut trap_door = make_trap_door(io.clone());
@@ -248,11 +248,11 @@ pub async fn disable_all(io: RyoIo) {
     let cc2_motors: [ClearCoreMotor; 4] = array::from_fn(|motor_id| io.cc2.get_motor(motor_id));
 
     let disable_cc1_handles = cc1_motors.iter().map(|motor| async move {
-        motor.stop().await;
+        motor.abrupt_stop().await;
         motor.disable().await
     });
     let disable_cc2_handles = cc2_motors.iter().map(|motor| async move {
-        motor.stop().await;
+        motor.abrupt_stop().await;
         motor.disable().await
     });
     join_all(disable_cc1_handles).await;
