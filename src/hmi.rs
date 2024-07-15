@@ -170,7 +170,7 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
             Ok(Response::new(full("Dispensed")))
         }
         (&Method::POST, "/enable") => {
-            enable_and_clear_all(io.clone()).await;
+            enable_and_clear_all(io).await;
             Ok(Response::new(full("Enabled all")))
         }
         (&Method::POST, "/disable") => {
