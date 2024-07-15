@@ -20,6 +20,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 use control_components::components::clear_core_io::HBridgeState;
+use log::__private_api::Value;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
@@ -113,10 +114,25 @@ pub async fn handle_gantry_req(gantry_position: usize, io: RyoIo) {
 }
 
 pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
-    let node_id = json["node_id"]
-        .as_str()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap();
+    // let node_id = json["node_id"]
+    //     .as_str()
+    //     .and_then(|s| s.parse::<usize>().ok())
+    //     .unwrap();
+    let node_id = match json["node_id"].as_str() {
+        Some("0") => 0,
+        Some("1") => 1,
+        Some("2") => 2,
+        Some("3") => 3,
+        None => {
+            error!("No Node ID in json");
+            return
+        }
+        _ => {
+            error!("Invalid Node ID");
+            return
+        }
+         
+    };
     let dispense_type = json["dispense_type"].as_str().unwrap();
     // placeholder
     let timeout = Duration::from_secs(120);
