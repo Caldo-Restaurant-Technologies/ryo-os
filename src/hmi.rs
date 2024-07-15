@@ -22,7 +22,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use futures::future::err;
-use log::{error, warn};
+use log::{error, info, warn};
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::mpsc::Sender;
 
@@ -192,6 +192,7 @@ pub async fn ui_server<T: ToSocketAddrs>(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(addr).await?;
     loop {
+        info!("UI Loop");
         if shutdown.load(Ordering::Relaxed) {
             break;
         }

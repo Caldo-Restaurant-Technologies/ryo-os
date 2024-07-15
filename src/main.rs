@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let host = env::args()
         .nth(1)
         .expect("Is this running locally or on Ryo?");
-    
+
     let task = env::args()
         .nth(2)
         .expect("Do you want to run a cycle or hmi?");
@@ -259,7 +259,7 @@ async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         // }
         // sleep(Duration::from_secs(1)).await;
         // if batch_count > 0 {
-        //     
+        //
         // }
 
 
@@ -297,93 +297,93 @@ async fn hmi(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         // });
         let _ = join!(state_server);
 
-        match auto_rx.try_recv() {
-            Ok(msg) => match msg {
-                CycleCmd::Cycle(count) => {
-                    batch_count = count;
-                }
-                CycleCmd::Pause => {
-                    pause = true;
-                }
-                CycleCmd::Cancel => {
-                    batch_count = 0;
-                }
-            },
-            _ => {}
-        }
-        sleep(Duration::from_secs(1)).await;
-        if batch_count > 0 {
-            loop {
-                pull_before_flight(io.clone()).await;
-
-                // Create Dispense Tasks
-                let params: [Parameters; 4] = array::from_fn(|_| Parameters::default());
-                let set_points: [Setpoint; 4] =
-                    array::from_fn(|_| Setpoint::Timed(Duration::from_secs(15)));
-                let dispensers = make_dispensers(io.cc2.clone(), &set_points, &params, &io.scale_txs);
-                let dispense_tasks: Vec<JoinHandle<()>> = dispensers
-                    .into_iter()
-                    .map(|dispenser| {
-                        tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await })
-                    })
-                    .collect();
-
-                // Create Bag Loading Task
-                let mut bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
-                let bag_load_task = tokio::spawn(async move { bag_handler.load_bag().await });
-
-                // Concurrently run Dispensing and Bag Loading
-                let _ = join!(join_all(dispense_tasks), bag_load_task);
-
-                // Fill Bag
-                let gantry = make_gantry(io.cc1.clone());
-                let mut hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
-                hatches.reverse();
-                for id in 0..4 {
-                    info!("Going to Node {:}", id);
-                    let _ = gantry
-                        .absolute_move(GANTRY_NODE_POSITIONS[id])
-                        .await;
-                    gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
-                    let mut hatch = hatches.pop().unwrap();
-                    hatch.timed_open(HATCHES_OPEN_TIME).await;
-                    sleep(Duration::from_millis(500)).await;
-                    hatch.timed_close(HATCH_CLOSE_TIMES[id]).await;
-                }
-
-                // Drop Bag
-                let _ = gantry
-                    .absolute_move(GANTRY_BAG_DROP_POSITION)
-                    .await;
-                gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
-                let mut gripper = make_gripper(io.cc1.clone(), io.cc2.clone());
-                gripper.open().await;
-                sleep(Duration::from_millis(500)).await;
-                gripper.close().await;
-
-                // Seal Bag
-                make_sealer(io.clone()).seal().await;
-
-                // Release Bag
-                let mut trap_door = make_trap_door(io.clone());
-                trap_door.actuate(HBridgeState::Neg).await;
-                sleep(SEALER_MOVE_DOOR_TIME).await;
-                trap_door.actuate(HBridgeState::Off).await;
-                sleep(Duration::from_millis(500)).await;
-                trap_door.actuate(HBridgeState::Pos).await;
-                sleep(SEALER_MOVE_DOOR_TIME).await;
-                trap_door.actuate(HBridgeState::Off).await;
-
-                sleep(Duration::from_secs(10)).await;
-
-                // Re-home gantry and dispense new bag
-                let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
-                BagHandler::new(io.cc1.clone(), io.cc2.clone()).dispense_bag().await;
-                gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
-
-                sleep(Duration::from_secs(5)).await;
-            }
-        }
+        // match auto_rx.try_recv() {
+        //     Ok(msg) => match msg {
+        //         CycleCmd::Cycle(count) => {
+        //             batch_count = count;
+        //         }
+        //         CycleCmd::Pause => {
+        //             pause = true;
+        //         }
+        //         CycleCmd::Cancel => {
+        //             batch_count = 0;
+        //         }
+        //     },
+        //     _ => {}
+        // }
+        // sleep(Duration::from_secs(1)).await;
+        // if batch_count > 0 {
+        //     loop {
+        //         pull_before_flight(io.clone()).await;
+        // 
+        //         // Create Dispense Tasks
+        //         let params: [Parameters; 4] = array::from_fn(|_| Parameters::default());
+        //         let set_points: [Setpoint; 4] =
+        //             array::from_fn(|_| Setpoint::Timed(Duration::from_secs(15)));
+        //         let dispensers = make_dispensers(io.cc2.clone(), &set_points, &params, &io.scale_txs);
+        //         let dispense_tasks: Vec<JoinHandle<()>> = dispensers
+        //             .into_iter()
+        //             .map(|dispenser| {
+        //                 tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await })
+        //             })
+        //             .collect();
+        // 
+        //         // Create Bag Loading Task
+        //         let mut bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
+        //         let bag_load_task = tokio::spawn(async move { bag_handler.load_bag().await });
+        // 
+        //         // Concurrently run Dispensing and Bag Loading
+        //         let _ = join!(join_all(dispense_tasks), bag_load_task);
+        // 
+        //         // Fill Bag
+        //         let gantry = make_gantry(io.cc1.clone());
+        //         let mut hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
+        //         hatches.reverse();
+        //         for id in 0..4 {
+        //             info!("Going to Node {:}", id);
+        //             let _ = gantry
+        //                 .absolute_move(GANTRY_NODE_POSITIONS[id])
+        //                 .await;
+        //             gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+        //             let mut hatch = hatches.pop().unwrap();
+        //             hatch.timed_open(HATCHES_OPEN_TIME).await;
+        //             sleep(Duration::from_millis(500)).await;
+        //             hatch.timed_close(HATCH_CLOSE_TIMES[id]).await;
+        //         }
+        // 
+        //         // Drop Bag
+        //         let _ = gantry
+        //             .absolute_move(GANTRY_BAG_DROP_POSITION)
+        //             .await;
+        //         gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+        //         let mut gripper = make_gripper(io.cc1.clone(), io.cc2.clone());
+        //         gripper.open().await;
+        //         sleep(Duration::from_millis(500)).await;
+        //         gripper.close().await;
+        // 
+        //         // Seal Bag
+        //         make_sealer(io.clone()).seal().await;
+        // 
+        //         // Release Bag
+        //         let mut trap_door = make_trap_door(io.clone());
+        //         trap_door.actuate(HBridgeState::Neg).await;
+        //         sleep(SEALER_MOVE_DOOR_TIME).await;
+        //         trap_door.actuate(HBridgeState::Off).await;
+        //         sleep(Duration::from_millis(500)).await;
+        //         trap_door.actuate(HBridgeState::Pos).await;
+        //         sleep(SEALER_MOVE_DOOR_TIME).await;
+        //         trap_door.actuate(HBridgeState::Off).await;
+        // 
+        //         sleep(Duration::from_secs(10)).await;
+        // 
+        //         // Re-home gantry and dispense new bag
+        //         let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
+        //         BagHandler::new(io.cc1.clone(), io.cc2.clone()).dispense_bag().await;
+        //         gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+        // 
+        //         sleep(Duration::from_secs(5)).await;
+        //     }
+        // }
 
 
 
