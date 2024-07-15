@@ -177,11 +177,17 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
         node_id,
         io.cc2,
         match dispense_type {
-            "timed" => Setpoint::Timed(timeout),
-            "weight" => Setpoint::Weight(WeightedDispense {
-                setpoint: serving_weight,
-                timeout,
-            }),
+            "timed" => {
+                info!("Dispensing Node {:} for {:?}", node_id, json["timeout"].as_str().unwrap());
+                Setpoint::Timed(timeout)
+            },
+            "weight" => {
+                info!("Dispensing {:.1} g from Node {:} ", serving_weight, node_id);
+                Setpoint::Weight(WeightedDispense {
+                    setpoint: serving_weight,
+                    timeout,
+                })
+            },
             _ => {
                 error!("Invalid Dispense Type");
                 return;
@@ -190,7 +196,7 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
         parameters,
         io.scale_txs[node_id].clone(),
     )
-    .dispense(DISPENSER_TIMEOUT)
+    .dispense(timeout)
     .await;
     info!("Dispensed from Node {:}", node_id);
 }
