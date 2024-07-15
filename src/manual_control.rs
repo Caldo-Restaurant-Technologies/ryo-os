@@ -248,9 +248,11 @@ pub async fn disable_all(io: RyoIo) {
     let cc2_motors: [ClearCoreMotor; 4] = array::from_fn(|motor_id| io.cc2.get_motor(motor_id));
 
     let disable_cc1_handles = cc1_motors.iter().map(|motor| async move {
+        motor.stop().await;
         motor.disable().await
     });
     let disable_cc2_handles = cc2_motors.iter().map(|motor| async move {
+        motor.stop().await;
         motor.disable().await
     });
     join_all(disable_cc1_handles).await;

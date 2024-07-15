@@ -280,6 +280,7 @@ async fn hmi(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         io.clone(),
         shutdown.clone(),
     ).await.unwrap();
+    drop(io);
     
     // let state_server = tokio::spawn(
     //     hmi::ui_server(
