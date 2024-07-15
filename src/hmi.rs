@@ -162,7 +162,7 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
         }
         (&Method::POST, "/dispense") => {
             let body = req.collect().await?.aggregate();
-            warn!("DEBUG: {:?}", body.chunk());
+            // warn!("DEBUG: {:?}", body.chunk());
             let params_json: serde_json::Value = serde_json::from_reader(body.reader()).unwrap();
             handle_dispenser_req(params_json, io).await;
             Ok(Response::new(full("Dispensed")))
