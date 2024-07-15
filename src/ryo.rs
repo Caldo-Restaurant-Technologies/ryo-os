@@ -3,6 +3,7 @@ use control_components::components::clear_core_motor::ClearCoreMotor;
 use control_components::components::scale::ScaleCmd;
 use control_components::controllers::clear_core::Controller;
 use std::array;
+use control_components::controllers::{clear_core, ek1100_io};
 
 use crate::config::{
     BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, GANTRY_MOTOR_ID, GRIPPER_ACTUATOR,
@@ -11,7 +12,7 @@ use crate::config::{
     HATCH_D_CH_A, HATCH_D_CH_B, SEALER_ACTUATOR_ID, SEALER_EXTEND_ID, SEALER_HEATER,
     SEALER_RETRACT_ID,
 };
-use crate::{CCController, EtherCATIO};
+// use crate::{CCController, EtherCATIO};
 use control_components::subsystems::bag_handling::{BagDispenser, BagGripper};
 use control_components::subsystems::dispenser::{Dispenser, Parameters, Setpoint};
 use control_components::subsystems::hatch::Hatch;
@@ -20,6 +21,8 @@ use control_components::subsystems::sealer::Sealer;
 use log::error;
 use tokio::sync::mpsc::Sender;
 
+type CCController = clear_core::Controller;
+type EtherCATIO = ek1100_io::Controller;
 #[derive(Clone)]
 pub struct RyoIo {
     pub cc1: CCController,
@@ -27,6 +30,7 @@ pub struct RyoIo {
     pub etc_io: EtherCATIO,
     pub scale_txs: [Sender<ScaleCmd>; 4],
 }
+
 
 pub fn make_gripper(cc1: Controller, cc2: Controller) -> BagGripper {
     BagGripper::new(

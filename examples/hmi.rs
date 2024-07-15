@@ -1,10 +1,5 @@
-use crate::bag_handler::{load_bag, BagHandler, BagHandlingCmd, ManualBagHandlingCmd};
-use crate::manual_control;
-use crate::manual_control::{disable_all, enable_and_clear_all, handle_dispenser_req, handle_gantry_req, handle_gripper_req, handle_hatch_req, handle_hatches_req, handle_sealer_req};
-use crate::recipe_handling::get_sample_recipe;
-use crate::ryo::{make_gripper, RyoIo};
 use bytes::{Buf, Bytes};
-use control_components::components::scale::ScaleCmd;
+use control_components::components::scale::{Scale, ScaleCmd};
 use control_components::controllers::{clear_core, ek1100_io};
 use control_components::subsystems::bag_handling::{BagDispenser, BagGripper};
 use control_components::subsystems::gantry::GantryCommand;
@@ -18,11 +13,20 @@ use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::{array, env};
+use std::error::Error;
+use std::net::SocketAddr;
 use std::time::Duration;
-use futures::future::err;
-use log::{error, warn};
+use control_components::components::clear_core_motor::ClearCoreMotor;
+use env_logger::Env;
+use futures::future::{err, join_all};
+use log::{error, info};
 use tokio::net::{TcpListener, ToSocketAddrs};
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::{channel, Sender};
+use tokio::task::{JoinHandle, JoinSet, spawn_blocking};
+use tokio::time::sleep;
+use ryo_os::config::{CC1_MOTORS, CC2_MOTORS, CLEAR_CORE_1_ADDR, CLEAR_CORE_2_ADDR};
+
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -52,42 +56,10 @@ pub struct JobSetupStep {
     job_setup_step: HashMap<String, Step>,
 }
 
-pub type JobProgress = u32;
-
-pub enum NodeLevel {
-    Loaded,
-    Medium,
-    Low,
-    Empty,
-}
-
-pub enum TunnelState {
-    ConveyorLoaded,
-    TunnelLoaded,
-    NoTunnel,
-}
-
-pub struct NodeWeight {
-    pub raw: u32,
-    pub scaled: f32,
-}
-
-pub struct Node {
-    pub tunnel_state: TunnelState,
-    pub level: NodeLevel,
-    pub weight: NodeWeight, //time_loaded
-                            //time_unloaded
-}
-
 #[derive(Debug, Clone)]
 pub enum HmiState {
     Start,
     Stop,
-}
-
-pub enum ManualCmd {
-    Gripper(String),
-    LoadBag,
 }
 
 pub struct OperationSenders {
@@ -104,8 +76,36 @@ pub struct IOControllers {
 
 type HTTPResult = Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error>;
 type HTTPRequest = Request<hyper::body::Incoming>;
+type CCController = clear_core::Controller;
 
-pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
+#[derive(Clone)]
+pub struct ClearCoreControllers {
+    cc1: CCController,
+    cc2: CCController,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut client_set = JoinSet::new();
+    
+    //Create IO controllers and their relevant clients
+    let (cc1, cl1) = CCController::with_client(CLEAR_CORE_1_ADDR, CC1_MOTORS.as_slice());
+    let (cc2, cl2) = CCController::with_client(CLEAR_CORE_2_ADDR, CC2_MOTORS.as_slice());
+    let io = ClearCoreControllers {cc1, cc2};
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    
+    client_set.spawn(cl1);
+    client_set.spawn(cl2);
+
+    info!("Controller-Client pairs created successfully");
+
+    ui_server(addr, io).await.unwrap();
+
+    while let Some(_) = client_set.join_next().await {}
+    Ok(())
+}
+
+pub async fn ui_request_handler(req: HTTPRequest, io: ClearCoreControllers) -> HTTPResult {
     match (req.method(), req.uri().path()) {
         (&Method::OPTIONS, _) => {
             let response = Response::builder()
@@ -125,55 +125,40 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
             error!("Cycle not yet functional :(");
             Ok(Response::new(req.into_body().boxed()))
         },
-        (&Method::POST, "/gripper") => {
-            let body = req.collect().await?.to_bytes();
-            let gripper = make_gripper(io.cc1, io.cc2);
-            handle_gripper_req(body, gripper).await;
-            Ok(Response::new(full("Gripper Moved")))
-        }
-        (&Method::POST, "/load_bag") => {
-            BagHandler::new(io.cc1, io.cc2).load_bag().await;
-            Ok(Response::new(req.into_body().boxed()))
-        }
-        (&Method::POST, "/dispense_bag") => {
-            BagHandler::new(io.cc1.clone(), io.cc2.clone()).dispense_bag().await;
-            Ok(Response::new(req.into_body().boxed()))
-        }
-        (&Method::POST, "/sealer") => {
-            let body = req.collect().await?.to_bytes();
-            handle_sealer_req(body, io).await;
-            Ok(Response::new(full("Sealer actuated")))
-        }
-        (&Method::POST, "/hatch") => {
-            let body = req.collect().await?.to_bytes();
-            handle_hatch_req(body, io, None).await;
-            Ok(Response::new(full("Hatch Moved")))
-        }
-        (&Method::POST, "/hatches/all") => {
-            let body = req.collect().await?.to_bytes();
-            handle_hatches_req(body, io).await;
-            Ok(Response::new(full("All Hatches Moved")))
-        }
-        (&Method::POST, "/gantry") => {
-            let body = req.collect().await?.to_bytes();
-            let gantry_position = ascii_to_int(body.as_ref()) as usize;
-            handle_gantry_req(gantry_position, io).await;
-            Ok(Response::new(full("Gantry to position")))
-        }
-        (&Method::POST, "/dispense") => {
-            let body = req.collect().await?.aggregate();
-            warn!("DEBUG: {:?}", body.chunk());
-            let params_json: serde_json::Value = serde_json::from_reader(body.reader()).unwrap();
-            handle_dispenser_req(params_json, io).await;
-            Ok(Response::new(full("Dispensed")))
-        }
         (&Method::POST, "/enable") => {
-            enable_and_clear_all(io.clone()).await;
-            Ok(Response::new(full("Enabled all")))
+            let body = req.collect().await?.to_bytes();
+            get_motor(body, io).unwrap().enable().await.unwrap();
+            Ok(Response::new(full("Motor Enabled")))
         }
         (&Method::POST, "/disable") => {
-            disable_all(io.clone()).await;
-            Ok(Response::new(full("Disabled all")))
+            let body = req.collect().await?.to_bytes();
+            get_motor(body, io).unwrap().disable().await;
+            Ok(Response::new(full("Motor Disabled")))
+        }
+        (&Method::POST, "/clear") => {
+            let body = req.collect().await?.to_bytes();
+            get_motor(body, io).unwrap().clear_alerts().await;
+            Ok(Response::new(full("Motor Alerts Cleared")))
+        }
+        (&Method::POST, "/jog_forward") => {
+            let body = req.collect().await?.to_bytes();
+            get_motor(body, io).unwrap().jog(10.).await.unwrap();
+            Ok(Response::new(full("Motor Jogging")))
+        }
+        (&Method::POST, "/jog_backward") => {
+            let body = req.collect().await?.to_bytes();
+            get_motor(body, io).unwrap().jog(-10.).await.unwrap();
+            Ok(Response::new(full("Motor Jogging")))
+        }
+        (&Method::POST, "/relative_move") => {
+            let body = req.collect().await?.to_bytes();
+            get_motor(body, io).unwrap().relative_move(100.).await.unwrap();
+            Ok(Response::new(full("Motor Moving")))
+        }
+        (&Method::POST, "/absolute_move") => {
+            let body = req.collect().await?.to_bytes();
+            get_motor(body, io).unwrap().absolute_move(0.).await.unwrap();
+            Ok(Response::new(full("Motor Moving")))
         }
         (_, _) => {
             let mut not_found = Response::new(empty());
@@ -185,7 +170,7 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
 
 pub async fn ui_server<T: ToSocketAddrs>(
     addr: T,
-    controllers: RyoIo,
+    controllers: ClearCoreControllers,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(addr).await?;
     loop {
@@ -207,6 +192,34 @@ pub async fn ui_server<T: ToSocketAddrs>(
             }
         });
     }
+}
+
+pub fn get_motor(body: Bytes, io: ClearCoreControllers) -> Result<ClearCoreMotor, HMIError> {
+    let cc = match body[0] {
+        b'1' => io.cc1,
+        b'2' => io.cc2,
+        _ => {
+            error!("Invalid ClearCore ID");
+            return Err(HMIError::InvalidCCID)
+        }
+    };
+    let motor_id = match body[1] {
+        b'0' => 0,
+        b'1' => 1,
+        b'2' => 2,
+        b'3' => 3,
+        _ => {
+            error!("Invalid Motor ID");
+            return Err(HMIError::InvalidMotorID)
+        }
+    };
+    Ok(cc.get_motor(motor_id))
+}
+
+#[derive(Debug)]
+pub enum HMIError {
+    InvalidCCID,
+    InvalidMotorID,
 }
 
 pub fn empty() -> BoxBody<Bytes, hyper::Error> {
