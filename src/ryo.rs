@@ -5,15 +5,9 @@ use control_components::controllers::clear_core::Controller;
 use std::array;
 use control_components::controllers::{clear_core, ek1100_io};
 
-use crate::config::{
-    BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, GANTRY_MOTOR_ID, GRIPPER_ACTUATOR,
-    GRIPPER_MOTOR_ID, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CH_A, HATCHES_CH_B,
-    HATCH_A_CH_A, HATCH_A_CH_B, HATCH_B_CH_A, HATCH_B_CH_B, HATCH_C_CH_A, HATCH_C_CH_B,
-    HATCH_D_CH_A, HATCH_D_CH_B, SEALER_ACTUATOR_ID, SEALER_EXTEND_ID, SEALER_HEATER,
-    SEALER_RETRACT_ID,
-};
+use crate::config::{BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, GANTRY_MOTOR_ID, GRIPPER_ACTUATOR, GRIPPER_MOTOR_ID, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CH_A, HATCHES_CH_B, HATCH_A_CH_A, HATCH_A_CH_B, HATCH_B_CH_A, HATCH_B_CH_B, HATCH_C_CH_A, HATCH_C_CH_B, HATCH_D_CH_A, HATCH_D_CH_B, SEALER_ACTUATOR_ID, SEALER_EXTEND_ID, SEALER_HEATER, SEALER_RETRACT_ID, BAG_DETECT_PE};
 // use crate::{CCController, EtherCATIO};
-use control_components::subsystems::bag_handling::{BagDispenser, BagGripper};
+use control_components::subsystems::bag_handling::{BagDispenser, BagGripper, BagSensor};
 use control_components::subsystems::dispenser::{Dispenser, Parameters, Setpoint};
 use control_components::subsystems::hatch::Hatch;
 use control_components::subsystems::linear_actuator::{Output, RelayHBridge, SimpleLinearActuator};
@@ -125,3 +119,8 @@ pub fn make_trap_door(mut io: RyoIo) -> RelayHBridge {
     )
 }
 
+pub fn make_bag_sensor(io: RyoIo) -> BagSensor {
+    BagSensor::new(
+        io.cc1.get_digital_input(BAG_DETECT_PE)
+    )
+}

@@ -2,11 +2,11 @@ use crate::bag_handler::{load_bag, BagHandler, BagHandlingCmd, ManualBagHandling
 use crate::manual_control;
 use crate::manual_control::{disable_all, enable_and_clear_all, handle_dispenser_req, handle_gantry_req, handle_gripper_req, handle_hatch_req, handle_hatches_req, handle_sealer_req};
 use crate::recipe_handling::get_sample_recipe;
-use crate::ryo::{make_gripper, RyoIo};
+use crate::ryo::{make_bag_sensor, make_gripper, RyoIo};
 use bytes::{Buf, Bytes};
 use control_components::components::scale::ScaleCmd;
 use control_components::controllers::{clear_core, ek1100_io};
-use control_components::subsystems::bag_handling::{BagDispenser, BagGripper};
+use control_components::subsystems::bag_handling::{BagDispenser, BagGripper, BagSensorState};
 use control_components::subsystems::gantry::GantryCommand;
 use control_components::subsystems::linear_actuator::{RelayHBridge, SimpleLinearActuator};
 use control_components::subsystems::node::{DispensingParameters, NodeCommand};
@@ -176,6 +176,17 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
         (&Method::POST, "/disable") => {
             disable_all(io).await;
             Ok(Response::new(full("Disabled all")))
+        }
+        (&Method::POST, "/bag_check") => {
+            match make_bag_sensor(io).check().await {
+                BagSensorState::Bagful => {
+                    info!("Bagful!")
+                },
+                BagSensorState::Bagless => {
+                    info!("Bagless!")
+                },
+            }
+            Ok(Response::new(full("Checked Bag State")))
         }
         (_, _) => {
             let mut not_found = Response::new(empty());
