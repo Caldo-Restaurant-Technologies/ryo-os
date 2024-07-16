@@ -100,7 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let shutdown = Arc::new(AtomicBool::new(false));
             signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
                 .expect("Register hook");
-            
+
             pull_before_flight(ryo_io.clone()).await;
             let mut ryo_state = RyoState::fresh();
             loop {
@@ -128,6 +128,7 @@ pub enum CycleCmd {
 }
 
 async fn pull_before_flight(io: RyoIo) {
+    enable_and_clear_all(io.clone()).await;
     let gantry = make_gantry(io.cc1.clone());
     loop {
         match gantry.get_status().await {
@@ -136,7 +137,7 @@ async fn pull_before_flight(io: RyoIo) {
         }
         sleep(Duration::from_secs(1)).await;
     }
-    
+
     set_motor_accelerations(io.clone(), 125.).await;
     sleep(Duration::from_millis(500)).await;
 
@@ -184,7 +185,7 @@ async fn pull_before_flight(io: RyoIo) {
 
 async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     info!("Ryo State: {:?}", state);
-    
+
     let mut node_ids = Vec::with_capacity(4);
     for id in 0..4 {
         match state.get_node_state(id) {
@@ -195,7 +196,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         }
     };
     let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
-    
+
     match state.get_bag_state() {
         BagState::Bagless => {
             dispense_and_bag_tasks.push(make_bag_load_task(io.clone()))
@@ -238,26 +239,26 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             // return state
         }
     }
-    
+
     make_sealer(io.clone()).seal().await;
     release_bag_from_sealer(io.clone()).await;
 
     sleep(Duration::from_secs(3)).await;
 
     reset_for_next_cycle(io).await;
-    
+
     state
 }
 
 
 // async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
-// 
+//
 //     let shutdown = Arc::new(AtomicBool::new(false));
 //     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
 //         .expect("Register hook");
-// 
-// 
-// 
+//
+//
+//
 //     let mut batch_count = 0;
 //     let mut pause = false;
 //     loop {
@@ -265,9 +266,9 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
 //         if shutdown.load(Ordering::Relaxed) {
 //             break;
 //         }
-// 
+//
 //         pull_before_flight(io.clone()).await;
-// 
+//
 //         // Create Dispense Tasks
 //         let params: [Parameters; 4] = array::from_fn(|_| Parameters::default());
 //         let set_points: [Setpoint; 4] =
@@ -279,14 +280,14 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
 //                 tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await })
 //             })
 //             .collect();
-// 
+//
 //         // Create Bag Loading Task
 //         let mut bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
 //         let bag_load_task = tokio::spawn(async move { bag_handler.load_bag().await });
-// 
+//
 //         // Concurrently run Dispensing and Bag Loading
 //         let _ = join!(join_all(dispense_tasks), bag_load_task);
-// 
+//
 //         // Fill Bag
 //         let gantry = make_gantry(io.cc1.clone());
 //         let bag_sensor = make_bag_sensor(io.clone());
@@ -310,7 +311,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
 //             sleep(Duration::from_millis(500)).await;
 //             hatch.timed_close(HATCH_CLOSE_TIMES[id]).await;
 //         }
-// 
+//
 //         // Drop Bag
 //         let _ = gantry
 //             .absolute_move(GANTRY_BAG_DROP_POSITION)
@@ -320,10 +321,10 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
 //         gripper.open().await;
 //         sleep(Duration::from_millis(500)).await;
 //         gripper.close().await;
-// 
+//
 //         // Seal Bag
 //         make_sealer(io.clone()).seal().await;
-// 
+//
 //         // Release Bag
 //         let mut trap_door =make_trap_door(io.clone());
 //         trap_door.actuate(HBridgeState::Neg).await;
@@ -333,16 +334,16 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
 //         trap_door.actuate(HBridgeState::Pos).await;
 //         sleep(SEALER_MOVE_DOOR_TIME).await;
 //         trap_door.actuate(HBridgeState::Off).await;
-// 
+//
 //         sleep(Duration::from_secs(10)).await;
-// 
+//
 //         // Re-home gantry and dispense new bag
 //         let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
 //         BagHandler::new(io.cc1.clone(), io.cc2.clone()).dispense_bag().await;
 //         gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
-// 
+//
 //         sleep(Duration::from_secs(5)).await;
-// 
+//
 //         // match auto_rx.try_recv() {
 //         //     Ok(msg) => match msg {
 //         //         CycleCmd::Cycle(count) => {
@@ -361,10 +362,10 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
 //         // if batch_count > 0 {
 //         //
 //         // }
-// 
-// 
-// 
-// 
+//
+//
+//
+//
 //     }
 // }
 
