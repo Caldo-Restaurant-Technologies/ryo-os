@@ -12,6 +12,7 @@ use control_components::subsystems::dispenser::{Dispenser, Parameters, Setpoint}
 use control_components::subsystems::hatch::Hatch;
 use control_components::subsystems::linear_actuator::{Output, RelayHBridge, SimpleLinearActuator};
 use control_components::subsystems::sealer::Sealer;
+use futures::future::join_all;
 use log::{error, info};
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
@@ -179,7 +180,7 @@ pub fn make_bag_sensor(io: RyoIo) -> BagSensor {
 }
 
 pub fn make_default_dispense_tasks(ids: Vec<usize>, io: RyoIo) -> Vec<JoinHandle<()>> {
-    let mut dispensers = Vec::new();
+    let mut dispensers = Vec::with_capacity(4);
     for id in ids {
         let params = Parameters::default();
         let set_point = Setpoint::Timed(Duration::from_secs(15));
@@ -246,4 +247,23 @@ pub async fn reset_for_next_cycle(io: RyoIo) {
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
     BagHandler::new(io.cc1.clone(), io.cc2.clone()).dispense_bag().await;
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+}
+
+pub async fn set_motor_accelerations(io: RyoIo, acceleration: f64) {
+    let cc1_motors: [ClearCoreMotor; 3] = array::from_fn(|motor_id| io.cc1.get_motor(motor_id));
+    let cc2_motors: [ClearCoreMotor; 4] = array::from_fn(|motor_id| io.cc2.get_motor(motor_id));
+
+    let enable_clear_cc1_handles = cc1_motors.iter().map(|motor| async move {
+        motor.clear_alerts().await;
+        let _ = motor.enable().await;
+        motor.set_acceleration(acceleration).await;
+    });
+    let enable_clear_cc2_handles = cc2_motors.iter().map(|motor| async move {
+        motor.clear_alerts().await;
+        let _ = motor.enable().await;
+        motor.set_acceleration(acceleration).await;
+    });
+    join_all(enable_clear_cc1_handles).await;
+    join_all(enable_clear_cc2_handles).await;
+    info!("Cleared Alerts and Enabled All Motors");
 }

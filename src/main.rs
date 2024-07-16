@@ -1,7 +1,7 @@
 use crate::bag_handler::BagHandler;
 use crate::config::*;
 use crate::manual_control::enable_and_clear_all;
-use crate::ryo::{BagState, drop_bag, dump_from_hatch, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_dispensers, make_gantry, make_gripper, make_hatches, make_sealer, make_trap_door, NodeState, RyoIo, RyoState, release_bag_from_sealer, reset_for_next_cycle};
+use crate::ryo::{BagState, drop_bag, dump_from_hatch, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_dispensers, make_gantry, make_gripper, make_hatches, make_sealer, make_trap_door, NodeState, RyoIo, RyoState, release_bag_from_sealer, reset_for_next_cycle, set_motor_accelerations};
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
 use control_components::components::scale::{Scale, ScaleCmd};
 use control_components::controllers::{clear_core, ek1100_io};
@@ -128,7 +128,7 @@ pub enum CycleCmd {
 }
 
 async fn pull_before_flight(io: RyoIo) {
-    enable_and_clear_all(io.clone()).await;
+    set_motor_accelerations(io.clone(), 125.).await;
     sleep(Duration::from_millis(500)).await;
 
     let mut set = JoinSet::new();
@@ -177,7 +177,7 @@ async fn pull_before_flight(io: RyoIo) {
 async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     info!("Ryo State: {:?}", state);
     
-    let mut node_ids = Vec::new();
+    let mut node_ids = Vec::with_capacity(4);
     for id in 0..4 {
         match state.get_node_state(id) {
             NodeState::Ready => {
@@ -240,8 +240,8 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     
     state
 }
-// 
-// 
+
+
 // async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
 // 
 //     let shutdown = Arc::new(AtomicBool::new(false));
