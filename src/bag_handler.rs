@@ -22,7 +22,7 @@ impl BagHandler {
     pub fn new(cc1: Controller, cc2: Controller) -> Self {
         let bag_dispenser = make_bag_dispenser(cc1.clone());
         let bag_gripper = make_bag_gripper(cc1.clone(), cc2.clone());
-        let blower = cc2.get_output(BAG_BLOWER);
+        let blower = cc1.get_output(BAG_BLOWER);
         let bag_detect = cc1.get_digital_input(BAG_DETECT_PE);
         Self {
             bag_dispenser,

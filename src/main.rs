@@ -1,7 +1,7 @@
 use crate::bag_handler::BagHandler;
 use crate::config::*;
 use crate::manual_control::enable_and_clear_all;
-use crate::ryo::{make_dispensers, make_gantry, make_gripper, make_hatches, make_sealer, make_trap_door, RyoIo};
+use crate::ryo::{BagState, drop_bag, dump_from_hatch, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_dispensers, make_gantry, make_gripper, make_hatches, make_sealer, make_trap_door, NodeState, RyoIo, RyoState, release_bag_from_sealer, reset_for_next_cycle};
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
 use control_components::components::scale::{Scale, ScaleCmd};
 use control_components::controllers::{clear_core, ek1100_io};
@@ -17,6 +17,7 @@ use std::time::Duration;
 use std::{array, env};
 use std::net::SocketAddr;
 use control_components::components::clear_core_io::HBridgeState;
+use control_components::subsystems::bag_handling::{BagSensor, BagSensorState};
 use tokio::join;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
@@ -95,7 +96,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     match task.as_str() {
         "hmi" => hmi(ryo_io, cycle_rx).await,
-        "cycle" => cycle(ryo_io, cycle_rx).await,
+        "cycle" => {
+            let shutdown = Arc::new(AtomicBool::new(false));
+            signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
+                .expect("Register hook");
+            
+            pull_before_flight(ryo_io.clone()).await;
+            let mut ryo_state = RyoState::fresh();
+            loop {
+                if shutdown.load(Ordering::Relaxed) {
+                    break;
+                }
+                info!("Cycling");
+                ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
+            }
+        }
         _ => {
             error!("Must enter hmi or cycle");
             return Ok(())
@@ -158,115 +173,192 @@ async fn pull_before_flight(io: RyoIo) {
     while let Some(_) = set.join_next().await {}
 }
 
-async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
 
-    let shutdown = Arc::new(AtomicBool::new(false));
-    signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
-        .expect("Register hook");
-
-
-
-    let mut batch_count = 0;
-    let mut pause = false;
-    loop {
-        info!("Cycle loop");
-        if shutdown.load(Ordering::Relaxed) {
-            break;
+async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
+    info!("Ryo State: {:?}", state);
+    
+    let mut node_ids = Vec::new();
+    for id in 0..4 {
+        match state.get_node_state(id) {
+            NodeState::Ready => {
+                node_ids.push(id);
+            }
+            NodeState::Dispensed => (),
         }
-
-        pull_before_flight(io.clone()).await;
-
-        // Create Dispense Tasks
-        let params: [Parameters; 4] = array::from_fn(|_| Parameters::default());
-        let set_points: [Setpoint; 4] =
-            array::from_fn(|_| Setpoint::Timed(Duration::from_secs(15)));
-        let dispensers = make_dispensers(io.cc2.clone(), &set_points, &params, &io.scale_txs);
-        let dispense_tasks: Vec<JoinHandle<()>> = dispensers
-            .into_iter()
-            .map(|dispenser| {
-                tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await })
-            })
-            .collect();
-
-        // Create Bag Loading Task
-        let mut bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
-        let bag_load_task = tokio::spawn(async move { bag_handler.load_bag().await });
-
-        // Concurrently run Dispensing and Bag Loading
-        let _ = join!(join_all(dispense_tasks), bag_load_task);
-
-        // Fill Bag
-        let gantry = make_gantry(io.cc1.clone());
-        let mut hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
-        hatches.reverse();
-        for id in 0..4 {
-            info!("Going to Node {:}", id);
-            let _ = gantry
-                .absolute_move(GANTRY_NODE_POSITIONS[id])
-                .await;
-            gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
-            let mut hatch = hatches.pop().unwrap();
-            hatch.timed_open(HATCHES_OPEN_TIME).await;
-            sleep(Duration::from_millis(500)).await;
-            hatch.timed_close(HATCH_CLOSE_TIMES[id]).await;
+    };
+    let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
+    
+    match state.get_bag_state() {
+        BagState::Bagless => {
+            dispense_and_bag_tasks.push(make_bag_load_task(io.clone()))
         }
-
-        // Drop Bag
-        let _ = gantry
-            .absolute_move(GANTRY_BAG_DROP_POSITION)
-            .await;
-        gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
-        let mut gripper = make_gripper(io.cc1.clone(), io.cc2.clone());
-        gripper.open().await;
-        sleep(Duration::from_millis(500)).await;
-        gripper.close().await;
-
-        // Seal Bag
-        make_sealer(io.clone()).seal().await;
-
-        // Release Bag
-        let mut trap_door =make_trap_door(io.clone());
-        trap_door.actuate(HBridgeState::Neg).await;
-        sleep(SEALER_MOVE_DOOR_TIME).await;
-        trap_door.actuate(HBridgeState::Off).await;
-        sleep(Duration::from_millis(500)).await;
-        trap_door.actuate(HBridgeState::Pos).await;
-        sleep(SEALER_MOVE_DOOR_TIME).await;
-        trap_door.actuate(HBridgeState::Off).await;
-
-        sleep(Duration::from_secs(10)).await;
-
-        // Re-home gantry and dispense new bag
-        let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
-        BagHandler::new(io.cc1.clone(), io.cc2.clone()).dispense_bag().await;
-        gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
-
-        sleep(Duration::from_secs(5)).await;
-
-        // match auto_rx.try_recv() {
-        //     Ok(msg) => match msg {
-        //         CycleCmd::Cycle(count) => {
-        //             batch_count = count;
-        //         }
-        //         CycleCmd::Pause => {
-        //             pause = true;
-        //         }
-        //         CycleCmd::Cancel => {
-        //             batch_count = 0;
-        //         }
-        //     },
-        //     _ => {}
-        // }
-        // sleep(Duration::from_secs(1)).await;
-        // if batch_count > 0 {
-        //
-        // }
-
-
-
-
+        BagState::Bagful => (),
     }
+    let _ = join_all(dispense_and_bag_tasks).await;
+    // TODO: maybe have above return results so we know whether to update states?
+    state.set_bag_state(BagState::Bagful);
+    state.set_all_node_states(NodeState::Dispensed);
+
+    let bag_sensor = make_bag_sensor(io.clone());
+    for node in 0..4 {
+        match bag_sensor.check().await {
+            BagSensorState::Bagful => {
+                match state.get_node_state(node) {
+                    NodeState::Dispensed => {
+                        info!("Dispensing from Node {:?}", node);
+                        dump_from_hatch(node, io.clone()).await;
+                    }
+                    NodeState::Ready => ()
+                    // TODO:: this is an unreachable case?
+                }
+            }
+            BagSensorState::Bagless => {
+                error!("Lost bag");
+                return state
+            }
+        }
+    }
+
+    drop_bag(io.clone()).await;
+    match bag_sensor.check().await {
+        BagSensorState::Bagless => {
+            state.set_bag_state(BagState::Bagless)
+        }
+        BagSensorState::Bagful => {
+            error!("Failed to drop bag");
+            panic!("BAGGGG");
+            // return state
+        }
+    }
+    
+    make_sealer(io.clone()).seal().await;
+    release_bag_from_sealer(io.clone()).await;
+
+    sleep(Duration::from_secs(3)).await;
+
+    reset_for_next_cycle(io).await;
+    
+    state
 }
+// 
+// 
+// async fn cycle(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
+// 
+//     let shutdown = Arc::new(AtomicBool::new(false));
+//     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
+//         .expect("Register hook");
+// 
+// 
+// 
+//     let mut batch_count = 0;
+//     let mut pause = false;
+//     loop {
+//         info!("Cycle loop");
+//         if shutdown.load(Ordering::Relaxed) {
+//             break;
+//         }
+// 
+//         pull_before_flight(io.clone()).await;
+// 
+//         // Create Dispense Tasks
+//         let params: [Parameters; 4] = array::from_fn(|_| Parameters::default());
+//         let set_points: [Setpoint; 4] =
+//             array::from_fn(|_| Setpoint::Timed(Duration::from_secs(15)));
+//         let dispensers = make_dispensers(io.cc2.clone(), &set_points, &params, &io.scale_txs);
+//         let dispense_tasks: Vec<JoinHandle<()>> = dispensers
+//             .into_iter()
+//             .map(|dispenser| {
+//                 tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await })
+//             })
+//             .collect();
+// 
+//         // Create Bag Loading Task
+//         let mut bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
+//         let bag_load_task = tokio::spawn(async move { bag_handler.load_bag().await });
+// 
+//         // Concurrently run Dispensing and Bag Loading
+//         let _ = join!(join_all(dispense_tasks), bag_load_task);
+// 
+//         // Fill Bag
+//         let gantry = make_gantry(io.cc1.clone());
+//         let bag_sensor = make_bag_sensor(io.clone());
+//         let mut hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
+//         hatches.reverse();
+//         for id in 0..4 {
+//             info!("Going to Node {:}", id);
+//             let _ = gantry
+//                 .absolute_move(GANTRY_NODE_POSITIONS[id])
+//                 .await;
+//             gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+//             match bag_sensor.check().await {
+//                 BagSensorState::Bagful => (),
+//                 BagSensorState::Bagless => {
+//                     error!("Lost bag");
+//                     return
+//                 }
+//             }
+//             let mut hatch = hatches.pop().unwrap();
+//             hatch.timed_open(HATCHES_OPEN_TIME).await;
+//             sleep(Duration::from_millis(500)).await;
+//             hatch.timed_close(HATCH_CLOSE_TIMES[id]).await;
+//         }
+// 
+//         // Drop Bag
+//         let _ = gantry
+//             .absolute_move(GANTRY_BAG_DROP_POSITION)
+//             .await;
+//         gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+//         let mut gripper = make_gripper(io.cc1.clone(), io.cc2.clone());
+//         gripper.open().await;
+//         sleep(Duration::from_millis(500)).await;
+//         gripper.close().await;
+// 
+//         // Seal Bag
+//         make_sealer(io.clone()).seal().await;
+// 
+//         // Release Bag
+//         let mut trap_door =make_trap_door(io.clone());
+//         trap_door.actuate(HBridgeState::Neg).await;
+//         sleep(SEALER_MOVE_DOOR_TIME).await;
+//         trap_door.actuate(HBridgeState::Off).await;
+//         sleep(Duration::from_millis(500)).await;
+//         trap_door.actuate(HBridgeState::Pos).await;
+//         sleep(SEALER_MOVE_DOOR_TIME).await;
+//         trap_door.actuate(HBridgeState::Off).await;
+// 
+//         sleep(Duration::from_secs(10)).await;
+// 
+//         // Re-home gantry and dispense new bag
+//         let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
+//         BagHandler::new(io.cc1.clone(), io.cc2.clone()).dispense_bag().await;
+//         gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+// 
+//         sleep(Duration::from_secs(5)).await;
+// 
+//         // match auto_rx.try_recv() {
+//         //     Ok(msg) => match msg {
+//         //         CycleCmd::Cycle(count) => {
+//         //             batch_count = count;
+//         //         }
+//         //         CycleCmd::Pause => {
+//         //             pause = true;
+//         //         }
+//         //         CycleCmd::Cancel => {
+//         //             batch_count = 0;
+//         //         }
+//         //     },
+//         //     _ => {}
+//         // }
+//         // sleep(Duration::from_secs(1)).await;
+//         // if batch_count > 0 {
+//         //
+//         // }
+// 
+// 
+// 
+// 
+//     }
+// }
 
 async fn hmi(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
 
@@ -281,7 +373,7 @@ async fn hmi(io: RyoIo, mut auto_rx: Receiver<CycleCmd>) {
         shutdown.clone(),
     ).await.unwrap();
     drop(io);
-    
+
     // let state_server = tokio::spawn(
     //     hmi::ui_server(
     //         SocketAddr::from(([0, 0, 0, 0], 3000)),
