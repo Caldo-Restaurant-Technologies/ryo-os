@@ -128,13 +128,21 @@ pub enum CycleCmd {
 }
 
 async fn pull_before_flight(io: RyoIo) {
+    let gantry = make_gantry(io.cc1.clone());
+    loop {
+        match gantry.get_status().await {
+            Status::Moving => (),
+            _ => break
+        }
+        sleep(Duration::from_secs(1)).await;
+    }
+    
     set_motor_accelerations(io.clone(), 125.).await;
     sleep(Duration::from_millis(500)).await;
 
     let mut set = JoinSet::new();
     let hatches = make_hatches(io.cc1.clone(), io.cc2.clone());
     let bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
-    let gantry = make_gantry(io.cc1.clone());
     gantry.set_velocity(30.).await;
     // make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_gripper(io.cc1.clone(), io.cc2.clone()).close().await;
