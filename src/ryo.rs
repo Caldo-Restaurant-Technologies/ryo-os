@@ -250,7 +250,7 @@ pub async fn reset_for_next_cycle(io: RyoIo) {
 }
 
 pub async fn set_motor_accelerations(io: RyoIo, acceleration: f64) {
-    let cc1_motors: [ClearCoreMotor; 3] = array::from_fn(|motor_id| io.cc1.get_motor(motor_id));
+    let cc1_motors: [ClearCoreMotor; 1] = array::from_fn(|motor_id| io.cc1.get_motor(motor_id));
     let cc2_motors: [ClearCoreMotor; 4] = array::from_fn(|motor_id| io.cc2.get_motor(motor_id));
 
     let enable_clear_cc1_handles = cc1_motors.iter().map(|motor| async move {

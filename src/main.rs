@@ -131,11 +131,11 @@ async fn pull_before_flight(io: RyoIo) {
     enable_and_clear_all(io.clone()).await;
     let gantry = make_gantry(io.cc1.clone());
     loop {
-        match gantry.get_status().await {
-            Status::Moving => (),
-            _ => break
-        }
         sleep(Duration::from_secs(1)).await;
+        match gantry.get_status().await {
+            Status::Ready => break,
+            _ => ()
+        }
     }
 
     set_motor_accelerations(io.clone(), 125.).await;
