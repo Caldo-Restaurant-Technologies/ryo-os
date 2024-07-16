@@ -1,8 +1,8 @@
 use crate::bag_handler::{load_bag, BagHandler, BagHandlingCmd, ManualBagHandlingCmd};
-use crate::manual_control;
+use crate::{manual_control, pull_before_flight, single_cycle};
 use crate::manual_control::{disable_all, enable_and_clear_all, handle_dispenser_req, handle_gantry_req, handle_gripper_req, handle_hatch_req, handle_hatches_req, handle_sealer_req};
 use crate::recipe_handling::get_sample_recipe;
-use crate::ryo::{make_bag_sensor, make_gripper, RyoIo};
+use crate::ryo::{make_bag_sensor, make_gripper, RyoIo, RyoState};
 use bytes::{Buf, Bytes};
 use control_components::components::scale::ScaleCmd;
 use control_components::controllers::{clear_core, ek1100_io};
@@ -125,6 +125,9 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
         (&Method::POST, "/echo") => Ok(Response::new(req.into_body().boxed())),
         (&Method::POST, "/cycle") => {
             error!("Cycle not yet functional :(");
+            pull_before_flight(io.clone()).await;
+            let ryo_state = RyoState::fresh();
+            single_cycle(ryo_state, io).await;
             Ok(Response::new(req.into_body().boxed()))
         },
         (&Method::POST, "/gripper") => {
