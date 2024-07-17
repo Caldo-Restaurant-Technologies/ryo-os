@@ -4,6 +4,7 @@ use control_components::components::scale::ScaleCmd;
 use control_components::controllers::clear_core::Controller;
 use control_components::controllers::{clear_core, ek1100_io};
 use std::array;
+use std::thread::current;
 use std::time::Duration;
 
 use crate::bag_handler::BagHandler;
@@ -150,6 +151,15 @@ pub fn make_hatch(hatch_id: usize, mut io: RyoIo) -> Hatch {
         ),
         io.cc2.get_analog_input(HATCHES_ANALOG_INPUTS[hatch_id]),
     )
+}
+
+pub async fn make_and_move_hatch(hatch_id: usize, position: isize, io: RyoIo) {
+    let mut hatch = make_hatch(hatch_id, io);
+    if hatch.get_position().await > position {
+        hatch.close(position).await
+    } else {
+        hatch.open(position).await
+    }
 }
 
 pub fn make_sealer(mut io: RyoIo) -> Sealer {

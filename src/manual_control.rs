@@ -1,10 +1,7 @@
 use crate::bag_handler::{load_bag, BagHandlingCmd, ManualBagHandlingCmd};
 use crate::config::{DISPENSER_TIMEOUT, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL, HATCHES_OPEN_TIME, HATCH_CLOSE_TIMES, SEALER_MOVE_DOOR_TIME, HATCHES_OPEN_SET_POINTS, HATCHES_CLOSE_SET_POINTS};
 use crate::hmi::{empty, full};
-use crate::ryo::{
-    make_dispenser, make_dispensers, make_gripper, make_hatch, make_hatches, make_sealer,
-    make_trap_door, RyoIo,
-};
+use crate::ryo::{make_and_move_hatch, make_dispenser, make_dispensers, make_gripper, make_hatch, make_hatches, make_sealer, make_trap_door, RyoIo};
 use bytes::{Buf, Bytes};
 use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
@@ -93,11 +90,11 @@ pub async fn handle_hatch_position_req(body: Bytes, io: RyoIo) {
         }
     };
     let position = ascii_to_int(body[1..].as_ref());
-    let mut hatch = make_hatch(hatch_id, io);
     let names = ["A", "B", "C", "D"];
     info!("Hatch {:?} to position {:?}", names[hatch_id], position);
-    hatch.open(position).await;
-    hatch.close(position).await;
+    info!("Hatch ID: {:?}", hatch_id);
+    info!("Hatch Position: {:?}", position);
+    make_and_move_hatch(hatch_id, position, io).await;
 }
 
 pub async fn handle_hatches_req(body: Bytes, io: RyoIo) {
