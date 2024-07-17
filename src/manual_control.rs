@@ -75,6 +75,8 @@ pub async fn handle_hatch_req(body: Bytes, io: RyoIo, hatch_id: Option<usize>) {
             // hatch.timed_close(HATCH_CLOSE_TIMES[hatch_id]).await;
             hatch.close(HATCHES_CLOSE_SET_POINTS[hatch_id]).await;
         }
+        let pos = hatch.get_position().await;
+        info!("Hatch Position: {:?}", pos)
     }
 }
 
