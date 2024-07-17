@@ -178,6 +178,7 @@ pub fn make_sealer(mut io: RyoIo) -> Sealer {
             HEATER_OUTPUT_ID as u8
         ),
         io.etc_io.get_io(ETHERCAT_RACK_ID),
+        SEALER_SLOT_ID,
         SEALER_EXTEND_ID,
         SEALER_RETRACT_ID,
     )
