@@ -29,8 +29,8 @@ pub const SEALER_SLOT_ID: usize = 2;
 pub const SEALER_EXTEND_OUTPUT_ID: usize = 0;
 pub const SEALER_RETRACT_OUTPUT_ID: usize = 1;
 pub const TRAP_DOOR_SLOT_ID: usize = 2;
-pub const TRAP_DOOR_OPEN_OUTPUT_ID: usize = 2;
-pub const TRAP_DOOR_CLOSE_OUTPUT_ID: usize = 3;
+pub const TRAP_DOOR_OPEN_OUTPUT_ID: usize = 3;
+pub const TRAP_DOOR_CLOSE_OUTPUT_ID: usize = 2;
 
 pub const HEATER_SLOT_ID: usize = 3;
 pub const HEATER_OUTPUT_ID: usize = 2;
