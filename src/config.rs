@@ -130,3 +130,4 @@ pub const GANTRY_ALL_POSITIONS: [f64; 6] = [
     GANTRY_BAG_DROP_POSITION,
 ];
 pub const GANTRY_SAMPLE_INTERVAL: Duration = Duration::from_millis(250);
+pub const ETHERCAT_NUMBER_OF_SLOTS: u8 = 3;

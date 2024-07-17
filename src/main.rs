@@ -81,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     //Create IO controllers and their relevant clients
     let (cc1, cl1) = CCController::with_client(CLEAR_CORE_1_ADDR, CC1_MOTORS.as_slice());
     let (cc2, cl2) = CCController::with_client(CLEAR_CORE_2_ADDR, CC2_MOTORS.as_slice());
-    let (etc_io, cl3) = EtherCATIO::with_client(interface(), 2);
+    let (etc_io, cl3) = EtherCATIO::with_client(interface(), ETHERCAT_NUMBER_OF_SLOTS);
 
     client_set.spawn(cl3);
     sleep(Duration::from_secs(2)).await;
