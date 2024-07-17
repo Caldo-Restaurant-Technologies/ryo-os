@@ -21,7 +21,7 @@ pub const ETHERCAT_RACK_ID: usize = 0;
 pub const HATCHES_SLOT_ID: usize = 1;
 pub const HATCHES_OPEN_OUTPUT_IDS: [usize; 4] = [0, 2, 4, 6];
 pub const HATCHES_CLOSE_OUTPUT_IDS: [usize; 4] = [1, 3, 5, 7];
-pub const HATCHES_ANALOG_INPUTS: [usize; 4] = [0, 1, 2, 3];
+pub const HATCHES_ANALOG_INPUTS: [usize; 4] = [3, 4, 5, 6];
 pub const HATCHES_OPEN_SET_POINTS: [isize; 4] = [0, 0, 0, 0];
 pub const HATCHES_CLOSE_SET_POINTS: [isize; 4] = [4094, 4094, 4094, 4094];
 
