@@ -1,8 +1,15 @@
 use crate::bag_handler::{load_bag, BagHandlingCmd, ManualBagHandlingCmd};
-use crate::config::{DISPENSER_TIMEOUT, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL, HATCHES_OPEN_TIME, HATCH_CLOSE_TIMES, SEALER_MOVE_DOOR_TIME};
+use crate::config::{
+    DISPENSER_TIMEOUT, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL,
+    HATCHES_OPEN_TIME, HATCH_CLOSE_TIMES, SEALER_MOVE_DOOR_TIME,
+};
 use crate::hmi::{empty, full};
-use crate::ryo::{make_dispenser, make_dispensers, make_gripper, make_hatch, make_hatches, make_sealer, make_trap_door, RyoIo};
+use crate::ryo::{
+    make_dispenser, make_dispensers, make_gripper, make_hatch, make_hatches, make_sealer,
+    make_trap_door, RyoIo,
+};
 use bytes::{Buf, Bytes};
+use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
 use control_components::controllers::{clear_core, ek1100_io};
 use control_components::subsystems::bag_handling::BagGripper;
@@ -13,14 +20,13 @@ use futures::future::join_all;
 use http_body_util::{combinators::BoxBody, BodyExt, Empty, Full};
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
+use log::__private_api::Value;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::array;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
-use control_components::components::clear_core_io::HBridgeState;
-use log::__private_api::Value;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
@@ -63,7 +69,7 @@ pub async fn handle_hatch_req(body: Bytes, io: RyoIo, hatch_id: Option<usize>) {
             Some(hatch_id) => (hatch_id, body[0]),
             None => ((body[0] - 48) as usize, body[1]),
         };
-        let mut hatch = make_hatch(hatch_id, io.cc1, io.cc2);
+        let mut hatch = make_hatch(hatch_id, io);
         let names = ["A", "B", "C", "D"];
         if operation == b'o' {
             info!("Opening Hatch {:}", names[hatch_id]);
@@ -125,13 +131,12 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
         Some("3") => 3,
         None => {
             error!("No Node ID in json");
-            return
+            return;
         }
         _ => {
             error!("Invalid Node ID");
-            return
+            return;
         }
-
     };
     let dispense_type = json["dispense_type"].as_str().unwrap();
     // placeholder
@@ -139,7 +144,7 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
         json["timeout"]
             .as_str()
             .and_then(|s| s.parse::<f64>().ok())
-            .unwrap()
+            .unwrap(),
     );
     // let timeout = json["timeout"].as_str().unwrap();
     let serving_weight = json["serving_weight"]
@@ -178,16 +183,20 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
         io.cc2,
         match dispense_type {
             "timed" => {
-                info!("Dispensing Node {:} for {:?}", node_id, json["timeout"].as_str().unwrap());
+                info!(
+                    "Dispensing Node {:} for {:?}",
+                    node_id,
+                    json["timeout"].as_str().unwrap()
+                );
                 Setpoint::Timed(timeout)
-            },
+            }
             "weight" => {
                 info!("Dispensing {:.1} g from Node {:} ", serving_weight, node_id);
                 Setpoint::Weight(WeightedDispense {
                     setpoint: serving_weight,
                     timeout,
                 })
-            },
+            }
             _ => {
                 error!("Invalid Dispense Type");
                 return;
@@ -205,21 +214,21 @@ pub async fn handle_sealer_req(body: Bytes, io: RyoIo) {
     match body[0] {
         b's' => {
             make_sealer(io.clone()).seal().await;
-        } ,
+        }
         b'o' => {
             let mut trap_door = make_trap_door(io.clone());
             trap_door.actuate(HBridgeState::Off).await;
             trap_door.actuate(HBridgeState::Neg).await;
             sleep(SEALER_MOVE_DOOR_TIME).await;
             trap_door.actuate(HBridgeState::Off).await;
-        },
+        }
         b'c' => {
             let mut trap_door = make_trap_door(io.clone());
             trap_door.actuate(HBridgeState::Off).await;
             trap_door.actuate(HBridgeState::Pos).await;
             sleep(SEALER_MOVE_DOOR_TIME).await;
             trap_door.actuate(HBridgeState::Off).await;
-        },
+        }
         _ => {
             error!("Invalid sealer operation");
         }
@@ -261,15 +270,13 @@ pub async fn disable_all(io: RyoIo) {
 }
 
 pub async fn response_builder(chunk: &str) -> HTTPResult {
-    Ok(
-        Response::builder()
-            .status(204)
-            .header("Access-Control-Allow-Origin", "*")
-            .header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
-            .header("Access-Control-Allow-Headers", "*")
-            .body(full(chunk.to_string()))
-            .unwrap()
-    )
+    Ok(Response::builder()
+        .status(204)
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+        .header("Access-Control-Allow-Headers", "*")
+        .body(full(chunk.to_string()))
+        .unwrap())
 }
 
 // pub async fn manual_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {

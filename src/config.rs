@@ -17,32 +17,25 @@ pub const NODE_D_MOTOR_ID: usize = 3;
 // Outputs CC1
 pub const SEALER_HEATER: usize = 1;
 
-pub const HATCH_A_CH_A: usize = 2;
-pub const HATCH_A_CH_B: usize = 3;
-pub const HATCH_B_CH_A: usize = 4;
-pub const HATCH_B_CH_B: usize = 5;
-pub const CC1_HATCH_IDS: [usize; 4] = [HATCH_A_CH_A, HATCH_A_CH_B, HATCH_B_CH_A, HATCH_B_CH_B];
-// Outputs CC2
-pub const HATCH_C_CH_A: usize = 0;
-pub const HATCH_C_CH_B: usize = 1;
-pub const HATCH_D_CH_A: usize = 2;
-pub const HATCH_D_CH_B: usize = 3;
-pub const CC2_HATCH_IDS: [usize; 4] = [HATCH_C_CH_A, HATCH_C_CH_B, HATCH_D_CH_A, HATCH_D_CH_B];
+pub const ETHERCAT_RACK_ID: usize = 0;
+pub const HATCHES_SLOT_ID: usize = 1;
+pub const HATCHES_OPEN_OUTPUT_IDS: [usize; 4] = [0, 2, 4, 6];
+pub const HATCHES_CLOSE_OUTPUT_IDS: [usize; 4] = [1, 3, 5, 7];
+
+pub const SEALER_SLOT_ID: usize = 2;
+pub const SEALER_EXTEND_OUTPUT_ID: usize = 0;
+pub const SEALER_RETRACT_OUTPUT_ID: usize = 1;
+pub const TRAP_DOOR_SLOT_ID: usize = 2;
+pub const TRAP_DOOR_OPEN_OUTPUT_ID: usize = 2;
+pub const TRAP_DOOR_CLOSE_OUTPUT_ID: usize = 3;
+
+pub const HEATER_SLOT_ID: usize = 3;
+pub const HEATER_OUTPUT_ID: usize = 2;
+pub const BLOWER_SLOT_ID: usize = 3;
+pub const BLOWER_OUTPUT_ID: usize = 3;
+
 pub const GRIPPER_ACTUATOR: usize = 4;
 pub const BAG_BLOWER: usize = 5;
-
-pub const HATCHES_CH_A: [usize; 4] = [HATCH_A_CH_A, HATCH_B_CH_A, HATCH_C_CH_A, HATCH_D_CH_A];
-pub const HATCHES_CH_B: [usize; 4] = [HATCH_A_CH_B, HATCH_B_CH_B, HATCH_C_CH_B, HATCH_D_CH_B];
-pub const HATCH_A_ANALOG_INPUT: usize = 0;
-pub const HATCH_B_ANALOG_INPUT: usize = 0;
-pub const HATCH_C_ANALOG_INPUT: usize = 0;
-pub const HATCH_D_ANALOG_INPUT: usize = 0;
-pub const HATCHES_ANALOG_INPUTS: [usize; 4] = [
-    HATCH_A_ANALOG_INPUT,
-    HATCH_B_ANALOG_INPUT,
-    HATCH_C_ANALOG_INPUT,
-    HATCH_D_ANALOG_INPUT,
-];
 
 pub const HATCHES_OPEN_TIME: Duration = Duration::from_millis(1900);
 pub const HATCH_A_CLOSE_TIME: Duration = Duration::from_millis(1550);
