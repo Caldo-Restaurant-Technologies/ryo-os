@@ -37,7 +37,7 @@ pub const HEATER_OUTPUT_ID: usize = 2;
 pub const BLOWER_SLOT_ID: usize = 3;
 pub const BLOWER_OUTPUT_ID: usize = 3;
 
-pub const GRIPPER_ACTUATOR: usize = 4;
+pub const GRIPPER_ACTUATOR: usize = 5;
 pub const BAG_BLOWER: usize = 5;
 
 pub const HATCHES_OPEN_TIME: Duration = Duration::from_millis(1900);
