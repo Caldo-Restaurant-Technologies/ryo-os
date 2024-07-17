@@ -148,7 +148,7 @@ async fn pull_before_flight(io: RyoIo) {
 
     let mut set = JoinSet::new();
     let hatches = make_hatches(io.clone());
-    let bag_handler = BagHandler::new(io.cc1.clone(), io.cc2.clone());
+    let bag_handler = BagHandler::new(io.clone());
     gantry.set_velocity(30.).await;
     // make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_gripper(io.cc1.clone(), io.cc2.clone()).close().await;

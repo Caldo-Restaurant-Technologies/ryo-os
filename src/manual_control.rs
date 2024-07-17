@@ -1,7 +1,14 @@
 use crate::bag_handler::{load_bag, BagHandlingCmd, ManualBagHandlingCmd};
-use crate::config::{DISPENSER_TIMEOUT, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL, HATCHES_OPEN_TIME, HATCH_CLOSE_TIMES, SEALER_MOVE_DOOR_TIME, HATCHES_OPEN_SET_POINTS, HATCHES_CLOSE_SET_POINTS};
+use crate::config::{
+    DISPENSER_TIMEOUT, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL,
+    HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCH_CLOSE_TIMES,
+    SEALER_MOVE_DOOR_TIME,
+};
 use crate::hmi::{empty, full};
-use crate::ryo::{make_and_close_hatch, make_and_move_hatch, make_and_open_hatch, make_dispenser, make_dispensers, make_gripper, make_hatch, make_hatches, make_sealer, make_trap_door, RyoIo};
+use crate::ryo::{
+    make_and_close_hatch, make_and_move_hatch, make_and_open_hatch, make_dispenser,
+    make_dispensers, make_gripper, make_hatch, make_hatches, make_sealer, make_trap_door, RyoIo,
+};
 use bytes::{Buf, Bytes};
 use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
@@ -10,6 +17,7 @@ use control_components::subsystems::bag_handling::BagGripper;
 use control_components::subsystems::dispenser::{
     DispenseParameters, Dispenser, Parameters, Setpoint, WeightedDispense,
 };
+use control_components::util::utils::ascii_to_int;
 use futures::future::join_all;
 use http_body_util::{combinators::BoxBody, BodyExt, Empty, Full};
 use hyper::{Method, Request, Response, StatusCode};
@@ -21,7 +29,6 @@ use std::array;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
-use control_components::util::utils::ascii_to_int;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
@@ -83,7 +90,7 @@ pub async fn handle_hatch_position_req(body: Bytes, io: RyoIo) {
         b'D' => 3,
         _ => {
             error!("Invalid Hatch ID");
-            return
+            return;
         }
     };
     let position = ascii_to_int(body[1..].as_ref());

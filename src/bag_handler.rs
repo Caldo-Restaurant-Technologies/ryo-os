@@ -4,26 +4,29 @@ use std::future::Future;
 use tokio::time::Duration;
 
 use crate::config::{
-    BAG_BLOWER, BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, GRIPPER_ACTUATOR,
-    GRIPPER_MOTOR_ID,
+    BAG_BLOWER, BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, BLOWER_OUTPUT_ID,
+    BLOWER_SLOT_ID, ETHERCAT_RACK_ID, GRIPPER_ACTUATOR, GRIPPER_MOTOR_ID,
 };
+use crate::ryo::RyoIo;
 use control_components::controllers::clear_core::Controller;
-use control_components::subsystems::linear_actuator::SimpleLinearActuator;
+use control_components::controllers::ek1100_io::IOCard;
+use control_components::subsystems::linear_actuator::{Output, SimpleLinearActuator};
 use tokio::sync::mpsc::Receiver;
 
 pub struct BagHandler {
     bag_dispenser: BagDispenser,
     bag_gripper: BagGripper,
-    blower: DigitalOutput,
+    blower: IOCard,
     bag_detect: DigitalInput,
 }
 
 impl BagHandler {
-    pub fn new(cc1: Controller, cc2: Controller) -> Self {
-        let bag_dispenser = make_bag_dispenser(cc1.clone());
-        let bag_gripper = make_bag_gripper(cc1.clone(), cc2.clone());
-        let blower = cc1.get_output(BAG_BLOWER);
-        let bag_detect = cc1.get_digital_input(BAG_DETECT_PE);
+    pub fn new(mut io: RyoIo) -> Self {
+        let bag_dispenser = make_bag_dispenser(io.cc1.clone());
+        let bag_gripper = make_bag_gripper(io.cc1.clone(), io.cc2.clone());
+        // let blower = Output::EtherCat(io.etc_io.get_io(ETHERCAT_RACK_ID), BLOWER_SLOT_ID, BLOWER_OUTPUT_ID as u8);
+        let blower = io.etc_io.get_io(ETHERCAT_RACK_ID);
+        let bag_detect = io.cc1.get_digital_input(BAG_DETECT_PE);
         Self {
             bag_dispenser,
             bag_gripper,
@@ -33,7 +36,7 @@ impl BagHandler {
     }
 
     pub async fn load_bag(&mut self) {
-        load_bag(&self.bag_dispenser, &mut self.bag_gripper, &self.blower).await;
+        load_bag(&self.bag_dispenser, &mut self.bag_gripper, &mut self.blower).await;
     }
     pub async fn dispense_bag(&self) {
         self.bag_dispenser.dispense().await.unwrap();
@@ -45,8 +48,8 @@ pub enum BagHandlingCmd {
 }
 
 pub enum ManualBagHandlingCmd {}
-pub async fn actor(cc1: Controller, cc2: Controller, mut rx: Receiver<BagHandlingCmd>) {
-    let mut bag_handler = BagHandler::new(cc1, cc2);
+pub async fn actor(io: RyoIo, mut rx: Receiver<BagHandlingCmd>) {
+    let mut bag_handler = BagHandler::new(io);
     while let Some(cmd) = rx.recv().await {
         match cmd {
             BagHandlingCmd::LoadBag => {
@@ -59,13 +62,18 @@ pub async fn actor(cc1: Controller, cc2: Controller, mut rx: Receiver<BagHandlin
     }
 }
 
-pub async fn load_bag(dispenser: &BagDispenser, gripper: &mut BagGripper, blower: &DigitalOutput) {
-    blower.set_state(true).await;
+pub async fn load_bag(dispenser: &BagDispenser, gripper: &mut BagGripper, blower: &mut IOCard) {
+    // elf.actuator_io.set_state(1, self.extend_id, true).await;
+    blower
+        .set_state(BLOWER_SLOT_ID, BLOWER_OUTPUT_ID as u8, true)
+        .await;
     gripper.open().await;
     tokio::time::sleep(Duration::from_millis(1000)).await;
     dispenser.pull_back().await.unwrap();
     gripper.close().await;
-    blower.set_state(false).await;
+    blower
+        .set_state(BLOWER_SLOT_ID, BLOWER_OUTPUT_ID as u8, false)
+        .await;
     gripper.rip_bag().await.unwrap();
 }
 
