@@ -156,9 +156,9 @@ pub fn make_hatch(hatch_id: usize, mut io: RyoIo) -> Hatch {
 pub async fn make_and_move_hatch(hatch_id: usize, position: isize, io: RyoIo) {
     let mut hatch = make_hatch(hatch_id, io);
     if hatch.get_position().await > position {
-        hatch.open(position + HATCH_OVERSHOOT).await
+        hatch.open(position).await
     } else {
-        hatch.close(position - HATCH_OVERSHOOT).await
+        hatch.close(position).await
     }
 }
 

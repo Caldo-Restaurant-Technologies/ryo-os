@@ -24,7 +24,6 @@ pub const HATCHES_CLOSE_OUTPUT_IDS: [usize; 4] = [1, 3, 5, 7];
 pub const HATCHES_ANALOG_INPUTS: [usize; 4] = [0, 1, 2, 3];
 pub const HATCHES_OPEN_SET_POINTS: [isize; 4] = [500, 500, 500, 500];
 pub const HATCHES_CLOSE_SET_POINTS: [isize; 4] = [3900, 3900, 3900, 3900];
-pub const HATCH_OVERSHOOT: isize = 95;
 
 pub const SEALER_SLOT_ID: usize = 2;
 pub const SEALER_EXTEND_OUTPUT_ID: usize = 0;
