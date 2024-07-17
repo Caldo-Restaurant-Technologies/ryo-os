@@ -162,6 +162,11 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
             handle_hatches_req(body, io).await;
             Ok(Response::new(full("All Hatches Moved")))
         }
+        (&Method::POST, "/hatch_position") => {
+            let body = req.collect().await?.to_bytes();
+            info!("Bytes: {:?}", body);
+            Ok(Response::new(full("Hatch to position")))
+        }
         (&Method::POST, "/gantry") => {
             let body = req.collect().await?.to_bytes();
             let gantry_position = ascii_to_int(body.as_ref()) as usize;
