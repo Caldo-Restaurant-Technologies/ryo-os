@@ -8,7 +8,7 @@ use std::thread::current;
 use std::time::Duration;
 
 use crate::bag_handler::BagHandler;
-use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_ACTUATOR, GRIPPER_MOTOR_ID, GRIPPER_POSITIONS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, SEALER_ACTUATOR_ID, SEALER_EXTEND_ID, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_SLOT_ID, HATCHES_ANALOG_INPUTS};
+use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_ACTUATOR, GRIPPER_MOTOR_ID, GRIPPER_POSITIONS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, SEALER_ACTUATOR_ID, SEALER_EXTEND_ID, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_SLOT_ID, HATCHES_ANALOG_INPUTS, HATCH_OVERSHOOT};
 use control_components::subsystems::bag_handling::{
     BagDispenser, BagGripper, BagSensor, BagSensorState,
 };
@@ -156,9 +156,9 @@ pub fn make_hatch(hatch_id: usize, mut io: RyoIo) -> Hatch {
 pub async fn make_and_move_hatch(hatch_id: usize, position: isize, io: RyoIo) {
     let mut hatch = make_hatch(hatch_id, io);
     if hatch.get_position().await > position {
-        hatch.open(position).await
+        hatch.open(position + HATCH_OVERSHOOT).await
     } else {
-        hatch.close(position).await
+        hatch.close(position - HATCH_OVERSHOOT).await
     }
 }
 
