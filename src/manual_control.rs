@@ -1,7 +1,7 @@
 use crate::bag_handler::{load_bag, BagHandlingCmd, ManualBagHandlingCmd};
 use crate::config::{DISPENSER_TIMEOUT, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL, HATCHES_OPEN_TIME, HATCH_CLOSE_TIMES, SEALER_MOVE_DOOR_TIME, HATCHES_OPEN_SET_POINTS, HATCHES_CLOSE_SET_POINTS};
 use crate::hmi::{empty, full};
-use crate::ryo::{make_and_move_hatch, make_dispenser, make_dispensers, make_gripper, make_hatch, make_hatches, make_sealer, make_trap_door, RyoIo};
+use crate::ryo::{make_and_close_hatch, make_and_move_hatch, make_and_open_hatch, make_dispenser, make_dispensers, make_gripper, make_hatch, make_hatches, make_sealer, make_trap_door, RyoIo};
 use bytes::{Buf, Bytes};
 use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
@@ -64,19 +64,14 @@ pub async fn handle_hatch_req(body: Bytes, io: RyoIo, hatch_id: Option<usize>) {
             Some(hatch_id) => (hatch_id, body[0]),
             None => ((body[0] - 48) as usize, body[1]),
         };
-        let mut hatch = make_hatch(hatch_id, io);
         let names = ["A", "B", "C", "D"];
         if operation == b'o' {
             info!("Opening Hatch {:}", names[hatch_id]);
-            hatch.open(HATCHES_OPEN_SET_POINTS[hatch_id]).await;
-            // hatch.timed_open(HATCHES_OPEN_TIME).await;
+            make_and_open_hatch(hatch_id, io).await;
         } else if operation == b'c' {
             info!("Closing Hatch {:}", names[hatch_id]);
-            // hatch.timed_close(HATCH_CLOSE_TIMES[hatch_id]).await;
-            hatch.close(HATCHES_CLOSE_SET_POINTS[hatch_id]).await;
+            make_and_close_hatch(hatch_id, io).await;
         }
-        let pos = hatch.get_position().await;
-        info!("Hatch Position: {:?}", pos)
     }
 }
 
@@ -94,9 +89,9 @@ pub async fn handle_hatch_position_req(body: Bytes, io: RyoIo) {
     let position = ascii_to_int(body[1..].as_ref());
     let names = ["A", "B", "C", "D"];
     info!("Hatch {:?} to position {:?}", names[hatch_id], position);
-    info!("Hatch ID: {:?}", hatch_id);
-    info!("Hatch Position: {:?}", position);
-    make_and_move_hatch(hatch_id, position, io).await;
+    make_and_move_hatch(hatch_id, position, io.clone()).await;
+    let pos = make_hatch(hatch_id, io).get_position().await;
+    info!("Hatch {:?} at position {:?}", names[hatch_id], pos);
 }
 
 pub async fn handle_hatches_req(body: Bytes, io: RyoIo) {
