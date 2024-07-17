@@ -93,12 +93,21 @@ pub async fn handle_hatch_position_req(body: Bytes, io: RyoIo) {
             return;
         }
     };
-    let position = ascii_to_int(body[1..].as_ref());
     let names = ["A", "B", "C", "D"];
-    info!("Hatch {:?} to position {:?}", names[hatch_id], position);
-    make_and_move_hatch(hatch_id, position, io.clone()).await;
-    let pos = make_hatch(hatch_id, io).get_position().await;
-    info!("Hatch {:?} at position {:?}", names[hatch_id], pos);
+    match body.len() {
+        1 => {
+            let pos = make_hatch(hatch_id, io).get_position().await;
+            info!("Hatch {:?} at Position {:?}", names[hatch_id], pos);
+        }
+        _ => {
+            let position = ascii_to_int(body[1..].as_ref());
+
+            info!("Hatch {:?} to position {:?}", names[hatch_id], position);
+            make_and_move_hatch(hatch_id, position, io.clone()).await;
+            let pos = make_hatch(hatch_id, io).get_position().await;
+            info!("Hatch {:?} at position {:?}", names[hatch_id], pos);
+        }
+    }
 }
 
 pub async fn handle_hatches_req(body: Bytes, io: RyoIo) {
