@@ -24,6 +24,7 @@ use std::array;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
+use control_components::util::utils::ascii_to_int;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
@@ -78,6 +79,25 @@ pub async fn handle_hatch_req(body: Bytes, io: RyoIo, hatch_id: Option<usize>) {
             hatch.close(HATCHES_CLOSE_SET_POINTS[hatch_id]).await;
         }
     }
+}
+
+pub async fn handle_hatch_position_req(body: Bytes, io: RyoIo) {
+    let hatch_id = match body[0] {
+        b'A' => 0,
+        b'B' => 1,
+        b'C' => 2,
+        b'D' => 3,
+        _ => {
+            error!("Invalid Hatch ID");
+            return
+        }
+    };
+    let position = ascii_to_int(body[1..].as_ref());
+    let mut hatch = make_hatch(hatch_id, io);
+    let names = ["A", "B", "C", "D"];
+    info!("Hatch {:?} to position {:?}", names[hatch_id], position);
+    hatch.open(position).await;
+    hatch.close(position).await;
 }
 
 pub async fn handle_hatches_req(body: Bytes, io: RyoIo) {
