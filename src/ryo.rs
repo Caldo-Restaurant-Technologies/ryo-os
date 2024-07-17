@@ -8,7 +8,7 @@ use std::thread::current;
 use std::time::Duration;
 
 use crate::bag_handler::BagHandler;
-use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_ACTUATOR, GRIPPER_MOTOR_ID, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, SEALER_ACTUATOR_ID, SEALER_EXTEND_ID, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_SLOT_ID, TRAP_DOOR_SLOT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_CLOSE_OUTPUT_ID};
+use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_ACTUATOR, GRIPPER_MOTOR_ID, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, SEALER_ACTUATOR_ID, SEALER_EXTEND_ID, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_SLOT_ID, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, HEATER_SLOT_ID, HEATER_OUTPUT_ID};
 use control_components::subsystems::bag_handling::{
     BagDispenser, BagGripper, BagSensor, BagSensorState,
 };
@@ -172,7 +172,11 @@ pub async fn make_and_close_hatch(hatch_id: usize, io: RyoIo) {
 
 pub fn make_sealer(mut io: RyoIo) -> Sealer {
     Sealer::new(
-        io.cc1.get_output(SEALER_HEATER),
+        Output::EtherCat(
+            io.etc_io.get_io(ETHERCAT_RACK_ID),
+            HEATER_SLOT_ID,
+            HEATER_OUTPUT_ID as u8
+        ),
         io.etc_io.get_io(SEALER_SLOT_ID),
         SEALER_EXTEND_ID,
         SEALER_RETRACT_ID,
@@ -182,8 +186,16 @@ pub fn make_sealer(mut io: RyoIo) -> Sealer {
 pub fn make_trap_door(mut io: RyoIo) -> RelayHBridge {
     RelayHBridge::new(
         (
-            Output::EtherCat(io.etc_io.get_io(ETHERCAT_RACK_ID), TRAP_DOOR_SLOT_ID, TRAP_DOOR_OPEN_OUTPUT_ID as u8),
-            Output::EtherCat(io.etc_io.get_io(ETHERCAT_RACK_ID), TRAP_DOOR_SLOT_ID, TRAP_DOOR_CLOSE_OUTPUT_ID as u8),
+            Output::EtherCat(
+                io.etc_io.get_io(ETHERCAT_RACK_ID),
+                TRAP_DOOR_SLOT_ID,
+                TRAP_DOOR_OPEN_OUTPUT_ID as u8,
+            ),
+            Output::EtherCat(
+                io.etc_io.get_io(ETHERCAT_RACK_ID),
+                TRAP_DOOR_SLOT_ID,
+                TRAP_DOOR_CLOSE_OUTPUT_ID as u8,
+            ),
         ),
         io.cc1.get_analog_input(0),
     )
@@ -256,9 +268,7 @@ pub async fn release_bag_from_sealer(io: RyoIo) {
 pub async fn reset_for_next_cycle(io: RyoIo) {
     let gantry = make_gantry(io.cc1.clone());
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
-    BagHandler::new(io.clone())
-        .dispense_bag()
-        .await;
+    BagHandler::new(io.clone()).dispense_bag().await;
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
 }
 
