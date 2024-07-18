@@ -180,9 +180,9 @@ pub fn make_sealer(mut io: RyoIo) -> Sealer {
         RelayHBridge::new(
             (
                 Output::EtherCat(
-                io.etc_io.get_io(ETHERCAT_RACK_ID),
-                SEALER_SLOT_ID,
-                SEALER_EXTEND_ID
+                    io.etc_io.get_io(ETHERCAT_RACK_ID),
+                    SEALER_SLOT_ID,
+                    SEALER_EXTEND_ID
                 ),
                 Output::EtherCat(
                     io.etc_io.get_io(ETHERCAT_RACK_ID),
