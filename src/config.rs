@@ -29,12 +29,14 @@ pub const SEALER_SLOT_ID: usize = 2;
 pub const SEALER_EXTEND_OUTPUT_ID: usize = 1;
 pub const SEALER_RETRACT_OUTPUT_ID: usize = 0;
 pub const SEALER_ANALOG_INPUT: usize = 0; // also 1 since there are two actuators
-pub const SEALER_TIMEOUT: Duration = Duration::from_secs(5);
-pub const SEALER_EXTEND_SET_POINT: isize = 500;
-pub const SEALER_RETRACT_SET_POINT: isize = 3900;
+pub const SEALER_TIMEOUT: Duration = Duration::from_secs(10);
+pub const SEALER_EXTEND_SET_POINT: isize = 4090;
+pub const SEALER_RETRACT_SET_POINT: isize = 50;
 pub const TRAP_DOOR_SLOT_ID: usize = 2;
 pub const TRAP_DOOR_OPEN_OUTPUT_ID: usize = 3;
 pub const TRAP_DOOR_CLOSE_OUTPUT_ID: usize = 2;
+pub const TRAP_DOOR_EXTEND_SET_POINT: isize = 4090;
+pub const TRAP_DOOR_RETRACT_SET_POINT: isize = 50;
 
 pub const HEATER_SLOT_ID: usize = 3;
 pub const HEATER_OUTPUT_ID: usize = 2;
@@ -61,8 +63,8 @@ pub const BAG_ROLLER_PE: usize = 1;
 pub const BAG_DETECT_PE: usize = 2;
 // Analog Inputs CC1
 pub const SEALER_TRAP_DOOR_FB: usize = 3;
-pub const SEALER_EXTEND_ID: u8 = 0;
-pub const SEALER_RETRACT_ID: u8 = 1;
+pub const SEALER_EXTEND_ID: u8 = 1;
+pub const SEALER_RETRACT_ID: u8 = 0;
 pub const SEALER_ACTUATOR_ID: usize = 1;
 pub const SEALER_MOVE_DOOR_TIME: Duration = Duration::from_millis(2700);
 

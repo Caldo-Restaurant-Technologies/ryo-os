@@ -175,6 +175,11 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
             handle_gantry_req(gantry_position, io).await;
             Ok(Response::new(full("Gantry to position")))
         }
+        (&Method::POST, "/gantry_position") => {
+            let body = req.collect().await?.to_bytes();
+            handle_gantry_position_req(body, io).await;
+            Ok(Response::new(full("Gantry to position")))
+        }
         (&Method::POST, "/dispense") => {
             let body = req.collect().await?.aggregate();
             // warn!("DEBUG: {:?}", body.chunk());

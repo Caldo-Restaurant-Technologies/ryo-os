@@ -5,10 +5,7 @@ use crate::config::{
     SEALER_MOVE_DOOR_TIME,
 };
 use crate::hmi::{empty, full};
-use crate::ryo::{
-    make_and_close_hatch, make_and_move_hatch, make_and_open_hatch, make_dispenser,
-    make_dispensers, make_gripper, make_hatch, make_hatches, make_sealer, make_trap_door, RyoIo,
-};
+use crate::ryo::{make_and_close_hatch, make_and_move_hatch, make_and_open_hatch, make_dispenser, make_dispensers, make_gantry, make_gripper, make_hatch, make_hatches, make_sealer, make_trap_door, RyoIo};
 use bytes::{Buf, Bytes};
 use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
@@ -121,6 +118,8 @@ pub async fn handle_hatches_req(body: Bytes, io: RyoIo) {
 
 pub async fn handle_gantry_req(gantry_position: usize, io: RyoIo) {
     let gantry_motor = io.cc1.get_motor(GANTRY_MOTOR_ID);
+    gantry_motor.set_acceleration(100.).await;
+    gantry_motor.set_velocity(15.).await;
     match gantry_motor
         .absolute_move(GANTRY_ALL_POSITIONS[gantry_position])
         .await
@@ -146,6 +145,23 @@ pub async fn handle_gantry_req(gantry_position: usize, io: RyoIo) {
         .await;
     let positions = ["Home", "Node A", "Node B", "Node C", "Node D", "Bag Drop"];
     info!("Gantry to {:}", positions[gantry_position].to_string());
+}
+
+pub async fn handle_gantry_position_req(body: Bytes, io: RyoIo) {
+    match body.len() {
+        0 => {
+            let pos = make_gantry(io.cc1).get_position().await;
+            info!("Gantry at Position {:?}", pos);
+        }
+        _ => {
+            let position = ascii_to_int(body.as_ref());
+            info!("Gantry to position {:?}", position);
+            let gantry = make_gantry(io.cc1);
+            let _ = gantry.absolute_move(position as f64).await;
+            let pos = gantry.get_position().await;
+            info!("Gantry at position {:?}", pos);
+        }
+    }
 }
 
 pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
