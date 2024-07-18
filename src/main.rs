@@ -143,11 +143,11 @@ async fn pull_before_flight(io: RyoIo) {
         }
     }
 
-    set_motor_accelerations(io.clone(), 125.).await;
+    set_motor_accelerations(io.clone(), 100.).await;
     sleep(Duration::from_millis(500)).await;
 
     let mut set = JoinSet::new();
-    let hatches = make_hatches(io.clone());
+    let mut hatches = make_hatches(io.clone());
     let bag_handler = BagHandler::new(io.clone());
     gantry.set_velocity(15.).await;
     // make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
@@ -158,10 +158,11 @@ async fn pull_before_flight(io: RyoIo) {
     sleep(SEALER_MOVE_DOOR_TIME).await;
     make_trap_door(io.clone()).actuate(HBridgeState::Off).await;
 
-    for mut hatch in hatches {
+    hatches.reverse();
+    for id in 0..4 {
+        let mut hatch = hatches.pop().unwrap();
         set.spawn(async move {
-            hatch.timed_open(HATCHES_OPEN_TIME).await;
-            hatch.timed_close(Duration::from_secs_f64(1.6)).await;
+            hatch.open(HATCHES_OPEN_SET_POINTS[id]).await;
         });
     }
 
