@@ -97,6 +97,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         scale_txs,
     };
 
+    let gantry = make_gantry(ryo_io.cc1.clone());
+    gantry.enable().await.expect("Motor is faulted");
+    let state = gantry.get_status().await;
+    if state == Status::Moving {
+        gantry.wait_for_move(Duration::from_secs(1)).await;
+    }
+    let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
+    gantry.wait_for_move(Duration::from_secs(1)).await;
+
     let (_, cycle_rx) = channel::<CycleCmd>(10);
 
     match task.as_str() {
@@ -149,7 +158,7 @@ async fn pull_before_flight(io: RyoIo) {
     let mut set = JoinSet::new();
     let mut hatches = make_hatches(io.clone());
     let bag_handler = BagHandler::new(io.clone());
-    gantry.set_velocity(8.).await;
+    
     // make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_gripper(io.cc1.clone(), io.cc2.clone()).close().await;
     make_sealer(io.clone()).seal().await;
