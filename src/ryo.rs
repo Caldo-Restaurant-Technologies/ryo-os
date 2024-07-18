@@ -199,13 +199,13 @@ pub fn make_sealer(mut io: RyoIo) -> Sealer {
 }
 
 pub fn make_trap_door(mut io: RyoIo) -> RelayHBridge {
-    Hatch::from_io(
-        Output::EtherCat(
-            io.etc_io.get_io(ETHERCAT_RACK_ID),
-            
-        )
-    )
-    
+    // Hatch::from_io(
+    //     Output::EtherCat(
+    //         io.etc_io.get_io(ETHERCAT_RACK_ID),
+    // 
+    //     )
+    // )
+
     RelayHBridge::new(
         (
             Output::EtherCat(
