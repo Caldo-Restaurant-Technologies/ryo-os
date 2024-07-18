@@ -143,13 +143,13 @@ async fn pull_before_flight(io: RyoIo) {
         }
     }
 
-    set_motor_accelerations(io.clone(), 100.).await;
+    set_motor_accelerations(io.clone(), 50.).await;
     sleep(Duration::from_millis(500)).await;
 
     let mut set = JoinSet::new();
     let mut hatches = make_hatches(io.clone());
     let bag_handler = BagHandler::new(io.clone());
-    gantry.set_velocity(15.).await;
+    gantry.set_velocity(8.).await;
     // make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_gripper(io.cc1.clone(), io.cc2.clone()).close().await;
     make_sealer(io.clone()).seal().await;

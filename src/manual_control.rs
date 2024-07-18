@@ -118,8 +118,8 @@ pub async fn handle_hatches_req(body: Bytes, io: RyoIo) {
 
 pub async fn handle_gantry_req(gantry_position: usize, io: RyoIo) {
     let gantry_motor = io.cc1.get_motor(GANTRY_MOTOR_ID);
-    gantry_motor.set_acceleration(100.).await;
-    gantry_motor.set_velocity(15.).await;
+    gantry_motor.set_acceleration(50.).await;
+    gantry_motor.set_velocity(8.).await;
     match gantry_motor
         .absolute_move(GANTRY_ALL_POSITIONS[gantry_position])
         .await
