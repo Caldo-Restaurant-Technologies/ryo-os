@@ -105,6 +105,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
     gantry.wait_for_move(Duration::from_secs(1)).await;
+    gantry.set_velocity(2.).await;
 
     let (_, cycle_rx) = channel::<CycleCmd>(10);
 
@@ -152,7 +153,7 @@ async fn pull_before_flight(io: RyoIo) {
         }
     }
 
-    set_motor_accelerations(io.clone(), 50.).await;
+    // set_motor_accelerations(io.clone(), 50.).await;
     sleep(Duration::from_millis(500)).await;
 
     let mut set = JoinSet::new();
