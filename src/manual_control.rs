@@ -264,6 +264,23 @@ pub async fn handle_sealer_req(body: Bytes, io: RyoIo) {
     }
 }
 
+pub async fn handle_sealer_position_req(body: Bytes, io: RyoIo) {
+    match body.len() {
+        0 => {
+            let pos = make_sealer(io).get_actuator_position().await;
+            info!("Sealer at Position {:?}", pos);
+        }
+        _ => {
+            let position = ascii_to_int(body.as_ref());
+            info!("Sealer to position {:?}", position);
+            let mut sealer = make_sealer(io.clone());
+            sealer.absolute_move(position).await;
+            let pos = sealer.get_actuator_position().await;
+            info!("Sealer at position {:?}", pos);
+        }
+    }
+}
+
 pub async fn enable_and_clear_all(io: RyoIo) {
     let cc1_motors: [ClearCoreMotor; 3] = array::from_fn(|motor_id| io.cc1.get_motor(motor_id));
     let cc2_motors: [ClearCoreMotor; 4] = array::from_fn(|motor_id| io.cc2.get_motor(motor_id));
@@ -298,15 +315,15 @@ pub async fn disable_all(io: RyoIo) {
     info!("Disabled All Motors");
 }
 
-pub async fn response_builder(chunk: &str) -> HTTPResult {
-    Ok(Response::builder()
-        .status(204)
-        .header("Access-Control-Allow-Origin", "*")
-        .header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
-        .header("Access-Control-Allow-Headers", "*")
-        .body(full(chunk.to_string()))
-        .unwrap())
-}
+// pub async fn response_builder(chunk: &str) -> HTTPResult {
+//     Ok(Response::builder()
+//         .status(204)
+//         .header("Access-Control-Allow-Origin", "*")
+//         .header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+//         .header("Access-Control-Allow-Headers", "*")
+//         .body(full(chunk.to_string()))
+//         .unwrap())
+// }
 
 // pub async fn manual_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
 //     match (req.method(), req.uri().path()) {
