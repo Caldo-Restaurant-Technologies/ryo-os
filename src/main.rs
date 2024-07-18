@@ -100,9 +100,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let gantry = make_gantry(ryo_io.cc1.clone());
     gantry.enable().await.expect("Motor is faulted");
     let state = gantry.get_status().await;
-    if state == Status::Moving {
+    if state != Status::Ready {
+        let _ = gantry.enable().await;
         gantry.wait_for_move(Duration::from_secs(1)).await;
     }
+    info!("Gantry status: {:?}", gantry.get_status().await);
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
     gantry.wait_for_move(Duration::from_secs(1)).await;
     gantry.set_velocity(2.).await;
