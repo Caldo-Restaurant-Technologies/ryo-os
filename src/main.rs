@@ -248,6 +248,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
                     NodeState::Dispensed => {
                         info!("Dispensing from Node {:?}", node);
                         dump_from_hatch(node, io.clone()).await;
+                        state.set_node_state(node, NodeState::Ready);
                     }
                     NodeState::Ready => (), // TODO:: this is an unreachable case?
                 }
