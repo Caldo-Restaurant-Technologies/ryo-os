@@ -292,13 +292,11 @@ pub async fn drop_bag(io: RyoIo) {
     let gantry = make_gantry(io.cc1.clone());
     let _ = gantry.absolute_move(GANTRY_BAG_DROP_POSITION).await;
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
-    // let mut gripper = make_gripper(io.cc1.clone(), io.cc2.clone());
     let mut bag_handler = make_bag_handler(io);
     bag_handler.open_gripper().await;
-    sleep(Duration::from_millis(500)).await;
-    bag_handler.close_gripper().await;
-
     let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[2]).await;
+    sleep(Duration::from_millis(100)).await;
+    bag_handler.close_gripper().await;
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
 }
 
