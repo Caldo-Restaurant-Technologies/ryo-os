@@ -258,7 +258,7 @@ pub fn make_default_dispense_tasks(ids: Vec<usize>, io: RyoIo) -> Vec<JoinHandle
     let mut dispensers = Vec::with_capacity(4);
     for id in ids {
         let params = Parameters::default();
-        let set_point = Setpoint::Timed(Duration::from_secs(15));
+        let set_point = Setpoint::Timed(Duration::from_secs(10));
         dispensers.push(make_dispenser(
             id,
             io.cc2.clone(),
