@@ -1,12 +1,7 @@
 use crate::bag_handler::BagHandler;
 use crate::config::*;
 use crate::manual_control::enable_and_clear_all;
-use crate::ryo::{
-    drop_bag, dump_from_hatch, make_and_close_hatch, make_bag_handler, make_bag_load_task,
-    make_bag_sensor, make_default_dispense_tasks, make_dispensers, make_gantry, make_hatch,
-    make_hatches, make_sealer, make_trap_door, pull_after_flight, release_bag_from_sealer,
-    set_motor_accelerations, BagState, NodeState, RyoIo, RyoState,
-};
+use crate::ryo::{drop_bag, dump_from_hatch, make_and_close_hatch, make_bag_handler, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_dispensers, make_gantry, make_hatch, make_hatches, make_sealer, make_trap_door, pull_after_flight, release_bag_from_sealer, set_motor_accelerations, BagState, NodeState, RyoIo, RyoState, BagLoadedState, BagFilledState};
 use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
 use control_components::components::scale::{Scale, ScaleCmd};
@@ -156,11 +151,11 @@ async fn pull_before_flight(io: RyoIo) {
             _ => (),
         }
     }
-    gantry.set_acceleration(50.).await;
-    gantry.set_velocity(150.).await;
+    gantry.set_acceleration(100.).await;
+    gantry.set_velocity(300.).await;
     for node in 0..4 {
         let motor = io.cc2.get_motor(node);
-        motor.set_acceleration(50.).await;
+        motor.set_acceleration(100.).await;
     }
 
     // set_motor_accelerations(io.clone(), 50.).await;
@@ -220,54 +215,65 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     }
     let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
 
-    match state.get_bag_state() {
-        BagState::Bagless => {
+    match state.get_bag_loaded_state() {
+        BagLoadedState::Bagless => {
             make_bag_handler(io.clone()).dispense_bag().await;
             let gantry = make_gantry(io.cc1.clone());
             let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
             gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
-            dispense_and_bag_tasks.push(make_bag_load_task(io.clone()))
+            dispense_and_bag_tasks.push(make_bag_load_task(io.clone()));
+            info!("Nodes Dispensing");
+            info!("Bag loading");
+            let _ = join_all(dispense_and_bag_tasks).await;
+            // TODO: maybe have above return results so we know whether to update states?
+            state.set_bag_loaded_state(BagLoadedState::Bagful);
+            state.set_all_node_states(NodeState::Dispensed);
         },
-        BagState::Bagful => (),
+        BagLoadedState::Bagful => (),
     }
-    info!("Nodes Dispensing");
-    info!("Bag loading");
-    let _ = join_all(dispense_and_bag_tasks).await;
-    // TODO: maybe have above return results so we know whether to update states?
-    state.set_bag_state(BagState::Bagful);
-    state.set_all_node_states(NodeState::Dispensed);
-
-    let bag_sensor = make_bag_sensor(io.clone());
-    let gantry = make_gantry(io.cc1.clone());
-    for node in 0..4 {
-        let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[node]).await;
-        gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
-        match bag_sensor.check().await {
-            BagSensorState::Bagful => {
-                match state.get_node_state(node) {
-                    NodeState::Dispensed => {
-                        info!("Dispensing from Node {:?}", node);
-                        dump_from_hatch(node, io.clone()).await;
-                        state.set_node_state(node, NodeState::Ready);
+    
+    match state.get_bag_filled_state() {
+        Some(BagFilledState::Empty) | Some(BagFilledState::Filling) => {
+            state.set_bag_filled_state(Some(BagFilledState::Filling));
+            let bag_sensor = make_bag_sensor(io.clone());
+            let gantry = make_gantry(io.cc1.clone());
+            for node in 0..4 {
+                let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[node]).await;
+                gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+                match bag_sensor.check().await {
+                    BagSensorState::Bagful => {
+                        match state.get_node_state(node) {
+                            NodeState::Dispensed => {
+                                info!("Dispensing from Node {:?}", node);
+                                dump_from_hatch(node, io.clone()).await;
+                                state.set_node_state(node, NodeState::Ready);
+                            }
+                            NodeState::Ready => (), // TODO:: this is an unreachable case?
+                        }
                     }
-                    NodeState::Ready => (), // TODO:: this is an unreachable case?
+                    BagSensorState::Bagless => {
+                        state.set_bag_loaded_state(BagLoadedState::Bagless);
+                        error!("Lost bag");
+                        return state;
+                    }
                 }
             }
-            BagSensorState::Bagless => {
-                state.set_bag_state(BagState::Bagless);
-                error!("Lost bag");
-                return state;
-            }
+            state.set_bag_filled_state(Some(BagFilledState::Filled));
         }
+        Some(BagFilledState::Filled) => (),
+        None => return state
     }
-
+    
     drop_bag(io.clone()).await;
-    match bag_sensor.check().await {
-        BagSensorState::Bagless => state.set_bag_state(BagState::Bagless),
+    
+    match make_bag_sensor(io.clone()).check().await {
+        BagSensorState::Bagless => {
+            state.set_bag_loaded_state(BagLoadedState::Bagless);
+            state.set_bag_filled_state(None);
+        },
         BagSensorState::Bagful => {
             error!("Failed to drop bag");
-            panic!("BAGGGG");
-            // return state
+            return state
         }
     }
 

@@ -43,7 +43,7 @@ pub struct RyoIo {
 }
 
 #[derive(Debug, Clone)]
-pub enum BagState {
+pub enum BagLoadedState {
     Bagful,
     Bagless,
 }
@@ -55,24 +55,37 @@ pub enum NodeState {
 }
 
 #[derive(Debug, Clone)]
+pub enum BagFilledState {
+    Empty,
+    Filling,
+    Filled,
+}
+
+#[derive(Debug, Clone)]
 pub struct RyoState {
-    bag: BagState,
+    bag_loaded: BagLoadedState,
     nodes: [NodeState; 4],
+    bag_filled: Option<BagFilledState>,
 }
 impl RyoState {
     pub fn fresh() -> Self {
         Self {
-            bag: BagState::Bagless,
+            bag_loaded: BagLoadedState::Bagless,
             nodes: array::from_fn(|_| NodeState::Ready),
+            bag_filled: None,
         }
     }
 
-    pub fn set_bag_state(&mut self, state: BagState) {
-        self.bag = state;
+    pub fn set_bag_filled_state(&mut self, state: Option<BagFilledState>) {
+        self.bag_filled = state;
     }
 
     pub fn set_node_state(&mut self, id: usize, state: NodeState) {
         self.nodes[id] = state;
+    }
+    
+    pub fn set_bag_loaded_state(&mut self, state: BagLoadedState) {
+        self.bag_loaded = state;
     }
 
     pub fn set_all_node_states(&mut self, state: NodeState) {
@@ -85,9 +98,19 @@ impl RyoState {
         self.nodes[id].clone()
     }
 
-    pub fn get_bag_state(&self) -> BagState {
-        self.bag.clone()
+    pub fn get_bag_filled_state(&self) -> Option<BagFilledState> {
+        self.bag_filled.clone()
     }
+    
+    pub fn get_bag_loaded_state(&self) -> BagLoadedState {
+        self.bag_loaded.clone()
+    }
+}
+
+pub enum RyoFailure {
+    BagFailure,
+    NodeFailure,
+    
 }
 
 pub fn make_bag_handler(io: RyoIo) -> BagHandler {
