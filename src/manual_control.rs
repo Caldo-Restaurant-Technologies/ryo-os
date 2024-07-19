@@ -1,4 +1,4 @@
-use crate::bag_handler::{load_bag, BagHandlingCmd, ManualBagHandlingCmd, BagHandler};
+use crate::bag_handler::{load_bag, BagHandler, BagHandlingCmd, ManualBagHandlingCmd};
 use crate::config::{
     DISPENSER_TIMEOUT, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL,
     HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCH_CLOSE_TIMES,
@@ -7,8 +7,7 @@ use crate::config::{
 use crate::hmi::{empty, full};
 use crate::ryo::{
     make_and_close_hatch, make_and_move_hatch, make_and_open_hatch, make_dispenser,
-    make_dispensers, make_gantry, make_hatch, make_hatches, make_sealer,
-    make_trap_door, RyoIo,
+    make_dispensers, make_gantry, make_hatch, make_hatches, make_sealer, make_trap_door, RyoIo,
 };
 use bytes::{Buf, Bytes};
 use control_components::components::clear_core_io::HBridgeState;
