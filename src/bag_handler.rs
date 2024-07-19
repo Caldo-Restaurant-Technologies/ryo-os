@@ -23,7 +23,7 @@ pub struct BagHandler {
 impl BagHandler {
     pub fn new(mut io: RyoIo) -> Self {
         let bag_dispenser = make_bag_dispenser(io.cc1.clone());
-        let bag_gripper = make_bag_gripper(io.cc1.clone(), io.cc2.clone());
+        let bag_gripper = make_bag_gripper(io.clone());
         // let blower = Output::EtherCat(io.etc_io.get_io(ETHERCAT_RACK_ID), BLOWER_SLOT_ID, BLOWER_OUTPUT_ID as u8);
         let blower = io.etc_io.get_io(ETHERCAT_RACK_ID);
         let bag_detect = io.cc1.get_digital_input(BAG_DETECT_PE);
@@ -91,10 +91,10 @@ pub fn make_bag_dispenser(drive: Controller) -> BagDispenser {
         drive.get_digital_input(BAG_ROLLER_PE),
     )
 }
-pub fn make_bag_gripper(drive_1: Controller, drive_2: Controller) -> BagGripper {
+pub fn make_bag_gripper(io: RyoIo) -> BagGripper {
     BagGripper::new(
-        drive_1.get_motor(GRIPPER_MOTOR_ID),
-        SimpleLinearActuator::new(drive_2.get_h_bridge(GRIPPER_ACTUATOR)),
+        io.cc1.get_motor(GRIPPER_MOTOR_ID),
+        SimpleLinearActuator::new(io.cc1.get_h_bridge(GRIPPER_ACTUATOR)),
         [0.4, -0.8, 0.4].to_vec(),
     )
 }
