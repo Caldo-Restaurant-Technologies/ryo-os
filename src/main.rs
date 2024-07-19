@@ -152,7 +152,7 @@ async fn pull_before_flight(io: RyoIo) {
         }
     }
     gantry.set_acceleration(50.).await;
-    gantry.set_velocity(100.).await;
+    gantry.set_velocity(150.).await;
 
     // set_motor_accelerations(io.clone(), 50.).await;
     sleep(Duration::from_millis(500)).await;
@@ -163,10 +163,12 @@ async fn pull_before_flight(io: RyoIo) {
     // make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_bag_handler(io.clone()).close_gripper().await;
     make_sealer(io.clone()).absolute_move(SEALER_RETRACT_SET_POINT).await;
+    info!("Sealer retracted");
 
     make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     sleep(SEALER_MOVE_DOOR_TIME).await;
     make_trap_door(io.clone()).actuate(HBridgeState::Off).await;
+    info!("Trap door opened");
 
     for id in 0..4 {
         let mut hatch = make_hatch(id, io.clone());
@@ -211,13 +213,17 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         BagState::Bagless => dispense_and_bag_tasks.push(make_bag_load_task(io.clone())),
         BagState::Bagful => (),
     }
+    info!("Nodes Dispensing");
+    info!("Bag loading");
     let _ = join_all(dispense_and_bag_tasks).await;
     // TODO: maybe have above return results so we know whether to update states?
     state.set_bag_state(BagState::Bagful);
     state.set_all_node_states(NodeState::Dispensed);
 
     let bag_sensor = make_bag_sensor(io.clone());
+    let gantry = make_gantry(io.cc1.clone());
     for node in 0..4 {
+        let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[node]).await;
         match bag_sensor.check().await {
             BagSensorState::Bagful => {
                 match state.get_node_state(node) {

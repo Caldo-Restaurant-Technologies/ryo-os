@@ -259,11 +259,7 @@ pub fn make_bag_load_task(io: RyoIo) -> JoinHandle<()> {
 }
 
 pub async fn dump_from_hatch(id: usize, io: RyoIo) {
-    let gantry = make_gantry(io.cc1.clone());
     let mut hatch = make_hatch(id, io.clone());
-
-    let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[id]).await;
-    gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
     hatch.timed_open(HATCHES_OPEN_TIME).await;
     sleep(Duration::from_millis(500)).await;
     hatch.timed_close(HATCH_CLOSE_TIMES[id]).await;
