@@ -176,10 +176,12 @@ async fn pull_before_flight(io: RyoIo) {
 
     for id in 0..4 {
         let io_clone = io.clone();
-        set.spawn(async move {
-            info!("Closing Hatch {:?}", id);
-            make_and_close_hatch(id, io_clone).await;
-        });
+        info!("Closing Hatch {:?}", id);
+        make_and_close_hatch(id, io_clone).await;
+        // set.spawn(async move {
+        //     info!("Closing Hatch {:?}", id);
+        //     make_and_close_hatch(id, io_clone).await;
+        // });
     }
 
     set.spawn(async move { bag_handler.dispense_bag().await });
