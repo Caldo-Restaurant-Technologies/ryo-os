@@ -104,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("Gantry status: {:?}", gantry.get_status().await);
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
     gantry.wait_for_move(Duration::from_secs(1)).await;
-    gantry.set_velocity(6.).await;
+    gantry.set_velocity(12.).await;
 
     // let (_, cycle_rx) = channel::<CycleCmd>(10);
 
