@@ -150,6 +150,7 @@ async fn pull_before_flight(io: RyoIo) {
     }
     gantry.set_acceleration(800.).await;
     gantry.set_velocity(12.).await;
+    gantry.set_velocity(30.).await;
     for node in 0..4 {
         let motor = io.cc2.get_motor(node);
         motor.set_velocity(0.5).await;
@@ -291,9 +292,12 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             return state;
         }
     }
-
-    make_sealer(io.clone()).seal().await;
-    release_bag_from_sealer(io.clone()).await;
+    
+    let io_clone = io.clone();
+    tokio::spawn(async move {
+        make_sealer(io_clone.clone()).seal().await;
+        release_bag_from_sealer(io_clone.clone()).await;
+    });
 
     pull_after_flight(io).await;
 
