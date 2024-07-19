@@ -247,6 +247,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
                 }
             }
             BagSensorState::Bagless => {
+                state.set_bag_state(BagState::Bagless);
                 error!("Lost bag");
                 return state;
             }
