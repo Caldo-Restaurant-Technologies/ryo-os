@@ -295,8 +295,6 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     make_sealer(io.clone()).seal().await;
     release_bag_from_sealer(io.clone()).await;
 
-    sleep(Duration::from_secs(3)).await;
-
     pull_after_flight(io).await;
 
     state
