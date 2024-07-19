@@ -1,41 +1,30 @@
-use crate::bag_handler::{load_bag, BagHandler, BagHandlingCmd, ManualBagHandlingCmd};
+use crate::bag_handler::{BagHandler, ManualBagHandlingCmd};
 use crate::config::{
-    DISPENSER_TIMEOUT, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL,
-    HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCH_CLOSE_TIMES,
+    GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL,
     SEALER_MOVE_DOOR_TIME,
 };
-use crate::hmi::{empty, full};
 use crate::ryo::{
     make_and_close_hatch, make_and_move_hatch, make_and_open_hatch, make_dispenser,
-    make_dispensers, make_gantry, make_hatch, make_hatches, make_sealer, make_trap_door, RyoIo,
+    make_gantry, make_hatch, make_sealer, make_trap_door, RyoIo,
 };
-use bytes::{Buf, Bytes};
+use bytes::{Bytes};
 use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
-use control_components::controllers::{clear_core, ek1100_io};
-use control_components::subsystems::bag_handling::BagGripper;
 use control_components::subsystems::dispenser::{
-    DispenseParameters, Dispenser, Parameters, Setpoint, WeightedDispense,
+    Parameters, Setpoint, WeightedDispense,
 };
 use control_components::util::utils::ascii_to_int;
 use futures::future::join_all;
-use http_body_util::{combinators::BoxBody, BodyExt, Empty, Full};
-use hyper::{Method, Request, Response, StatusCode};
-use hyper_util::rt::TokioIo;
-use log::__private_api::Value;
+use http_body_util::{combinators::BoxBody};
+use hyper::{Request, Response};
 use log::{error, info, warn};
-use serde::{Deserialize, Serialize};
 use std::array;
-use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::net::TcpListener;
-use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 
-type HTTPResult = Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error>;
-type HTTPRequest = Request<hyper::body::Incoming>;
+// type HTTPResult = Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error>;
+// type HTTPRequest = Request<hyper::body::Incoming>;
 
 pub enum ActuatorCmd {
     Open,
@@ -54,7 +43,7 @@ pub enum ManualCmd {
 }
 
 pub async fn handle_gripper_req(body: Bytes, mut bag_handler: BagHandler) {
-    if body.len() > 0 {
+    if !body.is_empty() {
         if body[0] == b'o' {
             info!("Opening Gripper");
             bag_handler.open_gripper().await;

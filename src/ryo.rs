@@ -1,17 +1,16 @@
-use control_components::components::clear_core_io::{DigitalOutput, HBridgeState};
+use control_components::components::clear_core_io::{HBridgeState};
 use control_components::components::clear_core_motor::ClearCoreMotor;
 use control_components::components::scale::ScaleCmd;
 use control_components::controllers::clear_core::Controller;
 use control_components::controllers::{clear_core, ek1100_io};
 use std::array;
-use std::thread::current;
 use std::time::Duration;
 
 use crate::bag_handler::BagHandler;
 use crate::config::{
     BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DISPENSER_TIMEOUT,
     ETHERCAT_RACK_ID, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID,
-    GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_ACTUATOR, GRIPPER_MOTOR_ID,
+    GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_MOTOR_ID,
     GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS,
     HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID,
     HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT,
@@ -20,14 +19,14 @@ use crate::config::{
     TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID,
 };
 use control_components::subsystems::bag_handling::{
-    BagDispenser, BagGripper, BagSensor, BagSensorState,
+    BagDispenser, BagSensor,
 };
 use control_components::subsystems::dispenser::{Dispenser, Parameters, Setpoint};
 use control_components::subsystems::hatch::Hatch;
 use control_components::subsystems::linear_actuator::{Output, RelayHBridge, SimpleLinearActuator};
 use control_components::subsystems::sealer::Sealer;
 use futures::future::join_all;
-use log::{error, info};
+use log::{info};
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
@@ -83,7 +82,7 @@ impl RyoState {
     pub fn set_node_state(&mut self, id: usize, state: NodeState) {
         self.nodes[id] = state;
     }
-    
+
     pub fn set_bag_loaded_state(&mut self, state: BagLoadedState) {
         self.bag_loaded = state;
     }
@@ -101,7 +100,7 @@ impl RyoState {
     pub fn get_bag_filled_state(&self) -> Option<BagFilledState> {
         self.bag_filled.clone()
     }
-    
+
     pub fn get_bag_loaded_state(&self) -> BagLoadedState {
         self.bag_loaded.clone()
     }
@@ -110,7 +109,6 @@ impl RyoState {
 pub enum RyoFailure {
     BagFailure,
     NodeFailure,
-    
 }
 
 pub fn make_bag_handler(io: RyoIo) -> BagHandler {
