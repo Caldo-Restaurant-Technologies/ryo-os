@@ -152,6 +152,7 @@ async fn pull_before_flight(io: RyoIo) {
     gantry.set_velocity(10.).await;
     for node in 0..4 {
         let motor = io.cc2.get_motor(node);
+        motor.set_velocity(0.5).await;
         motor.set_acceleration(200.).await;
     }
 
