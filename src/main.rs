@@ -149,7 +149,7 @@ async fn pull_before_flight(io: RyoIo) {
         if gantry.get_status().await == Status::Ready { break }
     }
     gantry.set_acceleration(200.).await;
-    gantry.set_velocity(300.).await;
+    gantry.set_velocity(10.).await;
     for node in 0..4 {
         let motor = io.cc2.get_motor(node);
         motor.set_acceleration(200.).await;
