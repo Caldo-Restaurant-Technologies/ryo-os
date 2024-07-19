@@ -36,7 +36,7 @@ pub const TRAP_DOOR_SLOT_ID: usize = 2;
 pub const TRAP_DOOR_OPEN_OUTPUT_ID: usize = 3;
 pub const TRAP_DOOR_CLOSE_OUTPUT_ID: usize = 2;
 pub const TRAP_DOOR_EXTEND_SET_POINT: isize = 4090;
-pub const TRAP_DOOR_RETRACT_SET_POINT: isize = 50;
+pub const TRAP_DOOR_RETRACT_SET_POINT: isize = 0;
 
 pub const HEATER_SLOT_ID: usize = 3;
 pub const HEATER_OUTPUT_ID: usize = 2;
