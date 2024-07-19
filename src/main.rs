@@ -224,6 +224,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             // TODO: maybe have above return results so we know whether to update states?
             state.set_bag_loaded_state(BagLoadedState::Bagful);
             state.set_all_node_states(NodeState::Dispensed);
+            state.set_bag_filled_state(Some(BagFilledState::Filling));
         }
         BagLoadedState::Bagful => (),
     }
