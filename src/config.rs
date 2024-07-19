@@ -106,7 +106,7 @@ pub const CC2_MOTORS: [MotorBuilder; 4] = [
     },
     MotorBuilder {
         id: NODE_B_MOTOR_ID as u8,
-        scale: 800,
+        scale: 6400,
     },
     MotorBuilder {
         id: NODE_C_MOTOR_ID as u8,
