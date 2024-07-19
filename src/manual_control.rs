@@ -1,11 +1,15 @@
-use crate::bag_handler::{load_bag, BagHandlingCmd, ManualBagHandlingCmd};
+use crate::bag_handler::{load_bag, BagHandlingCmd, ManualBagHandlingCmd, BagHandler};
 use crate::config::{
     DISPENSER_TIMEOUT, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL,
     HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCH_CLOSE_TIMES,
     SEALER_MOVE_DOOR_TIME,
 };
 use crate::hmi::{empty, full};
-use crate::ryo::{make_and_close_hatch, make_and_move_hatch, make_and_open_hatch, make_dispenser, make_dispensers, make_gantry, make_gripper, make_hatch, make_hatches, make_sealer, make_trap_door, RyoIo};
+use crate::ryo::{
+    make_and_close_hatch, make_and_move_hatch, make_and_open_hatch, make_dispenser,
+    make_dispensers, make_gantry, make_hatch, make_hatches, make_sealer,
+    make_trap_door, RyoIo,
+};
 use bytes::{Buf, Bytes};
 use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
@@ -50,14 +54,14 @@ pub enum ManualCmd {
     CancelDispense(usize),
 }
 
-pub async fn handle_gripper_req(body: Bytes, mut gripper: BagGripper) {
+pub async fn handle_gripper_req(body: Bytes, mut bag_handler: BagHandler) {
     if body.len() > 0 {
         if body[0] == b'o' {
             info!("Opening Gripper");
-            gripper.open().await;
+            bag_handler.open_gripper().await;
         } else if body[0] == b'c' {
             info!("Closing Gripper");
-            gripper.close().await;
+            bag_handler.close_gripper().await;
         }
     }
 }

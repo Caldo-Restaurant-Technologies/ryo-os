@@ -1,7 +1,11 @@
 use crate::bag_handler::{load_bag, BagHandler, BagHandlingCmd, ManualBagHandlingCmd};
-use crate::manual_control::{disable_all, enable_and_clear_all, handle_dispenser_req, handle_gantry_position_req, handle_gantry_req, handle_gripper_req, handle_hatch_position_req, handle_hatch_req, handle_hatches_req, handle_sealer_position_req, handle_sealer_req};
+use crate::manual_control::{
+    disable_all, enable_and_clear_all, handle_dispenser_req, handle_gantry_position_req,
+    handle_gantry_req, handle_gripper_req, handle_hatch_position_req, handle_hatch_req,
+    handle_hatches_req, handle_sealer_position_req, handle_sealer_req,
+};
 use crate::recipe_handling::get_sample_recipe;
-use crate::ryo::{make_bag_sensor, make_gripper, RyoIo, RyoState};
+use crate::ryo::{make_bag_handler, make_bag_sensor, RyoIo, RyoState};
 use crate::{manual_control, pull_before_flight, single_cycle};
 use bytes::{Buf, Bytes};
 use control_components::components::scale::ScaleCmd;
@@ -132,8 +136,8 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
         }
         (&Method::POST, "/gripper") => {
             let body = req.collect().await?.to_bytes();
-            let gripper = make_gripper(io.cc1, io.cc2);
-            handle_gripper_req(body, gripper).await;
+            let bag_handler = make_bag_handler(io);
+            handle_gripper_req(body, bag_handler).await;
             Ok(Response::new(full("Gripper Moved")))
         }
         (&Method::POST, "/load_bag") => {

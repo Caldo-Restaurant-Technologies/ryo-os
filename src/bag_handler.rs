@@ -41,6 +41,14 @@ impl BagHandler {
     pub async fn dispense_bag(&self) {
         self.bag_dispenser.dispense().await.unwrap();
     }
+
+    pub async fn open_gripper(&mut self) {
+        self.bag_gripper.open().await;
+    }
+
+    pub async fn close_gripper(&mut self) {
+        self.bag_gripper.close().await;
+    }
 }
 pub enum BagHandlingCmd {
     DispenseBag,

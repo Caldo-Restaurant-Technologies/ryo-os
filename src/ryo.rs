@@ -8,7 +8,17 @@ use std::thread::current;
 use std::time::Duration;
 
 use crate::bag_handler::BagHandler;
-use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_ACTUATOR, GRIPPER_MOTOR_ID, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, SEALER_ACTUATOR_ID, SEALER_EXTEND_ID, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_SLOT_ID, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, HEATER_SLOT_ID, HEATER_OUTPUT_ID, SEALER_ANALOG_INPUT, SEALER_TIMEOUT, SEALER_EXTEND_SET_POINT, SEALER_RETRACT_SET_POINT};
+use crate::config::{
+    BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DISPENSER_TIMEOUT,
+    ETHERCAT_RACK_ID, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID,
+    GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_ACTUATOR, GRIPPER_MOTOR_ID,
+    GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS,
+    HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID,
+    HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT,
+    SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME,
+    SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT,
+    TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID,
+};
 use control_components::subsystems::bag_handling::{
     BagDispenser, BagGripper, BagSensor, BagSensorState,
 };
@@ -80,12 +90,8 @@ impl RyoState {
     }
 }
 
-pub fn make_gripper(cc1: Controller, cc2: Controller) -> BagGripper {
-    BagGripper::new(
-        cc1.get_motor(GRIPPER_MOTOR_ID),
-        SimpleLinearActuator::new(cc1.get_h_bridge(GRIPPER_ACTUATOR)),
-        GRIPPER_POSITIONS.to_vec(),
-    )
+pub fn make_bag_handler(io: RyoIo) -> BagHandler {
+    BagHandler::new(io)
 }
 
 pub fn make_bag_dispenser(cc1: Controller) -> BagDispenser {
@@ -175,26 +181,26 @@ pub fn make_sealer(mut io: RyoIo) -> Sealer {
         Output::EtherCat(
             io.etc_io.get_io(ETHERCAT_RACK_ID),
             HEATER_SLOT_ID,
-            HEATER_OUTPUT_ID as u8
+            HEATER_OUTPUT_ID as u8,
         ),
         RelayHBridge::new(
             (
                 Output::EtherCat(
                     io.etc_io.get_io(ETHERCAT_RACK_ID),
                     SEALER_SLOT_ID,
-                    SEALER_EXTEND_ID
+                    SEALER_EXTEND_ID,
                 ),
                 Output::EtherCat(
                     io.etc_io.get_io(ETHERCAT_RACK_ID),
                     SEALER_SLOT_ID,
-                    SEALER_RETRACT_ID
-                )
+                    SEALER_RETRACT_ID,
+                ),
             ),
-            io.cc1.get_analog_input(SEALER_ANALOG_INPUT)
+            io.cc1.get_analog_input(SEALER_ANALOG_INPUT),
         ),
         SEALER_TIMEOUT,
         SEALER_EXTEND_SET_POINT,
-        SEALER_RETRACT_SET_POINT
+        SEALER_RETRACT_SET_POINT,
     )
 }
 
@@ -202,7 +208,7 @@ pub fn make_trap_door(mut io: RyoIo) -> RelayHBridge {
     // Hatch::from_io(
     //     Output::EtherCat(
     //         io.etc_io.get_io(ETHERCAT_RACK_ID),
-    // 
+    //
     //     )
     // )
 
@@ -267,10 +273,11 @@ pub async fn drop_bag(io: RyoIo) {
     let gantry = make_gantry(io.cc1.clone());
     let _ = gantry.absolute_move(GANTRY_BAG_DROP_POSITION).await;
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
-    let mut gripper = make_gripper(io.cc1.clone(), io.cc2.clone());
-    gripper.open().await;
+    // let mut gripper = make_gripper(io.cc1.clone(), io.cc2.clone());
+    let mut bag_handler = make_bag_handler(io);
+    bag_handler.open_gripper().await;
     sleep(Duration::from_millis(500)).await;
-    gripper.close().await;
+    bag_handler.close_gripper().await;
 
     let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[2]).await;
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
