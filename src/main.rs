@@ -221,7 +221,13 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
 
     match state.get_bag_state() {
-        BagState::Bagless => dispense_and_bag_tasks.push(make_bag_load_task(io.clone())),
+        BagState::Bagless => {
+            make_bag_handler(io.clone()).dispense_bag().await;
+            let gantry = make_gantry(io.cc1.clone());
+            let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
+            gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+            dispense_and_bag_tasks.push(make_bag_load_task(io.clone()))
+        },
         BagState::Bagful => (),
     }
     info!("Nodes Dispensing");
