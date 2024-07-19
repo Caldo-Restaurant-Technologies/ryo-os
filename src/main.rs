@@ -224,6 +224,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     let gantry = make_gantry(io.cc1.clone());
     for node in 0..4 {
         let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[node]).await;
+        gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
         match bag_sensor.check().await {
             BagSensorState::Bagful => {
                 match state.get_node_state(node) {
