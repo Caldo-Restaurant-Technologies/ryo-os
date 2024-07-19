@@ -1,7 +1,7 @@
 use crate::bag_handler::BagHandler;
 use crate::config::*;
 use crate::manual_control::enable_and_clear_all;
-use crate::ryo::{drop_bag, dump_from_hatch, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_dispensers, make_gantry, make_hatch, make_hatches, make_sealer, make_trap_door, release_bag_from_sealer, reset_for_next_cycle, set_motor_accelerations, BagState, NodeState, RyoIo, RyoState, make_bag_handler};
+use crate::ryo::{drop_bag, dump_from_hatch, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_dispensers, make_gantry, make_hatch, make_hatches, make_sealer, make_trap_door, release_bag_from_sealer, reset_for_next_cycle, set_motor_accelerations, BagState, NodeState, RyoIo, RyoState, make_bag_handler, pull_after_flight};
 use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
 use control_components::components::scale::{Scale, ScaleCmd};
@@ -152,7 +152,7 @@ async fn pull_before_flight(io: RyoIo) {
         }
     }
     gantry.set_acceleration(50.).await;
-    gantry.set_velocity(20.).await;
+    gantry.set_velocity(50.).await;
 
     // set_motor_accelerations(io.clone(), 50.).await;
     sleep(Duration::from_millis(500)).await;
@@ -171,8 +171,8 @@ async fn pull_before_flight(io: RyoIo) {
     for id in 0..4 {
         let mut hatch = make_hatch(id, io.clone());
         set.spawn(async move {
-            info!("Opening Hatch {:?}", id);
-            hatch.open(HATCHES_OPEN_SET_POINTS[id]).await;
+            info!("Closing Hatch {:?}", id);
+            hatch.close(HATCHES_CLOSE_SET_POINTS[id]).await;
         });
     }
 
@@ -249,7 +249,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
 
     sleep(Duration::from_secs(3)).await;
 
-    reset_for_next_cycle(io).await;
+    pull_after_flight(io).await;
 
     state
 }

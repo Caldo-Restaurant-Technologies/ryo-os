@@ -294,7 +294,7 @@ pub async fn release_bag_from_sealer(io: RyoIo) {
     trap_door.actuate(HBridgeState::Off).await;
 }
 
-pub async fn reset_for_next_cycle(io: RyoIo) {
+pub async fn pull_after_flight(io: RyoIo) {
     let gantry = make_gantry(io.cc1.clone());
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
     BagHandler::new(io.clone()).dispense_bag().await;

@@ -128,10 +128,10 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
         (&Method::GET, "/v1/api/recipe/all") => Ok(Response::new(full("WIP"))),
         (&Method::POST, "/echo") => Ok(Response::new(req.into_body().boxed())),
         (&Method::POST, "/cycle") => {
-            error!("Cycle not yet functional :(");
             pull_before_flight(io.clone()).await;
             let ryo_state = RyoState::fresh();
             single_cycle(ryo_state, io).await;
+            info!("Cycle complete");
             Ok(Response::new(req.into_body().boxed()))
         }
         (&Method::POST, "/gripper") => {
