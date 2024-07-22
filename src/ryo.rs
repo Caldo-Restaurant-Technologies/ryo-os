@@ -115,7 +115,7 @@ impl RyoState {
     }
     
     pub fn check_failures(&self) {
-        if self.failures.len() < 5 {
+        if self.failures.len() < 3 {
             return
         } else {
             let first_failure = &self.failures[0];
@@ -341,13 +341,13 @@ pub async fn dump_from_hatch(id: usize, io: RyoIo) {
 pub async fn drop_bag(io: RyoIo) {
     let gantry = make_gantry(io.cc1.clone());
     let _ = gantry.absolute_move(GANTRY_BAG_DROP_POSITION).await;
-    gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+    gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
     let mut bag_handler = make_bag_handler(io);
     bag_handler.open_gripper().await;
     let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[2]).await;
     sleep(Duration::from_millis(100)).await;
     bag_handler.close_gripper().await;
-    gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+    gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
 }
 
 pub async fn release_bag_from_sealer(io: RyoIo) {
@@ -365,7 +365,7 @@ pub async fn pull_after_flight(io: RyoIo) {
     let gantry = make_gantry(io.cc1.clone());
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
     BagHandler::new(io.clone()).dispense_bag().await;
-    gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+    gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
 }
 
 pub async fn set_motor_accelerations(io: RyoIo, acceleration: f64) {

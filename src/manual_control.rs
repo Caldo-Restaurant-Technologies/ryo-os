@@ -134,7 +134,7 @@ pub async fn handle_gantry_req(gantry_position: usize, io: RyoIo) {
     io.cc1
         .get_motor(GANTRY_MOTOR_ID)
         .wait_for_move(GANTRY_SAMPLE_INTERVAL)
-        .await;
+        .await.unwrap();
     let positions = ["Home", "Node A", "Node B", "Node C", "Node D", "Bag Drop"];
     info!("Gantry to {:}", positions[gantry_position].to_string());
 }

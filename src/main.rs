@@ -118,7 +118,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // }
     info!("Gantry status: {:?}", gantry.get_status().await);
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
-    gantry.wait_for_move(Duration::from_secs(1)).await;
+    gantry.wait_for_move(Duration::from_secs(1)).await.unwrap();
     gantry.set_velocity(12.).await;
 
     // let (_, cycle_rx) = channel::<CycleCmd>(10);
@@ -205,10 +205,10 @@ async fn pull_before_flight(io: RyoIo) {
         gantry.enable().await.expect("Motor is faulted");
         let state = gantry.get_status().await;
         if state == Status::Moving {
-            gantry.wait_for_move(Duration::from_secs(1)).await;
+            gantry.wait_for_move(Duration::from_secs(1)).await.unwrap();
         }
         let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
-        gantry.wait_for_move(Duration::from_secs(1)).await;
+        gantry.wait_for_move(Duration::from_secs(1)).await.unwrap();
     });
 
     drop(io);
@@ -244,7 +244,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             make_bag_handler(io.clone()).dispense_bag().await;
             let gantry = make_gantry(io.cc1.clone());
             let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
-            gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+            gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
             dispense_and_bag_tasks.push(make_bag_load_task(io.clone()));
             let _ = join_all(dispense_and_bag_tasks).await;
             // TODO: maybe have above return results so we know whether to update states?
@@ -265,7 +265,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             let gantry = make_gantry(io.cc1.clone());
             for node in 0..4 {
                 let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[node]).await;
-                gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+                gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
                 match bag_sensor.check().await {
                     BagSensorState::Bagful => {
                         match state.get_node_state(node) {
