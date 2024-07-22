@@ -1,12 +1,7 @@
 use crate::bag_handler::BagHandler;
 use crate::config::*;
 use crate::manual_control::enable_and_clear_all;
-use crate::ryo::{
-    drop_bag, dump_from_hatch, make_and_close_hatch, make_bag_handler, make_bag_load_task,
-    make_bag_sensor, make_default_dispense_tasks, make_gantry, make_hatch,
-    make_sealer, make_trap_door, pull_after_flight, release_bag_from_sealer,
-    BagFilledState, BagLoadedState, NodeState, RyoIo, RyoState,
-};
+use crate::ryo::{drop_bag, dump_from_hatch, make_and_close_hatch, make_bag_handler, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_gantry, make_hatch, make_sealer, make_trap_door, pull_after_flight, release_bag_from_sealer, BagFilledState, BagLoadedState, NodeState, RyoIo, RyoState, RyoFailure};
 use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::{Status};
 use control_components::components::scale::{Scale, ScaleCmd};
@@ -115,7 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         info!("Current Gantry State: {:?}", state);
         sleep(Duration::from_secs(3)).await;
     }
-    
+
     // while state != Status::Ready {
     //     state = gantry.get_status().await;
     //     info!("Gantry status: {:?}", state);
@@ -141,6 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 if shutdown.load(Ordering::Relaxed) {
                     break;
                 }
+                ryo_state.check_failures();
                 info!("Cycling");
                 ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
             }
@@ -284,6 +280,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
                     BagSensorState::Bagless => {
                         state.set_bag_loaded_state(BagLoadedState::Bagless);
                         error!("Lost bag");
+                        state.log_failure(RyoFailure::BagDispenseFailure);
                         return state;
                     }
                 }
@@ -308,6 +305,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         }
         BagSensorState::Bagful => {
             error!("Failed to drop bag");
+            state.log_failure(RyoFailure::BagDroppingFailure);
             return state;
         }
     }
@@ -319,7 +317,8 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     });
 
     pull_after_flight(io).await;
-
+    
+    state.clear_failures();
     state
 }
 

@@ -3,7 +3,8 @@ use control_components::components::clear_core_motor::ClearCoreMotor;
 use control_components::components::scale::ScaleCmd;
 use control_components::controllers::clear_core::Controller;
 use control_components::controllers::{clear_core, ek1100_io};
-use std::array;
+use std::{array, io};
+use std::io::Write;
 use std::time::Duration;
 
 use crate::bag_handler::BagHandler;
@@ -16,7 +17,7 @@ use control_components::subsystems::hatch::Hatch;
 use control_components::subsystems::linear_actuator::{Output, RelayHBridge};
 use control_components::subsystems::sealer::Sealer;
 use futures::future::join_all;
-use log::{info};
+use log::{error, info};
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
@@ -56,6 +57,7 @@ pub struct RyoState {
     bag_loaded: BagLoadedState,
     nodes: [NodeState; 4],
     bag_filled: Option<BagFilledState>,
+    failures: Vec<RyoFailure>,
 }
 impl RyoState {
     pub fn fresh() -> Self {
@@ -63,6 +65,7 @@ impl RyoState {
             bag_loaded: BagLoadedState::Bagless,
             nodes: array::from_fn(|_| NodeState::Ready),
             bag_filled: None,
+            failures: Vec::new(),
         }
     }
 
@@ -95,11 +98,44 @@ impl RyoState {
     pub fn get_bag_loaded_state(&self) -> BagLoadedState {
         self.bag_loaded.clone()
     }
+    
+    pub fn get_failures(&self) -> Vec<RyoFailure> { self.failures.clone() }
+    
+    pub fn log_failure(&mut self, failure: RyoFailure) {
+        self.failures.push(failure);
+        if self.failures.len() > 5 {
+            self.failures.reverse();
+            self.failures.pop();
+            self.failures.reverse();
+        }
+    }
+    
+    pub fn clear_failures(&mut self) {
+        self.failures = Vec::new();
+    }
+    
+    pub fn check_failures(&self) {
+        if self.failures.len() < 5 {
+            return
+        } else {
+            let first_failure = &self.failures[0];
+            let all_same = self.failures.iter().all(|f| f == first_failure);
+            if all_same {
+                error!("Repeated Failure: {:?}", first_failure);
+                error!("Resolve Failure and Press Enter to Continue Cycle...");
+                io::stdout().flush().unwrap();
+                let mut input = String::new();
+                io::stdin().read_line(&mut input).expect("Failed to read line");
+            }
+        }
+    }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum RyoFailure {
-    BagFailure,
+    BagDispenseFailure,
     NodeFailure,
+    BagDroppingFailure,
 }
 
 // pub type CycleOrder = [Option<Dispenser>; 4];
