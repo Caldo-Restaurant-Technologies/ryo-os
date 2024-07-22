@@ -60,7 +60,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let scales_handles: [JoinHandle<Scale>; 4] = array::from_fn(|scale_id| {
         spawn_blocking(move || {
-            let scale = Scale::new(PHIDGET_SNS[scale_id]);
+            let mut scale = Scale::new(PHIDGET_SNS[scale_id]);
+            scale = Scale::change_coefficients(scale, NODE_COEFFICIENTS[scale_id].to_vec());
             scale.connect().unwrap()
         })
     });
