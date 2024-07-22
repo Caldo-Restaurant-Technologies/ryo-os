@@ -98,11 +98,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     gantry.enable().await.expect("Motor is faulted");
     sleep(Duration::from_secs(10)).await;
     let mut state = gantry.get_status().await;
-    while state != Status::Ready {
+    loop {
         state = gantry.get_status().await;
-        info!("Gantry status: {:?}", state);
-        sleep(Duration::from_secs(5)).await;
+        match state {
+            Status::Ready => break,
+            Status::Moving => continue,
+            Status::Faulted => gantry.clear_alerts().await,
+            Status::Disabled => {
+                let _ = gantry.enable().await;
+            },
+            Status::Enabling => continue,
+            Status::Unknown => {
+                error!("Gantry in unknown state");
+            }
+        }
+        sleep(Duration::from_secs(3)).await;
     }
+    
+    // while state != Status::Ready {
+    //     state = gantry.get_status().await;
+    //     info!("Gantry status: {:?}", state);
+    //     sleep(Duration::from_secs(3)).await;
+    // }
     info!("Gantry status: {:?}", gantry.get_status().await);
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
     gantry.wait_for_move(Duration::from_secs(1)).await;
