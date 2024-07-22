@@ -7,21 +7,11 @@ use std::array;
 use std::time::Duration;
 
 use crate::bag_handler::BagHandler;
-use crate::config::{
-    BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DISPENSER_TIMEOUT,
-    ETHERCAT_RACK_ID, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID,
-    GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL,
-    GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS,
-    HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID,
-    HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT,
-    SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME,
-    SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT,
-    TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID,
-};
+use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, DEFAULT_DISPENSER_TIMEOUT};
 use control_components::subsystems::bag_handling::{
     BagDispenser, BagSensor,
 };
-use control_components::subsystems::dispenser::{Dispenser, Parameters, Setpoint};
+use control_components::subsystems::dispenser::{Dispenser, Parameters, Setpoint, WeightedDispense};
 use control_components::subsystems::hatch::Hatch;
 use control_components::subsystems::linear_actuator::{Output, RelayHBridge};
 use control_components::subsystems::sealer::Sealer;
@@ -30,6 +20,7 @@ use log::{info};
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
+use crate::recipe_handling::Ingredient;
 
 type CCController = clear_core::Controller;
 type EtherCATIO = ek1100_io::Controller;
@@ -111,6 +102,17 @@ pub enum RyoFailure {
     NodeFailure,
 }
 
+// pub type CycleOrder = [Option<Dispenser>; 4];
+// trait NewOrder {
+//     fn new(ingredients: Vec<Ingredient>, io: RyoIo);
+// }
+// impl NewOrder for CycleOrder {
+//     fn new(ingredients: Vec<Ingredient>, io: RyoIo) -> CycleOrder {
+//         
+//     }
+// }
+
+
 pub fn make_bag_handler(io: RyoIo) -> BagHandler {
     BagHandler::new(io)
 }
@@ -157,6 +159,18 @@ pub fn make_dispenser(
         set_point,
         parameter,
         sender,
+    )
+}
+
+pub fn make_dispenser_from_ingredient(node_id: usize, ingredient: Ingredient, io: RyoIo) -> Dispenser {
+    Dispenser::new(
+        io.cc2.get_motor(node_id),
+        Setpoint::Weight(WeightedDispense {
+            setpoint: ingredient.get_portion_size(),
+            timeout: DEFAULT_DISPENSER_TIMEOUT
+        }),
+        ingredient.get_parameters(),
+        io.scale_txs[node_id].clone(),
     )
 }
 

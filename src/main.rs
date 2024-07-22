@@ -97,7 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     gantry.clear_alerts().await;
     let _ = gantry.enable().await;
     sleep(Duration::from_secs(10)).await;
-    let mut state = gantry.get_status().await;
+    let mut state;
     loop {
         state = gantry.get_status().await;
         match state {
@@ -168,13 +168,12 @@ async fn pull_before_flight(io: RyoIo) {
         sleep(Duration::from_secs(1)).await;
         if gantry.get_status().await == Status::Ready { break }
     }
-    gantry.set_acceleration(800.).await;
+    gantry.set_acceleration(120.).await;
     gantry.set_velocity(12.).await;
-    gantry.set_velocity(30.).await;
     for node in 0..4 {
         let motor = io.cc2.get_motor(node);
         motor.set_velocity(0.5).await;
-        motor.set_acceleration(400.).await;
+        motor.set_acceleration(120.).await;
     }
 
     // set_motor_accelerations(io.clone(), 50.).await;
