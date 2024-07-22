@@ -10,7 +10,7 @@ use crate::bag_handler::BagHandler;
 use crate::config::{
     BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DISPENSER_TIMEOUT,
     ETHERCAT_RACK_ID, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID,
-    GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_MOTOR_ID,
+    GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL,
     GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS,
     HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID,
     HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT,
@@ -23,7 +23,7 @@ use control_components::subsystems::bag_handling::{
 };
 use control_components::subsystems::dispenser::{Dispenser, Parameters, Setpoint};
 use control_components::subsystems::hatch::Hatch;
-use control_components::subsystems::linear_actuator::{Output, RelayHBridge, SimpleLinearActuator};
+use control_components::subsystems::linear_actuator::{Output, RelayHBridge};
 use control_components::subsystems::sealer::Sealer;
 use futures::future::join_all;
 use log::{info};
