@@ -112,6 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 error!("Gantry in unknown state");
             }
         }
+        info!("Current Gantry State: {:?}", state);
         sleep(Duration::from_secs(3)).await;
     }
     
