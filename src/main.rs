@@ -117,9 +117,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     //     sleep(Duration::from_secs(3)).await;
     // }
     info!("Gantry status: {:?}", gantry.get_status().await);
+    gantry.set_acceleration(GANTRY_ACCELERATION).await;
+    gantry.set_deceleration(GANTRY_ACCELERATION).await;
+    gantry.set_velocity(GANTRY_VELOCITY).await;
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
     gantry.wait_for_move(Duration::from_secs(1)).await.unwrap();
-    gantry.set_velocity(12.).await;
 
     // let (_, cycle_rx) = channel::<CycleCmd>(10);
 
@@ -164,9 +166,6 @@ async fn pull_before_flight(io: RyoIo) {
         sleep(Duration::from_secs(1)).await;
         if gantry.get_status().await == Status::Ready { break }
     }
-    gantry.set_acceleration(90.).await;
-    gantry.set_deceleration(90.).await;
-    gantry.set_velocity(12.).await;
     for node in 0..4 {
         let motor = io.cc2.get_motor(node);
         motor.set_velocity(0.5).await;
