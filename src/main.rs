@@ -95,7 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let gantry = make_gantry(ryo_io.cc1.clone());
     gantry.clear_alerts().await;
-    gantry.enable().await.expect("Motor is faulted");
+    let _ = gantry.enable().await;
     sleep(Duration::from_secs(10)).await;
     let mut state = gantry.get_status().await;
     loop {
