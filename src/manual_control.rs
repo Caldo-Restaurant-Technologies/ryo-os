@@ -1,8 +1,5 @@
 use crate::bag_handler::{BagHandler, ManualBagHandlingCmd};
-use crate::config::{
-    GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL,
-    SEALER_MOVE_DOOR_TIME,
-};
+use crate::config::{GANTRY_ACCELERATION, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL, GANTRY_VELOCITY, SEALER_MOVE_DOOR_TIME};
 use crate::ryo::{
     make_and_close_hatch, make_and_move_hatch, make_and_open_hatch, make_dispenser,
     make_gantry, make_hatch, make_sealer, make_trap_door, RyoIo,
@@ -111,8 +108,8 @@ pub async fn handle_hatches_req(body: Bytes, io: RyoIo) {
 
 pub async fn handle_gantry_req(gantry_position: usize, io: RyoIo) {
     let gantry_motor = io.cc1.get_motor(GANTRY_MOTOR_ID);
-    gantry_motor.set_acceleration(50.).await;
-    gantry_motor.set_velocity(150.).await;
+    gantry_motor.set_acceleration(GANTRY_ACCELERATION).await;
+    gantry_motor.set_velocity(GANTRY_VELOCITY).await;
     match gantry_motor
         .absolute_move(GANTRY_ALL_POSITIONS[gantry_position])
         .await
