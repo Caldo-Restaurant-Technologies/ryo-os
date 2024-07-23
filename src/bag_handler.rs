@@ -81,7 +81,7 @@ pub async fn load_bag(dispenser: &BagDispenser, gripper: &mut BagGripper, blower
     blower
         .set_state(BLOWER_SLOT_ID, BLOWER_OUTPUT_ID as u8, false)
         .await;
-    // gripper.rip_bag().await.unwrap();
+    gripper.rip_bag().await.unwrap();
 }
 
 pub fn make_bag_dispenser(drive: Controller) -> BagDispenser {
