@@ -20,6 +20,7 @@ use hyper::{Request, Response};
 use log::{error, info, warn};
 use std::array;
 use std::time::Duration;
+use control_components::components::scale::ScaleCmd;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 
@@ -233,6 +234,19 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
                     setpoint: serving_weight,
                     timeout,
                 })
+            }
+            "weigh" => {
+                let (tx, mut rx) = tokio::sync::oneshot::channel();
+                io.scale_txs[node_id].send(ScaleCmd(tx)).await.unwrap();
+                match rx.await {
+                    Ok(weight) => {
+                        info!("Node {:?} weight: {:?} g", node_id, weight)
+                    }
+                    Err(_) => {
+                        warn!("Scale communication failed")
+                    }
+                }
+                return;
             }
             _ => {
                 error!("Invalid Dispense Type");
