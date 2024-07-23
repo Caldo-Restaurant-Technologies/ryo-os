@@ -126,7 +126,7 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
         (&Method::POST, "/cycle") => {
             pull_before_flight(io.clone()).await;
             let ryo_state = RyoState::fresh();
-            single_cycle(ryo_state, io).await;
+            single_cycle(4, ryo_state, io).await;
             info!("Cycle complete");
             Ok(Response::new(req.into_body().boxed()))
         }

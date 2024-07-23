@@ -41,6 +41,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let task = env::args()
         .nth(2)
         .expect("Do you want to run a cycle or hmi?");
+    
+    let n_nodes = match env::args().nth(3) {
+        Some(n) => {
+            match n.as_str()  {
+                "1" => 1,
+                "2" => 2,
+                "3" => 3,
+                _ => 4,
+            }
+        }
+        None => {
+            4
+        }
+    };
 
     //TODO: Change so that interface can be defined as a compiler flag passed at compile time
     // Figure out a way to detect at launch
@@ -140,7 +154,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 }
                 ryo_state.check_failures();
                 info!("Cycling");
-                ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
+                ryo_state = single_cycle(n_nodes, ryo_state, ryo_io.clone()).await;
             }
         }
         _ => {
@@ -217,17 +231,17 @@ async fn pull_before_flight(io: RyoIo) {
     while (set.join_next().await).is_some() {}
 }
 
-async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
+async fn single_cycle(n_nodes: usize, mut state: RyoState, io: RyoIo) -> RyoState {
     info!("Ryo State: {:?}", state);
 
-    let mut node_ids = Vec::with_capacity(4);
+    let mut node_ids = Vec::with_capacity(n_nodes);
     match state.get_bag_filled_state() {
         Some(BagFilledState::Filled) => {
             info!("Bag already filled");
         }
         Some(BagFilledState::Filling) | Some(BagFilledState::Empty) | None => {
             info!("Bag not full, dispensing");
-            for id in 0..4 {
+            for id in 0..n_nodes {
                 match state.get_node_state(id) {
                     NodeState::Ready => {
                         node_ids.push(id);
@@ -237,7 +251,8 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             }
         }
     }
-    let mut dispense_and_bag_tasks = make_default_weighed_dispense_tasks(30., node_ids, io.clone());
+    let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
+    // let mut dispense_and_bag_tasks = make_default_weighed_dispense_tasks(30., node_ids, io.clone());
 
     match state.get_bag_loaded_state() {
         BagLoadedState::Bagless => {
@@ -257,7 +272,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             info!("Bag already loaded");
         },
     }
-    
+
     let io_clone = io.clone();
     tokio::spawn(async move {
         BagHandler::new(io_clone).dispense_bag().await;
@@ -269,7 +284,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             state.set_bag_filled_state(Some(BagFilledState::Filling));
             let bag_sensor = make_bag_sensor(io.clone());
             let gantry = make_gantry(io.cc1.clone());
-            for node in 0..4 {
+            for node in 0..n_nodes {
                 let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[node]).await;
                 gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
                 match bag_sensor.check().await {
