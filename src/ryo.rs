@@ -333,7 +333,7 @@ pub async fn dump_from_hatch(id: usize, io: RyoIo) {
     // let mut hatch = make_hatch(id, io.clone());
     // hatch.timed_open(HATCHES_OPEN_TIME).await;
     make_and_open_hatch(id, io.clone()).await;
-    sleep(Duration::from_millis(500)).await;
+    sleep(Duration::from_millis(100)).await;
     // hatch.timed_close(HATCH_CLOSE_TIMES[id]).await;
     make_and_close_hatch(id, io).await;
 }
@@ -355,7 +355,7 @@ pub async fn release_bag_from_sealer(io: RyoIo) {
     trap_door.actuate(HBridgeState::Neg).await;
     sleep(SEALER_MOVE_DOOR_TIME).await;
     trap_door.actuate(HBridgeState::Off).await;
-    sleep(Duration::from_millis(500)).await;
+    sleep(Duration::from_millis(100)).await;
     trap_door.actuate(HBridgeState::Pos).await;
     sleep(SEALER_MOVE_DOOR_TIME).await;
     trap_door.actuate(HBridgeState::Off).await;
