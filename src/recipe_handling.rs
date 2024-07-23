@@ -33,6 +33,7 @@ pub enum Ingredient {
                 cutoff_frequency: 0.5,
                 check_offset: 10.,
                 stop_offset: 5.,
+                retract_after: None,
             },
             Ingredient::Udon | Ingredient::Fettuccine | Ingredient::RiceNoodles | Ingredient::LoMein | Ingredient::Tortelloni => Parameters {
                 motor_speed: 0.3,
@@ -40,6 +41,7 @@ pub enum Ingredient {
                 cutoff_frequency: 0.5,
                 check_offset: 15.,
                 stop_offset: 8.,
+                retract_after: Some(10.),
             },
             _ => Parameters::default(),
         }

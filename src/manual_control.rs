@@ -209,12 +209,17 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
         .as_str()
         .and_then(|s| s.parse::<f64>().ok())
         .unwrap();
+    let retract_after = json["retract_after"]
+        .as_str()
+        .and_then(|s| s.parse::<f64>().ok())
+        .unwrap();
     let parameters = Parameters {
         motor_speed,
         sample_rate,
         cutoff_frequency,
         check_offset,
         stop_offset,
+        retract_after: Some(retract_after)
     };
     make_dispenser(
         node_id,
