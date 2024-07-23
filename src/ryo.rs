@@ -8,7 +8,7 @@ use std::io::Write;
 use std::time::Duration;
 
 use crate::bag_handler::BagHandler;
-use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, DEFAULT_DISPENSER_TIMEOUT};
+use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, DEFAULT_DISPENSER_TIMEOUT, GANTRY_ACCELERATION};
 use control_components::subsystems::bag_handling::{
     BagDispenser, BagSensor,
 };
@@ -160,8 +160,12 @@ pub fn make_bag_dispenser(cc1: Controller) -> BagDispenser {
     )
 }
 
-pub fn make_gantry(controller: CCController) -> ClearCoreMotor {
-    controller.get_motor(GANTRY_MOTOR_ID)
+pub async fn make_gantry(controller: CCController) -> ClearCoreMotor {
+    let gantry = controller.get_motor(GANTRY_MOTOR_ID);
+    let _ = gantry.enable().await;
+    gantry.set_acceleration(GANTRY_ACCELERATION).await;
+    gantry.set_deceleration(GANTRY_ACCELERATION).await;
+    gantry
 }
 
 pub fn make_dispensers(
@@ -367,7 +371,7 @@ pub async fn dump_from_hatch(id: usize, io: RyoIo) {
 }
 
 pub async fn drop_bag(io: RyoIo) {
-    let gantry = make_gantry(io.cc1.clone());
+    let gantry = make_gantry(io.cc1.clone()).await;
     let _ = gantry.absolute_move(GANTRY_BAG_DROP_POSITION).await;
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
     let mut bag_handler = make_bag_handler(io);
@@ -390,7 +394,7 @@ pub async fn release_bag_from_sealer(io: RyoIo) {
 }
 
 pub async fn pull_after_flight(io: RyoIo) {
-    let gantry = make_gantry(io.cc1.clone());
+    let gantry = make_gantry(io.cc1.clone()).await;
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
     BagHandler::new(io.clone()).dispense_bag().await;
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
