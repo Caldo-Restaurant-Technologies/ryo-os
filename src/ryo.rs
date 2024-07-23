@@ -335,7 +335,10 @@ pub async fn dump_from_hatch(id: usize, io: RyoIo) {
     make_and_open_hatch(id, io.clone()).await;
     sleep(Duration::from_millis(100)).await;
     // hatch.timed_close(HATCH_CLOSE_TIMES[id]).await;
-    make_and_close_hatch(id, io).await;
+    tokio::spawn(async move {
+        make_and_close_hatch(id, io).await;
+    });
+    // make_and_close_hatch(id, io).await;
 }
 
 pub async fn drop_bag(io: RyoIo) {
