@@ -219,6 +219,7 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
         cutoff_frequency,
         check_offset,
         stop_offset,
+        retract_before: None,
         retract_after: Some(retract_after)
     };
     make_dispenser(
