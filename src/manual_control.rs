@@ -140,13 +140,13 @@ pub async fn handle_gantry_req(gantry_position: usize, io: RyoIo) {
 pub async fn handle_gantry_position_req(body: Bytes, io: RyoIo) {
     match body.len() {
         0 => {
-            let pos = make_gantry(io.cc1).get_position().await;
+            let pos = make_gantry(io.cc1).await.get_position().await;
             info!("Gantry at Position {:?}", pos);
         }
         _ => {
             let position = ascii_to_int(body.as_ref());
             info!("Gantry to position {:?}", position);
-            let gantry = make_gantry(io.cc1);
+            let gantry = make_gantry(io.cc1).await;
             let _ = gantry.absolute_move(position as f64).await;
             let pos = gantry.get_position().await;
             info!("Gantry at position {:?}", pos);

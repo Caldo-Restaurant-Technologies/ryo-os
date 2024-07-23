@@ -102,7 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         scale_txs,
     };
 
-    let gantry = make_gantry(ryo_io.cc1.clone());
+    let gantry = make_gantry(ryo_io.cc1.clone()).await;
     gantry.clear_alerts().await;
     let _ = gantry.enable().await;
     sleep(Duration::from_secs(10)).await;
@@ -175,7 +175,7 @@ pub enum CycleCmd {
 
 async fn pull_before_flight(io: RyoIo) {
     enable_and_clear_all(io.clone()).await;
-    let gantry = make_gantry(io.cc1.clone());
+    let gantry = make_gantry(io.cc1.clone()).await;
     loop {
         sleep(Duration::from_secs(1)).await;
         if gantry.get_status().await == Status::Ready { break }
@@ -251,14 +251,14 @@ async fn single_cycle(n_nodes: usize, mut state: RyoState, io: RyoIo) -> RyoStat
             }
         }
     }
-    let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
-    // let mut dispense_and_bag_tasks = make_default_weighed_dispense_tasks(30., node_ids, io.clone());
+    // let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
+    let mut dispense_and_bag_tasks = make_default_weighed_dispense_tasks(87., node_ids, io.clone());
 
     match state.get_bag_loaded_state() {
         BagLoadedState::Bagless => {
             info!("Getting bag");
             make_bag_handler(io.clone()).dispense_bag().await;
-            let gantry = make_gantry(io.cc1.clone());
+            let gantry = make_gantry(io.cc1.clone()).await;
             let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
             gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
             dispense_and_bag_tasks.push(make_bag_load_task(io.clone()));
@@ -283,7 +283,7 @@ async fn single_cycle(n_nodes: usize, mut state: RyoState, io: RyoIo) -> RyoStat
             info!("Bag not filled, dumping from hatches");
             state.set_bag_filled_state(Some(BagFilledState::Filling));
             let bag_sensor = make_bag_sensor(io.clone());
-            let gantry = make_gantry(io.cc1.clone());
+            let gantry = make_gantry(io.cc1.clone()).await;
             for node in 0..n_nodes {
                 let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[node]).await;
                 gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
