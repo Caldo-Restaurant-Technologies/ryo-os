@@ -257,6 +257,11 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             info!("Bag already loaded");
         },
     }
+    
+    let io_clone = io.clone();
+    tokio::spawn(async move {
+        BagHandler::new(io_clone).dispense_bag().await;
+    });
 
     match state.get_bag_filled_state() {
         Some(BagFilledState::Empty) | Some(BagFilledState::Filling) => {
