@@ -1,7 +1,7 @@
 use crate::bag_handler::BagHandler;
 use crate::config::*;
 use crate::manual_control::enable_and_clear_all;
-use crate::ryo::{drop_bag, dump_from_hatch, make_and_close_hatch, make_bag_handler, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_gantry, make_hatch, make_sealer, make_trap_door, pull_after_flight, release_bag_from_sealer, BagFilledState, BagLoadedState, NodeState, RyoIo, RyoState, RyoFailure};
+use crate::ryo::{drop_bag, dump_from_hatch, make_and_close_hatch, make_bag_handler, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_gantry, make_hatch, make_sealer, make_trap_door, pull_after_flight, release_bag_from_sealer, BagFilledState, BagLoadedState, NodeState, RyoIo, RyoState, RyoFailure, make_default_weighed_dispense_tasks};
 use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::{Status};
 use control_components::components::scale::{Scale, ScaleCmd};
@@ -237,7 +237,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             }
         }
     }
-    let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
+    let mut dispense_and_bag_tasks = make_default_weighed_dispense_tasks(30., node_ids, io.clone());
 
     match state.get_bag_loaded_state() {
         BagLoadedState::Bagless => {

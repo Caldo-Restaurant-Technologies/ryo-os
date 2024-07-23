@@ -324,6 +324,31 @@ pub fn make_default_dispense_tasks(ids: Vec<usize>, io: RyoIo) -> Vec<JoinHandle
         .collect()
 }
 
+pub fn make_default_weighed_dispense_tasks(serving: f64, ids: Vec<usize>, io: RyoIo) -> Vec<JoinHandle<()>> {
+    let mut dispensers = Vec::with_capacity(4);
+    for id in ids {
+        let params = Parameters::default();
+        let set_point = Setpoint::Weight(
+            WeightedDispense {
+                setpoint: serving,
+                timeout: Duration::from_secs(60),
+            }
+        );
+        dispensers.push(make_dispenser(
+            id,
+            io.cc2.clone(),
+            set_point,
+            params,
+            io.scale_txs[id].clone(),
+        ))
+    }
+
+    dispensers
+        .into_iter()
+        .map(|dispenser| tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await }))
+        .collect()
+}
+
 pub fn make_bag_load_task(io: RyoIo) -> JoinHandle<()> {
     let mut bag_handler = BagHandler::new(io);
     tokio::spawn(async move { bag_handler.load_bag().await })
