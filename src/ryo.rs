@@ -280,12 +280,6 @@ pub fn make_sealer(mut io: RyoIo) -> Sealer {
 }
 
 pub fn make_trap_door(mut io: RyoIo) -> RelayHBridge {
-    // Hatch::from_io(
-    //     Output::EtherCat(
-    //         io.etc_io.get_io(ETHERCAT_RACK_ID),
-    //
-    //     )
-    // )
 
     RelayHBridge::new(
         (
@@ -370,10 +364,10 @@ pub fn make_bag_load_task(io: RyoIo) -> JoinHandle<()> {
 pub async fn dump_from_hatch(id: usize, io: RyoIo) {
     make_and_open_hatch(id, io.clone()).await;
     sleep(Duration::from_millis(100)).await;
-    // tokio::spawn(async move {
-    //     make_and_close_hatch(id, io).await;
-    // });
-    make_and_close_hatch(id, io).await;
+    tokio::spawn(async move {
+        make_and_close_hatch(id, io).await;
+    });
+    // make_and_close_hatch(id, io).await;
 }
 
 pub async fn drop_bag(io: RyoIo) {
