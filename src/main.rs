@@ -23,6 +23,7 @@ pub mod config;
 
 pub mod hmi;
 pub mod recipe_handling;
+pub mod app_integration;
 
 pub mod bag_handler;
 pub mod manual_control;

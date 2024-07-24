@@ -19,4 +19,5 @@ control-components = {git = "https://github.com/jaguerra767/control-components.g
 signal-hook = "0.3.17"
 ethercrab = "0.4.2"
 futures = "0.3.30"
+firebase-rs = "2.1.2"
 

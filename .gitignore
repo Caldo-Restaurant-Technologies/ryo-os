@@ -1,6 +1,6 @@
 /target
 /.idea/modules.xml
-/Cargo.lock
+Cargo.lock
 /.idea/inspectionProfiles/Project_Default.xml
 /.idea/ryo-os.iml
 /.idea/vcs.xml
