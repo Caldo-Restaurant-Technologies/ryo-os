@@ -333,13 +333,13 @@ pub fn make_default_weighed_dispense_tasks(serving: f64, ids: Vec<usize>, io: Ry
     for id in ids {
         // let params = Parameters::default();
         let params = Parameters {
-            motor_speed: 0.7,
+            motor_speed: 0.5,
             sample_rate: 50.,
             cutoff_frequency: 0.5,
-            check_offset: 10.,
-            stop_offset: 5.,
+            check_offset: 50.,
+            stop_offset: 35.,
             retract_before: None,
-            retract_after: None,
+            retract_after: Some(5.),
         };
         let set_point = Setpoint::Weight(
             WeightedDispense {
