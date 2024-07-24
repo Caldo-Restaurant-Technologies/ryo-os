@@ -341,7 +341,7 @@ dependencies = [
 [[package]]
 name = "control-components"
 version = "0.1.0"
-source = "git+https://github.com/jaguerra767/control-components.git#7c9ce194c1a99170a2a49809cecc00db6ef9b6b5"
+source = "git+https://github.com/jaguerra767/control-components.git#c1145ae600a84dcda24a5d2d4f6446e551415292"
 dependencies = [
  "env_logger",
  "ethercrab",
@@ -1212,9 +1212,9 @@ dependencies = [
 
 [[package]]
 name = "object"
-version = "0.36.1"
+version = "0.36.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "081b846d1d56ddfc18fdf1a922e4f6e07a11768ea1b92dec44e42b72712ccfce"
+checksum = "3f203fa8daa7bb185f760ae12bd8e097f63d17041dcdcaf675ac54cdf863170e"
 dependencies = [
  "memchr",
 ]

@@ -333,7 +333,7 @@ async fn single_cycle(n_nodes: usize, mut state: RyoState, io: RyoIo) -> RyoStat
     
     let io_clone = io.clone();
     tokio::spawn(async move {
-        make_sealer(io_clone.clone()).seal().await;
+        make_sealer(io_clone.clone()).timed_move_seal(Duration::from_millis(2700)).await;
         release_bag_from_sealer(io_clone.clone()).await;
     });
 
