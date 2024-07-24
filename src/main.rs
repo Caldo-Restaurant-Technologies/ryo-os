@@ -251,8 +251,8 @@ async fn single_cycle(n_nodes: usize, mut state: RyoState, io: RyoIo) -> RyoStat
             }
         }
     }
-    // let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
-    let mut dispense_and_bag_tasks = make_default_weighed_dispense_tasks(87., node_ids, io.clone());
+    let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
+    // let mut dispense_and_bag_tasks = make_default_weighed_dispense_tasks(87., node_ids, io.clone());
 
     match state.get_bag_loaded_state() {
         BagLoadedState::Bagless => {
