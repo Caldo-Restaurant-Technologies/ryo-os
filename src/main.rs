@@ -158,8 +158,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 if shutdown.load(Ordering::Relaxed) {
                     break;
                 }
-                ryo_state = app_state.lock().await.update_ryo_state(ryo_state);
-
+                // ryo_state = app_state.lock().await.update_ryo_state(ryo_state);
+                ryo_state.set_run_state(RyoRunState::Running);
+                
                 match ryo_state.get_run_state() {
                     RyoRunState::Running => {
                         ryo_state.check_failures();
