@@ -1,11 +1,12 @@
-use std::sync::Arc;
+use std::sync::{Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 use control_components::components::scale::ScaleCmd;
 use firebase_rs::*;
 use log::error;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Sender;
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, Mutex};
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -44,7 +45,7 @@ struct NodeWeights{
     node_d_weight: i32
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 enum SystemStatus {
     PauseJob,
     RunJob,
@@ -57,18 +58,27 @@ enum SystemStatus {
     RefillNodesSystem
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "UPPERCASE")]
 enum DoorStatus {
     Open,
     Close
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-struct Status {
+pub struct Status {
     front_door_status: String,
     system_status: SystemStatus
+}
+
+impl Default for Status {
+    fn default() -> Self {
+        Self { 
+            front_door_status: "open".to_string(),
+            system_status: SystemStatus::StopSystem
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -101,10 +111,18 @@ struct NodeReadings{
 
 
 pub struct RyoFirebaseClient {
-    firebase: Firebase
+    firebase: Firebase,
 }
 
 impl RyoFirebaseClient {
+    pub fn new() -> Self{
+        let firebase = Firebase::new("https://ryo-backend-default-rtdb.firebaseio.com/")
+            .unwrap()
+            .at("ryo0001");
+        RyoFirebaseClient{firebase}
+    }
+    
+
     pub async fn set_job_progress(&self, progress: usize) {
         let progress = JobProgress{job_progress: progress};
         if let Err(e) = self.firebase.at("JobProgress").update(&progress).await {
@@ -142,7 +160,12 @@ impl RyoFirebaseClient {
         }
     }
 
-    pub async fn push_weight_readings(&self, scale_senders: &[Sender<ScaleCmd>], shutdown: Arc<AtomicBool>) {
+    pub async fn update(
+        &mut self, 
+        scale_senders: &[Sender<ScaleCmd>], 
+        state: Arc<Mutex<Status>>,
+        shutdown: Arc<AtomicBool>
+    ) {
         loop {
             if shutdown.load(Ordering::Relaxed) {
                 break;
@@ -155,15 +178,14 @@ impl RyoFirebaseClient {
                 weights.push(weight);
             }
             self.set_weight_readings(weights.as_slice()).await;
+            if let Ok(status) = self.firebase.at("Status").get::<Status>().await {
+               let mut state = state.lock().await;
+                *state = status;
+            } else {
+                error!("Failed to get status from firebase");
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
         }
     }
 }
 
-
-
-// pub async fn app_client() {
-//     let firebase = Firebase::new("https://ryo-backend-default-rtdb.firebaseio.com/")
-//         .unwrap()
-//         .at("ryo0001");
-// 
-// }
