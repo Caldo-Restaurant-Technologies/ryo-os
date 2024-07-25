@@ -88,13 +88,13 @@ pub struct RyoState {
     recipe: [Option<DispenseParameters>; 4],
 }
 impl RyoState {
-    pub fn fresh() -> Self {
+    pub fn new() -> Self {
         Self {
             bag_loaded: BagLoadedState::Bagless,
             nodes: array::from_fn(|_| NodeState::Ready),
             bag_filled: None,
             failures: Vec::new(),
-            run_state: RyoRunState::Running,
+            run_state: RyoRunState::Ready,
             recipe: [
                 Some(DEFAULT_DISPENSE_PARAMETERS),
                 Some(DEFAULT_DISPENSE_PARAMETERS),
@@ -176,8 +176,8 @@ impl RyoState {
 
     pub fn check_failures(&mut self) {
         match self.get_run_state() {
-            RyoRunState::Faulted => (),
-            RyoRunState::Ready | RyoRunState::Running | RyoRunState::UI | RyoRunState::NewJob => {
+            RyoRunState::Faulted | RyoRunState::UI => (),
+            RyoRunState::Ready | RyoRunState::Running | RyoRunState::NewJob => {
                 if self.failures.len() > 3 {
                     let first_failure = &self.failures[0];
                     let all_same = self.failures.iter().all(|f| f == first_failure);
@@ -537,7 +537,9 @@ pub async fn pull_before_flight(io: RyoIo) -> RyoState {
     drop(io);
     info!("All systems go.");
     while (set.join_next().await).is_some() {}
-    RyoState::fresh()
+    let mut state = RyoState::new();
+    state.set_run_state(RyoRunState::Running);
+    state
 }
 
 pub async fn pull_after_flight(io: RyoIo) {
