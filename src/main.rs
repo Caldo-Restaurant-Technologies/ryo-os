@@ -16,8 +16,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{array, env};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::Mutex;
 use tokio::task::{spawn_blocking, JoinHandle, JoinSet};
 use tokio::time::sleep;
+use crate::app_integration::RyoFirebaseClient;
 
 pub mod config;
 
@@ -107,8 +109,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     gantry.clear_alerts().await;
     let _ = gantry.enable().await;
     sleep(Duration::from_secs(10)).await;
+    let mut firebase = RyoFirebaseClient::new();
+    let app_state = Arc::new(Mutex::new(app_integration::Status::default()));
     let mut state;
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let app_state = app_state.clone();
+    let shutdown_app = shutdown.clone();
+    let app_scales = ryo_io.scale_txs.clone();
+    let app_handler = tokio::spawn(async move{
+        firebase.update(app_scales.as_slice(), app_state, shutdown_app).await;  
+    });
     loop {
+        
         state = gantry.get_status().await;
         match state {
             Status::Ready => break,
@@ -138,12 +150,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
     gantry.wait_for_move(Duration::from_secs(1)).await.unwrap();
 
-    // let (_, cycle_rx) = channel::<CycleCmd>(10);
+
 
     match task.as_str() {
         "hmi" => hmi(ryo_io).await,
         "cycle" => {
-            let shutdown = Arc::new(AtomicBool::new(false));
+            
             signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
                 .expect("Register hook");
 
@@ -163,7 +175,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             return Ok(());
         }
     }
-
+    let _ = app_handler.await;
     while (client_set.join_next().await).is_some() {}
     Ok(())
 }
