@@ -171,20 +171,19 @@ impl RyoState {
         self.failures = Vec::new();
     }
 
-    pub fn check_failures(&self) {
-        if self.failures.len() < 3 {
-            return;
-        } else {
-            let first_failure = &self.failures[0];
-            let all_same = self.failures.iter().all(|f| f == first_failure);
-            if all_same {
-                error!("Repeated Failure: {:?}", first_failure);
-                error!("Resolve Failure and Press Enter to Continue Cycle...");
-                io::stdout().flush().unwrap();
-                let mut input = String::new();
-                io::stdin()
-                    .read_line(&mut input)
-                    .expect("Failed to read line");
+    pub fn check_failures(&mut self) {
+        match self.get_run_state() {
+            RyoRunState::Faulted => (),
+            RyoRunState::Ready | RyoRunState::Running => {
+                if self.failures.len() > 3 {
+                    let first_failure = &self.failures[0];
+                    let all_same = self.failures.iter().all(|f| f == first_failure);
+                    if all_same {
+                        error!("Repeated Failure: {:?}", first_failure);
+                        error!("Resolve Failure and Update to Continue...");
+                        self.set_run_state(RyoRunState::Faulted);
+                    }
+                }
             }
         }
     }

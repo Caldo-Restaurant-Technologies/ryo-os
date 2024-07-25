@@ -159,11 +159,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     break;
                 }
                 ryo_state = app_state.lock().await.update_ryo_state(ryo_state);
-                // ryo_state.set_run_state(RyoRunState::Running);
+                ryo_state.check_failures();
                 
                 match ryo_state.get_run_state() {
                     RyoRunState::Running => {
-                        ryo_state.check_failures();
                         info!("Cycling");
                         ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
                     }
