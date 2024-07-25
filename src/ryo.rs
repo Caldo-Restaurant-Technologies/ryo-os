@@ -1,19 +1,31 @@
-use control_components::components::clear_core_io::{HBridgeState};
+use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::ClearCoreMotor;
 use control_components::components::scale::ScaleCmd;
 use control_components::controllers::clear_core::Controller;
 use control_components::controllers::{clear_core, ek1100_io};
-use std::{array, io};
 use std::io::Write;
 use std::sync::Arc;
 use std::time::Duration;
+use std::{array, io};
 
+use crate::app_integration::Status;
 use crate::bag_handler::BagHandler;
-use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, DEFAULT_DISPENSER_TIMEOUT, GANTRY_ACCELERATION};
-use control_components::subsystems::bag_handling::{
-    BagDispenser, BagSensor,
+use crate::config::{
+    BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT,
+    DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION, GANTRY_BAG_DROP_POSITION,
+    GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL,
+    GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS,
+    HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID,
+    HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT,
+    SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME,
+    SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT,
+    TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID,
 };
-use control_components::subsystems::dispenser::{Dispenser, Parameters, Setpoint, WeightedDispense};
+use crate::recipe_handling::Ingredient;
+use control_components::subsystems::bag_handling::{BagDispenser, BagSensor};
+use control_components::subsystems::dispenser::{
+    DispenseParameters, Dispenser, Parameters, Setpoint, WeightedDispense,
+};
 use control_components::subsystems::hatch::Hatch;
 use control_components::subsystems::linear_actuator::{Output, RelayHBridge};
 use control_components::subsystems::sealer::Sealer;
@@ -23,8 +35,6 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
-use crate::app_integration::Status;
-use crate::recipe_handling::Ingredient;
 
 type CCController = clear_core::Controller;
 type EtherCATIO = ek1100_io::Controller;
@@ -63,12 +73,16 @@ pub enum RyoRunState {
 }
 
 #[derive(Debug, Clone)]
+pub struct RyoRecipe {}
+
+#[derive(Debug, Clone)]
 pub struct RyoState {
     bag_loaded: BagLoadedState,
     nodes: [NodeState; 4],
     bag_filled: Option<BagFilledState>,
     failures: Vec<RyoFailure>,
     run_state: RyoRunState,
+    recipe: [Option<DispenseParameters>; 4],
 }
 impl RyoState {
     pub fn fresh() -> Self {
@@ -78,9 +92,10 @@ impl RyoState {
             bag_filled: None,
             failures: Vec::new(),
             run_state: RyoRunState::Ready,
+            recipe: [None, None, None, None],
         }
     }
-    
+
     pub fn set_run_state(&mut self, state: RyoRunState) {
         self.run_state = state;
     }
@@ -103,7 +118,17 @@ impl RyoState {
         }
     }
 
-    pub fn get_run_state(&self) -> RyoRunState { self.run_state.clone() }
+    pub fn set_dispenser_recipe(&mut self, id: usize, recipe: DispenseParameters) {
+        self.recipe[id] = Some(recipe);
+    }
+
+    pub fn set_recipe(&mut self, recipe: [Option<DispenseParameters>; 4]) {
+        self.recipe = recipe;
+    }
+
+    pub fn get_run_state(&self) -> RyoRunState {
+        self.run_state.clone()
+    }
     pub fn get_node_state(&self, id: usize) -> NodeState {
         self.nodes[id].clone()
     }
@@ -115,9 +140,19 @@ impl RyoState {
     pub fn get_bag_loaded_state(&self) -> BagLoadedState {
         self.bag_loaded.clone()
     }
-    
-    pub fn get_failures(&self) -> Vec<RyoFailure> { self.failures.clone() }
-    
+
+    pub fn get_failures(&self) -> Vec<RyoFailure> {
+        self.failures.clone()
+    }
+
+    pub fn get_dispenser_recipe(&self, id: usize) -> Option<DispenseParameters> {
+        self.recipe[id].clone()
+    }
+
+    pub fn get_recipe(&self) -> [Option<DispenseParameters>; 4] {
+        self.recipe.clone()
+    }
+
     pub fn log_failure(&mut self, failure: RyoFailure) {
         self.failures.push(failure);
         if self.failures.len() > 5 {
@@ -126,14 +161,14 @@ impl RyoState {
             self.failures.reverse();
         }
     }
-    
+
     pub fn clear_failures(&mut self) {
         self.failures = Vec::new();
     }
-    
+
     pub fn check_failures(&self) {
         if self.failures.len() < 3 {
-            return
+            return;
         } else {
             let first_failure = &self.failures[0];
             let all_same = self.failures.iter().all(|f| f == first_failure);
@@ -142,7 +177,9 @@ impl RyoState {
                 error!("Resolve Failure and Press Enter to Continue Cycle...");
                 io::stdout().flush().unwrap();
                 let mut input = String::new();
-                io::stdin().read_line(&mut input).expect("Failed to read line");
+                io::stdin()
+                    .read_line(&mut input)
+                    .expect("Failed to read line");
             }
         }
     }
@@ -155,18 +192,15 @@ pub enum RyoFailure {
     BagDroppingFailure,
 }
 
-
-
 // pub type CycleOrder = [Option<Dispenser>; 4];
 // trait NewOrder {
 //     fn new(ingredients: Vec<Ingredient>, io: RyoIo);
 // }
 // impl NewOrder for CycleOrder {
 //     fn new(ingredients: Vec<Ingredient>, io: RyoIo) -> CycleOrder {
-//         
+//
 //     }
 // }
-
 
 pub fn make_bag_handler(io: RyoIo) -> BagHandler {
     BagHandler::new(io)
@@ -221,12 +255,16 @@ pub fn make_dispenser(
     )
 }
 
-pub fn make_dispenser_from_ingredient(node_id: usize, ingredient: Ingredient, io: RyoIo) -> Dispenser {
+pub fn make_dispenser_from_ingredient(
+    node_id: usize,
+    ingredient: Ingredient,
+    io: RyoIo,
+) -> Dispenser {
     Dispenser::new(
         io.cc2.get_motor(node_id),
         Setpoint::Weight(WeightedDispense {
             setpoint: ingredient.get_portion_size(),
-            timeout: DEFAULT_DISPENSER_TIMEOUT
+            timeout: DEFAULT_DISPENSER_TIMEOUT,
         }),
         ingredient.get_parameters(),
         io.scale_txs[node_id].clone(),
@@ -299,7 +337,6 @@ pub fn make_sealer(mut io: RyoIo) -> Sealer {
 }
 
 pub fn make_trap_door(mut io: RyoIo) -> RelayHBridge {
-
     RelayHBridge::new(
         (
             Output::EtherCat(
@@ -341,7 +378,11 @@ pub fn make_default_dispense_tasks(ids: Vec<usize>, io: RyoIo) -> Vec<JoinHandle
         .collect()
 }
 
-pub fn make_default_weighed_dispense_tasks(serving: f64, ids: Vec<usize>, io: RyoIo) -> Vec<JoinHandle<()>> {
+pub fn make_default_weighed_dispense_tasks(
+    serving: f64,
+    ids: Vec<usize>,
+    io: RyoIo,
+) -> Vec<JoinHandle<()>> {
     let mut dispensers = Vec::with_capacity(4);
     for id in ids {
         // let params = Parameters::default();
@@ -354,12 +395,10 @@ pub fn make_default_weighed_dispense_tasks(serving: f64, ids: Vec<usize>, io: Ry
             retract_before: None,
             retract_after: Some(5.),
         };
-        let set_point = Setpoint::Weight(
-            WeightedDispense {
-                setpoint: serving,
-                timeout: Duration::from_secs(60),
-            }
-        );
+        let set_point = Setpoint::Weight(WeightedDispense {
+            setpoint: serving,
+            timeout: Duration::from_secs(60),
+        });
         dispensers.push(make_dispenser(
             id,
             io.cc2.clone(),

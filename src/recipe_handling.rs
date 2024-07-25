@@ -1,7 +1,8 @@
+use control_components::subsystems::dispenser::{
+    DispenseParameters, Dispenser, Parameters, Setpoint,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use control_components::subsystems::dispenser::{Dispenser, DispenseParameters, Setpoint, Parameters};
-
 
 pub enum Ingredient {
     Steak,
@@ -14,12 +15,17 @@ pub enum Ingredient {
     LoMein,
     Tortelloni,
     Default,
-} impl Ingredient {
+}
+impl Ingredient {
     pub fn get_portion_size(&self) -> f64 {
         // arbitrarily made for now
         match self {
             Ingredient::Steak | Ingredient::Tofu | Ingredient::Broccoli => 4.,
-            Ingredient::Udon | Ingredient::Fettuccine | Ingredient::RiceNoodles | Ingredient::LoMein | Ingredient::Tortelloni => 8.,
+            Ingredient::Udon
+            | Ingredient::Fettuccine
+            | Ingredient::RiceNoodles
+            | Ingredient::LoMein
+            | Ingredient::Tortelloni => 8.,
             Ingredient::Default => 30.,
             _ => 0.,
         }
@@ -36,7 +42,11 @@ pub enum Ingredient {
                 retract_before: None,
                 retract_after: None,
             },
-            Ingredient::Udon | Ingredient::Fettuccine | Ingredient::RiceNoodles | Ingredient::LoMein | Ingredient::Tortelloni => Parameters {
+            Ingredient::Udon
+            | Ingredient::Fettuccine
+            | Ingredient::RiceNoodles
+            | Ingredient::LoMein
+            | Ingredient::Tortelloni => Parameters {
                 motor_speed: 0.3,
                 sample_rate: 50.,
                 cutoff_frequency: 0.5,
@@ -48,7 +58,6 @@ pub enum Ingredient {
             _ => Parameters::default(),
         }
     }
-
 }
 
 // #[derive(Debug, Clone, Deserialize, Serialize)]

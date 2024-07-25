@@ -1,12 +1,19 @@
+use crate::app_integration::RyoFirebaseClient;
 use crate::bag_handler::BagHandler;
 use crate::config::*;
 use crate::manual_control::enable_and_clear_all;
-use crate::ryo::{drop_bag, dump_from_hatch, make_and_close_hatch, make_bag_handler, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_gantry, make_hatch, make_sealer, make_trap_door, pull_after_flight, release_bag_from_sealer, BagFilledState, BagLoadedState, NodeState, RyoIo, RyoState, RyoFailure, make_default_weighed_dispense_tasks, RyoRunState};
+use crate::ryo::RyoRunState::Ready;
+use crate::ryo::{
+    drop_bag, dump_from_hatch, make_and_close_hatch, make_bag_handler, make_bag_load_task,
+    make_bag_sensor, make_default_dispense_tasks, make_default_weighed_dispense_tasks, make_gantry,
+    make_hatch, make_sealer, make_trap_door, pull_after_flight, release_bag_from_sealer,
+    BagFilledState, BagLoadedState, NodeState, RyoFailure, RyoIo, RyoRunState, RyoState,
+};
 use control_components::components::clear_core_io::HBridgeState;
-use control_components::components::clear_core_motor::{Status};
+use control_components::components::clear_core_motor::Status;
 use control_components::components::scale::{Scale, ScaleCmd};
 use control_components::controllers::{clear_core, ek1100_io};
-use control_components::subsystems::bag_handling::{BagSensorState};
+use control_components::subsystems::bag_handling::BagSensorState;
 use env_logger::Env;
 use futures::future::join_all;
 use log::{error, info, warn};
@@ -19,14 +26,12 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Mutex;
 use tokio::task::{spawn_blocking, JoinHandle, JoinSet};
 use tokio::time::sleep;
-use crate::app_integration::RyoFirebaseClient;
-use crate::ryo::RyoRunState::Ready;
 
 pub mod config;
 
+pub mod app_integration;
 pub mod hmi;
 pub mod recipe_handling;
-pub mod app_integration;
 
 pub mod bag_handler;
 pub mod manual_control;
@@ -45,19 +50,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let task = env::args()
         .nth(2)
         .expect("Do you want to run a cycle or hmi?");
-    
+
     let n_nodes = match env::args().nth(3) {
-        Some(n) => {
-            match n.as_str()  {
-                "1" => 1,
-                "2" => 2,
-                "3" => 3,
-                _ => 4,
-            }
-        }
-        None => {
-            4
-        }
+        Some(n) => match n.as_str() {
+            "1" => 1,
+            "2" => 2,
+            "3" => 3,
+            _ => 4,
+        },
+        None => 4,
     };
 
     //TODO: Change so that interface can be defined as a compiler flag passed at compile time
@@ -117,12 +118,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let app_state_for_fb = app_state.clone();
     let shutdown_app = shutdown.clone();
     let app_scales = ryo_io.scale_txs.clone();
-    let app_handler = tokio::spawn(async move{
-        firebase.update(app_scales.as_slice(), app_state_for_fb, shutdown_app).await;  
+    let app_handler = tokio::spawn(async move {
+        firebase
+            .update(app_scales.as_slice(), app_state_for_fb, shutdown_app)
+            .await;
     });
-    
+
     loop {
-        
         state = gantry.get_status().await;
         match state {
             Status::Ready => break,
@@ -130,7 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             Status::Faulted => gantry.clear_alerts().await,
             Status::Disabled => {
                 let _ = gantry.enable().await;
-            },
+            }
             Status::Enabling => continue,
             Status::Unknown => {
                 error!("Gantry in unknown state");
@@ -147,12 +149,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
     gantry.wait_for_move(Duration::from_secs(1)).await.unwrap();
 
-
-
     match task.as_str() {
         "hmi" => hmi(ryo_io).await,
         "cycle" => {
-            
             signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
                 .expect("Register hook");
 
@@ -163,12 +162,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     break;
                 }
                 ryo_state = app_state.lock().await.update_ryo_state(ryo_state);
-                
+
                 match ryo_state.get_run_state() {
                     RyoRunState::Running => {
                         ryo_state.check_failures();
                         info!("Cycling");
-                        ryo_state = single_cycle(n_nodes, ryo_state, ryo_io.clone()).await;
+                        ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
                     }
                     // TODO: figure out how to differentiate these
                     RyoRunState::Ready | RyoRunState::Faulted => (),
@@ -196,7 +195,9 @@ async fn pull_before_flight(io: RyoIo) {
     let gantry = make_gantry(io.cc1.clone()).await;
     loop {
         sleep(Duration::from_secs(1)).await;
-        if gantry.get_status().await == Status::Ready { break }
+        if gantry.get_status().await == Status::Ready {
+            break;
+        }
     }
     for node in 0..4 {
         let motor = io.cc2.get_motor(node);
@@ -249,28 +250,31 @@ async fn pull_before_flight(io: RyoIo) {
     while (set.join_next().await).is_some() {}
 }
 
-async fn single_cycle(n_nodes: usize, mut state: RyoState, io: RyoIo) -> RyoState {
+async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     info!("Ryo State: {:?}", state);
 
-    let mut node_ids = Vec::with_capacity(n_nodes);
+    let mut node_ids = Vec::with_capacity(NUMBER_OF_NODES);
     match state.get_bag_filled_state() {
         Some(BagFilledState::Filled) => {
             info!("Bag already filled");
         }
         Some(BagFilledState::Filling) | Some(BagFilledState::Empty) | None => {
             info!("Bag not full, dispensing");
-            for id in 0..n_nodes {
-                match state.get_node_state(id) {
-                    NodeState::Ready => {
-                        node_ids.push(id);
+            for id in 0..NUMBER_OF_NODES {
+                if state.get_dispenser_recipe(id).is_some() {
+                    match state.get_node_state(id) {
+                        NodeState::Ready => {
+                            node_ids.push(id);
+                        }
+                        NodeState::Dispensed => (),
                     }
-                    NodeState::Dispensed => (),
                 }
             }
         }
     }
     // let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
-    let mut dispense_and_bag_tasks = make_default_weighed_dispense_tasks(225., node_ids, io.clone());
+    let mut dispense_and_bag_tasks =
+        make_default_weighed_dispense_tasks(225., node_ids, io.clone());
 
     match state.get_bag_loaded_state() {
         BagLoadedState::Bagless => {
@@ -288,7 +292,7 @@ async fn single_cycle(n_nodes: usize, mut state: RyoState, io: RyoIo) -> RyoStat
         }
         BagLoadedState::Bagful => {
             info!("Bag already loaded");
-        },
+        }
     }
 
     let io_clone = io.clone();
@@ -302,25 +306,27 @@ async fn single_cycle(n_nodes: usize, mut state: RyoState, io: RyoIo) -> RyoStat
             state.set_bag_filled_state(Some(BagFilledState::Filling));
             let bag_sensor = make_bag_sensor(io.clone());
             let gantry = make_gantry(io.cc1.clone()).await;
-            for node in 0..n_nodes {
-                let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[node]).await;
-                gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
-                match bag_sensor.check().await {
-                    BagSensorState::Bagful => {
-                        match state.get_node_state(node) {
-                            NodeState::Dispensed => {
-                                info!("Dispensing from Node {:?}", node);
-                                dump_from_hatch(node, io.clone()).await;
-                                state.set_node_state(node, NodeState::Ready);
+            for node in 0..NUMBER_OF_NODES {
+                if state.get_dispenser_recipe(node).is_some() {
+                    let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[node]).await;
+                    gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
+                    match bag_sensor.check().await {
+                        BagSensorState::Bagful => {
+                            match state.get_node_state(node) {
+                                NodeState::Dispensed => {
+                                    info!("Dispensing from Node {:?}", node);
+                                    dump_from_hatch(node, io.clone()).await;
+                                    state.set_node_state(node, NodeState::Ready);
+                                }
+                                NodeState::Ready => (), // TODO:: this is an unreachable case?
                             }
-                            NodeState::Ready => (), // TODO:: this is an unreachable case?
                         }
-                    }
-                    BagSensorState::Bagless => {
-                        state.set_bag_loaded_state(BagLoadedState::Bagless);
-                        error!("Lost bag");
-                        state.log_failure(RyoFailure::BagDispenseFailure);
-                        return state;
+                        BagSensorState::Bagless => {
+                            state.set_bag_loaded_state(BagLoadedState::Bagless);
+                            error!("Lost bag");
+                            state.log_failure(RyoFailure::BagDispenseFailure);
+                            return state;
+                        }
                     }
                 }
             }
@@ -328,11 +334,11 @@ async fn single_cycle(n_nodes: usize, mut state: RyoState, io: RyoIo) -> RyoStat
         }
         Some(BagFilledState::Filled) => {
             info!("Bag already filled");
-        },
+        }
         None => {
             warn!("Bag not filled, retrying");
-            return state
-        },
+            return state;
+        }
     }
 
     drop_bag(io.clone()).await;
@@ -348,15 +354,17 @@ async fn single_cycle(n_nodes: usize, mut state: RyoState, io: RyoIo) -> RyoStat
             return state;
         }
     }
-    
+
     let io_clone = io.clone();
     tokio::spawn(async move {
-        make_sealer(io_clone.clone()).timed_move_seal(SEALER_MOVE_TIME).await;
+        make_sealer(io_clone.clone())
+            .timed_move_seal(SEALER_MOVE_TIME)
+            .await;
         release_bag_from_sealer(io_clone.clone()).await;
     });
 
     pull_after_flight(io).await;
-    
+
     state.clear_failures();
     state.set_run_state(RyoRunState::Ready);
     state

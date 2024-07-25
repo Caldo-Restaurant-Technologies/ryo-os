@@ -1,4 +1,4 @@
-use crate::bag_handler::{BagHandler};
+use crate::bag_handler::BagHandler;
 use crate::manual_control::{
     disable_all, enable_and_clear_all, handle_dispenser_req, handle_gantry_position_req,
     handle_gantry_req, handle_gripper_req, handle_hatch_position_req, handle_hatch_req,
@@ -9,16 +9,16 @@ use crate::{pull_before_flight, single_cycle};
 use bytes::{Buf, Bytes};
 use control_components::components::scale::ScaleCmd;
 use control_components::controllers::{clear_core, ek1100_io};
-use control_components::subsystems::bag_handling::{BagSensorState};
+use control_components::subsystems::bag_handling::BagSensorState;
 use control_components::subsystems::gantry::GantryCommand;
-use control_components::subsystems::node::{NodeCommand};
+use control_components::subsystems::node::NodeCommand;
 use control_components::util::utils::ascii_to_int;
 use http_body_util::{combinators::BoxBody, BodyExt, Empty, Full};
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
-use log::{info};
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -126,7 +126,7 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
         (&Method::POST, "/cycle") => {
             pull_before_flight(io.clone()).await;
             let ryo_state = RyoState::fresh();
-            single_cycle(4, ryo_state, io).await;
+            single_cycle(ryo_state, io).await;
             info!("Cycle complete");
             Ok(Response::new(req.into_body().boxed()))
         }

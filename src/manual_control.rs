@@ -1,23 +1,24 @@
 use crate::bag_handler::{BagHandler, ManualBagHandlingCmd};
-use crate::config::{GANTRY_ACCELERATION, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL, GANTRY_VELOCITY, SEALER_MOVE_DOOR_TIME};
-use crate::ryo::{
-    make_and_close_hatch, make_and_move_hatch, make_and_open_hatch, make_dispenser,
-    make_gantry, make_hatch, make_sealer, make_trap_door, RyoIo,
+use crate::config::{
+    GANTRY_ACCELERATION, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL,
+    GANTRY_VELOCITY, SEALER_MOVE_DOOR_TIME,
 };
-use bytes::{Bytes};
+use crate::ryo::{
+    make_and_close_hatch, make_and_move_hatch, make_and_open_hatch, make_dispenser, make_gantry,
+    make_hatch, make_sealer, make_trap_door, RyoIo,
+};
+use bytes::Bytes;
 use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
-use control_components::subsystems::dispenser::{
-    Parameters, Setpoint, WeightedDispense,
-};
+use control_components::components::scale::ScaleCmd;
+use control_components::subsystems::dispenser::{Parameters, Setpoint, WeightedDispense};
 use control_components::util::utils::ascii_to_int;
 use futures::future::join_all;
-use http_body_util::{combinators::BoxBody};
+use http_body_util::combinators::BoxBody;
 use hyper::{Request, Response};
 use log::{error, info, warn};
 use std::array;
 use std::time::Duration;
-use control_components::components::scale::ScaleCmd;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 
@@ -132,7 +133,8 @@ pub async fn handle_gantry_req(gantry_position: usize, io: RyoIo) {
     io.cc1
         .get_motor(GANTRY_MOTOR_ID)
         .wait_for_move(GANTRY_SAMPLE_INTERVAL)
-        .await.unwrap();
+        .await
+        .unwrap();
     let positions = ["Home", "Node A", "Node B", "Node C", "Node D", "Bag Drop"];
     info!("Gantry to {:}", positions[gantry_position].to_string());
 }
@@ -217,7 +219,7 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
         check_offset,
         stop_offset,
         retract_before: None,
-        retract_after: Some(retract_after)
+        retract_after: Some(retract_after),
     };
     make_dispenser(
         node_id,
