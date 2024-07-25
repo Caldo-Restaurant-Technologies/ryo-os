@@ -10,7 +10,17 @@ use std::{array, io};
 
 use crate::app_integration::Status;
 use crate::bag_handler::BagHandler;
-use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, DEFAULT_DISPENSE_PARAMETERS};
+use crate::config::{
+    BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT,
+    DEFAULT_DISPENSE_PARAMETERS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION,
+    GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS,
+    GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS,
+    HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME,
+    HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID,
+    SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER,
+    SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID,
+    SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID,
+};
 use crate::recipe_handling::Ingredient;
 use control_components::subsystems::bag_handling::{BagDispenser, BagSensor};
 use control_components::subsystems::dispenser::{
@@ -86,7 +96,7 @@ impl RyoState {
                 Some(DEFAULT_DISPENSE_PARAMETERS),
                 Some(DEFAULT_DISPENSE_PARAMETERS),
                 Some(DEFAULT_DISPENSE_PARAMETERS),
-                Some(DEFAULT_DISPENSE_PARAMETERS)
+                Some(DEFAULT_DISPENSE_PARAMETERS),
             ],
         }
     }
@@ -351,6 +361,28 @@ pub fn make_trap_door(mut io: RyoIo) -> RelayHBridge {
 
 pub fn make_bag_sensor(io: RyoIo) -> BagSensor {
     BagSensor::new(io.cc1.get_digital_input(BAG_DETECT_PE))
+}
+
+pub fn make_dispense_tasks(
+    recipe: [Option<DispenseParameters>; 4],
+    io: RyoIo,
+) -> Vec<JoinHandle<()>> {
+    let mut dispensers = Vec::with_capacity(4);
+    for (id, subrecipe) in recipe.iter().enumerate() {
+        let params = subrecipe.clone().unwrap().parameters;
+        let setpoint = subrecipe.clone().unwrap().setpoint;
+        dispensers.push(make_dispenser(
+            id,
+            io.cc2.clone(),
+            setpoint,
+            params,
+            io.scale_txs[id].clone(),
+        ))
+    }
+    dispensers
+        .into_iter()
+        .map(|dispenser| tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await }))
+        .collect()
 }
 
 pub fn make_default_dispense_tasks(ids: Vec<usize>, io: RyoIo) -> Vec<JoinHandle<()>> {

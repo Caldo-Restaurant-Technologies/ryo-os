@@ -1,6 +1,6 @@
 use control_components::controllers::clear_core::MotorBuilder;
-use std::time::Duration;
 use control_components::subsystems::dispenser::{DispenseParameters, Parameters, Setpoint};
+use std::time::Duration;
 
 //E-Stop
 pub const E_STOP_INPUT_ID: usize = 0; // 0 is the same as DI6 in CC, also valid for CC2
@@ -176,7 +176,7 @@ pub const GANTRY_VELOCITY: f64 = 10.;
 pub const ETHERCAT_NUMBER_OF_SLOTS: u8 = 3;
 
 pub const DEFAULT_DISPENSE_PARAMETERS: DispenseParameters = DispenseParameters {
-    parameters: Parameters { 
+    parameters: Parameters {
         motor_speed: 0.3,
         sample_rate: 50.0,
         cutoff_frequency: 0.5,
@@ -185,5 +185,5 @@ pub const DEFAULT_DISPENSE_PARAMETERS: DispenseParameters = DispenseParameters {
         retract_before: None,
         retract_after: Some(1.),
     },
-    setpoint: Setpoint::Timed(Duration::from_secs(10))
+    setpoint: Setpoint::Timed(Duration::from_secs(10)),
 };
