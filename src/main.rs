@@ -106,6 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     gantry.clear_alerts().await;
     let _ = gantry.enable().await;
     sleep(Duration::from_secs(10)).await;
+    info!("Connecting to Firebase");
     let mut firebase = RyoFirebaseClient::new();
     let app_state = Arc::new(Mutex::new(app_integration::Status::default()));
     let mut state;
@@ -147,6 +148,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match task.as_str() {
         "hmi" => hmi(ryo_io).await,
         "cycle" => {
+            info!("Starting cycle loop");
             signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
                 .expect("Register hook");
 
