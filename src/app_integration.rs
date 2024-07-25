@@ -1,6 +1,4 @@
-use crate::app_integration::SystemStatus::RunningJob;
-use crate::ryo::RyoRunState::{Faulted, Running};
-use crate::ryo::RyoState;
+use crate::ryo::{RyoRunState, RyoState};
 use control_components::components::scale::ScaleCmd;
 use firebase_rs::*;
 use log::error;
@@ -58,6 +56,8 @@ enum SystemStatus {
     StopSystem,
     PreparingJob,
     RefillNodesSystem,
+    UI,
+    Faulted
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -79,13 +79,16 @@ impl Status {
         // TODO: figure out how to handle the rest of these
         match self.system_status {
             SystemStatus::RunJob => {
-                ryo_state.set_run_state(Running);
-                self.system_status = RunningJob;
+                ryo_state.set_run_state(RyoRunState::NewJob);
+                self.system_status = SystemStatus::RunningJob;
             }
             SystemStatus::PauseJob | SystemStatus::CancelJob => {
-                ryo_state.set_run_state(Faulted);
+                ryo_state.set_run_state(RyoRunState::Faulted);
             }
-            SystemStatus::ReadyToStartJob | RunningJob => (),
+            SystemStatus::UI => {
+                ryo_state.set_run_state(RyoRunState::UI)
+            }
+            SystemStatus::ReadyToStartJob | SystemStatus::RunningJob => (),
             _ => (),
         }
         ryo_state

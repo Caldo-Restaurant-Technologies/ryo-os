@@ -33,8 +33,9 @@ use futures::future::join_all;
 use log::{error, info};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
-use tokio::task::JoinHandle;
+use tokio::task::{JoinHandle, JoinSet};
 use tokio::time::sleep;
+use crate::manual_control::enable_and_clear_all;
 
 type CCController = clear_core::Controller;
 type EtherCATIO = ek1100_io::Controller;
@@ -70,6 +71,8 @@ pub enum RyoRunState {
     Ready,
     Faulted,
     Running,
+    UI,
+    NewJob,
 }
 
 #[derive(Debug, Clone)]
@@ -91,7 +94,7 @@ impl RyoState {
             nodes: array::from_fn(|_| NodeState::Ready),
             bag_filled: None,
             failures: Vec::new(),
-            run_state: RyoRunState::Ready,
+            run_state: RyoRunState::Running,
             recipe: [
                 Some(DEFAULT_DISPENSE_PARAMETERS),
                 Some(DEFAULT_DISPENSE_PARAMETERS),
@@ -174,7 +177,7 @@ impl RyoState {
     pub fn check_failures(&mut self) {
         match self.get_run_state() {
             RyoRunState::Faulted => (),
-            RyoRunState::Ready | RyoRunState::Running => {
+            RyoRunState::Ready | RyoRunState::Running | RyoRunState::UI | RyoRunState::NewJob => {
                 if self.failures.len() > 3 {
                     let first_failure = &self.failures[0];
                     let all_same = self.failures.iter().all(|f| f == first_failure);
@@ -474,6 +477,67 @@ pub async fn release_bag_from_sealer(io: RyoIo) {
     trap_door.actuate(HBridgeState::Pos).await;
     sleep(SEALER_MOVE_DOOR_TIME).await;
     trap_door.actuate(HBridgeState::Off).await;
+}
+
+pub async fn pull_before_flight(io: RyoIo) -> RyoState {
+    enable_and_clear_all(io.clone()).await;
+    let gantry = make_gantry(io.cc1.clone()).await;
+    loop {
+        sleep(Duration::from_secs(1)).await;
+        if gantry.get_status().await == control_components::components::clear_core_motor::Status::Ready {
+            break;
+        }
+    }
+    for node in 0..4 {
+        let motor = io.cc2.get_motor(node);
+        motor.set_velocity(0.5).await;
+        motor.set_acceleration(90.).await;
+        motor.set_deceleration(90.).await;
+    }
+
+    // set_motor_accelerations(io.clone(), 50.).await;
+    sleep(Duration::from_millis(500)).await;
+
+    let mut set = JoinSet::new();
+    let bag_handler = BagHandler::new(io.clone());
+
+    // make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
+    make_bag_handler(io.clone()).close_gripper().await;
+    make_sealer(io.clone())
+        .absolute_move(SEALER_RETRACT_SET_POINT)
+        .await;
+    info!("Sealer retracted");
+
+    make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
+    sleep(SEALER_MOVE_DOOR_TIME).await;
+    make_trap_door(io.clone()).actuate(HBridgeState::Off).await;
+    info!("Trap door opened");
+
+    for id in 0..4 {
+        let io_clone = io.clone();
+        info!("Closing Hatch {:?}", id);
+        // make_and_close_hatch(id, io_clone).await;
+        set.spawn(async move {
+            info!("Closing Hatch {:?}", id);
+            make_and_close_hatch(id, io_clone).await;
+        });
+    }
+
+    set.spawn(async move { bag_handler.dispense_bag().await });
+    set.spawn(async move {
+        gantry.enable().await.expect("Motor is faulted");
+        let state = gantry.get_status().await;
+        if state == control_components::components::clear_core_motor::Status::Moving {
+            gantry.wait_for_move(Duration::from_secs(1)).await.unwrap();
+        }
+        let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
+        gantry.wait_for_move(Duration::from_secs(1)).await.unwrap();
+    });
+
+    drop(io);
+    info!("All systems go.");
+    while (set.join_next().await).is_some() {}
+    RyoState::fresh()
 }
 
 pub async fn pull_after_flight(io: RyoIo) {

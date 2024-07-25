@@ -4,8 +4,8 @@ use crate::manual_control::{
     handle_gantry_req, handle_gripper_req, handle_hatch_position_req, handle_hatch_req,
     handle_hatches_req, handle_sealer_position_req, handle_sealer_req,
 };
-use crate::ryo::{make_bag_handler, make_bag_sensor, RyoIo, RyoState};
-use crate::{pull_before_flight, single_cycle};
+use crate::ryo::{make_bag_handler, make_bag_sensor, pull_before_flight, RyoIo, RyoState};
+use crate::{single_cycle};
 use bytes::{Buf, Bytes};
 use control_components::components::scale::ScaleCmd;
 use control_components::controllers::{clear_core, ek1100_io};
@@ -124,7 +124,7 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
         (&Method::GET, "/v1/api/recipe/all") => Ok(Response::new(full("WIP"))),
         (&Method::POST, "/echo") => Ok(Response::new(req.into_body().boxed())),
         (&Method::POST, "/cycle") => {
-            pull_before_flight(io.clone()).await;
+            let _ = pull_before_flight(io.clone()).await;
             let ryo_state = RyoState::fresh();
             single_cycle(ryo_state, io).await;
             info!("Cycle complete");
@@ -243,6 +243,36 @@ pub async fn ui_server<T: ToSocketAddrs>(
             }
         });
     }
+    Ok(())
+}
+
+pub async fn ui_server_with_fb<T: ToSocketAddrs>(
+    addr: T,
+    controllers: RyoIo,
+    shutdown: Arc<AtomicBool>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let listener = TcpListener::bind(addr).await?;
+    info!("UI Loop");
+    if shutdown.load(Ordering::Relaxed) {
+        return Ok(())
+    }
+    let (stream, _) = listener.accept().await?;
+    let io = TokioIo::new(stream);
+    let controller = controllers.clone();
+    // Spawn a tokio task to serve multiple connections concurrently
+    tokio::task::spawn(async move {
+        // Finally, we bind the incoming connection to our `hello` service
+        if let Err(err) = http1::Builder::new()
+            // `service_fn` converts our function in a `Service`
+            .serve_connection(
+                io,
+                service_fn(|req| ui_request_handler(req, controller.clone())),
+            )
+            .await
+        {
+            eprintln!("Error serving connection: {:?}", err);
+        }
+    });
     Ok(())
 }
 

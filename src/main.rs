@@ -3,7 +3,7 @@ use crate::bag_handler::BagHandler;
 use crate::config::*;
 use crate::manual_control::enable_and_clear_all;
 use crate::ryo::RyoRunState::Ready;
-use crate::ryo::{drop_bag, dump_from_hatch, make_and_close_hatch, make_bag_handler, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_default_weighed_dispense_tasks, make_gantry, make_hatch, make_sealer, make_trap_door, pull_after_flight, release_bag_from_sealer, BagFilledState, BagLoadedState, NodeState, RyoFailure, RyoIo, RyoRunState, RyoState, make_dispense_tasks};
+use crate::ryo::{drop_bag, dump_from_hatch, make_and_close_hatch, make_bag_handler, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_default_weighed_dispense_tasks, make_gantry, make_hatch, make_sealer, make_trap_door, pull_after_flight, release_bag_from_sealer, BagFilledState, BagLoadedState, NodeState, RyoFailure, RyoIo, RyoRunState, RyoState, make_dispense_tasks, pull_before_flight};
 use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::Status;
 use control_components::components::scale::{Scale, ScaleCmd};
@@ -21,6 +21,7 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Mutex;
 use tokio::task::{spawn_blocking, JoinHandle, JoinSet};
 use tokio::time::sleep;
+use crate::hmi::ui_server_with_fb;
 
 pub mod config;
 
@@ -152,8 +153,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
                 .expect("Register hook");
 
-            pull_before_flight(ryo_io.clone()).await;
-            let mut ryo_state = RyoState::fresh();
+            let mut ryo_state = pull_before_flight(ryo_io.clone()).await;
             loop {
                 if shutdown.load(Ordering::Relaxed) {
                     break;
@@ -162,9 +162,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 ryo_state.check_failures();
                 
                 match ryo_state.get_run_state() {
+                    RyoRunState::NewJob => {
+                        info!("Starting cycle");
+                        ryo_state = pull_before_flight(ryo_io.clone()).await;
+                    }
                     RyoRunState::Running => {
-                        info!("Cycling");
                         ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
+                    }
+                    RyoRunState::UI => {
+                        hmi_with_fb(ryo_io.clone()).await;
                     }
                     // TODO: figure out how to differentiate these
                     RyoRunState::Ready | RyoRunState::Faulted => (),
@@ -185,66 +191,6 @@ pub enum CycleCmd {
     Cycle(usize),
     Pause,
     Cancel,
-}
-
-async fn pull_before_flight(io: RyoIo) {
-    enable_and_clear_all(io.clone()).await;
-    let gantry = make_gantry(io.cc1.clone()).await;
-    loop {
-        sleep(Duration::from_secs(1)).await;
-        if gantry.get_status().await == Status::Ready {
-            break;
-        }
-    }
-    for node in 0..4 {
-        let motor = io.cc2.get_motor(node);
-        motor.set_velocity(0.5).await;
-        motor.set_acceleration(90.).await;
-        motor.set_deceleration(90.).await;
-    }
-
-    // set_motor_accelerations(io.clone(), 50.).await;
-    sleep(Duration::from_millis(500)).await;
-
-    let mut set = JoinSet::new();
-    let bag_handler = BagHandler::new(io.clone());
-
-    // make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
-    make_bag_handler(io.clone()).close_gripper().await;
-    make_sealer(io.clone())
-        .absolute_move(SEALER_RETRACT_SET_POINT)
-        .await;
-    info!("Sealer retracted");
-
-    make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
-    sleep(SEALER_MOVE_DOOR_TIME).await;
-    make_trap_door(io.clone()).actuate(HBridgeState::Off).await;
-    info!("Trap door opened");
-
-    for id in 0..4 {
-        let io_clone = io.clone();
-        info!("Closing Hatch {:?}", id);
-        // make_and_close_hatch(id, io_clone).await;
-        set.spawn(async move {
-            info!("Closing Hatch {:?}", id);
-            make_and_close_hatch(id, io_clone).await;
-        });
-    }
-
-    set.spawn(async move { bag_handler.dispense_bag().await });
-    set.spawn(async move {
-        gantry.enable().await.expect("Motor is faulted");
-        let state = gantry.get_status().await;
-        if state == Status::Moving {
-            gantry.wait_for_move(Duration::from_secs(1)).await.unwrap();
-        }
-        let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
-        gantry.wait_for_move(Duration::from_secs(1)).await.unwrap();
-    });
-
-    drop(io);
-    info!("All systems go.");
-    while (set.join_next().await).is_some() {}
 }
 
 async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
@@ -381,5 +327,21 @@ async fn hmi(io: RyoIo) {
     )
     .await
     .unwrap();
+    drop(io);
+}
+
+async fn hmi_with_fb(io: RyoIo) {
+    let shutdown = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
+        .expect("Register hook");
+    info!("HMI Ready");
+
+    hmi::ui_server_with_fb(
+        SocketAddr::from(([0, 0, 0, 0], 3000)),
+        io.clone(),
+        shutdown.clone(),
+    )
+        .await
+        .unwrap();
     drop(io);
 }
