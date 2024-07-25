@@ -209,11 +209,11 @@ async fn pull_before_flight(io: RyoIo) {
     for id in 0..4 {
         let io_clone = io.clone();
         info!("Closing Hatch {:?}", id);
-        make_and_close_hatch(id, io_clone).await;
-        // set.spawn(async move {
-        //     info!("Closing Hatch {:?}", id);
-        //     make_and_close_hatch(id, io_clone).await;
-        // });
+        // make_and_close_hatch(id, io_clone).await;
+        set.spawn(async move {
+            info!("Closing Hatch {:?}", id);
+            make_and_close_hatch(id, io_clone).await;
+        });
     }
 
     set.spawn(async move { bag_handler.dispense_bag().await });
@@ -252,8 +252,8 @@ async fn single_cycle(n_nodes: usize, mut state: RyoState, io: RyoIo) -> RyoStat
             }
         }
     }
-    let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
-    // let mut dispense_and_bag_tasks = make_default_weighed_dispense_tasks(87., node_ids, io.clone());
+    // let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
+    let mut dispense_and_bag_tasks = make_default_weighed_dispense_tasks(225., node_ids, io.clone());
 
     match state.get_bag_loaded_state() {
         BagLoadedState::Bagless => {
@@ -331,6 +331,9 @@ async fn single_cycle(n_nodes: usize, mut state: RyoState, io: RyoIo) -> RyoStat
             return state;
         }
     }
+
+    // make_sealer(io.clone()).timed_move_seal(Duration::from_millis(2700)).await;
+    // release_bag_from_sealer(io.clone()).await;
     
     let io_clone = io.clone();
     tokio::spawn(async move {
