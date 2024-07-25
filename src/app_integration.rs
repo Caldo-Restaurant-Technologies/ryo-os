@@ -7,6 +7,9 @@ use log::error;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{oneshot, Mutex};
+use crate::app_integration::SystemStatus::RunningJob;
+use crate::ryo::RyoRunState::{Faulted, Running};
+use crate::ryo::RyoState;
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -70,6 +73,24 @@ enum DoorStatus {
 pub struct Status {
     front_door_status: String,
     system_status: SystemStatus
+}
+
+impl Status {
+    pub fn update_ryo_state(&mut self, mut ryo_state: RyoState) -> RyoState {
+        // TODO: figure out how to handle the rest of these
+        match self.system_status {
+            SystemStatus::RunJob => {
+                ryo_state.set_run_state(Running);
+                self.system_status = RunningJob;
+            }
+            SystemStatus::PauseJob | SystemStatus::CancelJob => {
+                ryo_state.set_run_state(Faulted);
+            }
+            SystemStatus::ReadyToStartJob | RunningJob => (),
+            _ => (),
+        }
+        ryo_state
+    }
 }
 
 impl Default for Status {

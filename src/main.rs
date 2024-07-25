@@ -1,7 +1,7 @@
 use crate::bag_handler::BagHandler;
 use crate::config::*;
 use crate::manual_control::enable_and_clear_all;
-use crate::ryo::{drop_bag, dump_from_hatch, make_and_close_hatch, make_bag_handler, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_gantry, make_hatch, make_sealer, make_trap_door, pull_after_flight, release_bag_from_sealer, BagFilledState, BagLoadedState, NodeState, RyoIo, RyoState, RyoFailure, make_default_weighed_dispense_tasks};
+use crate::ryo::{drop_bag, dump_from_hatch, make_and_close_hatch, make_bag_handler, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_gantry, make_hatch, make_sealer, make_trap_door, pull_after_flight, release_bag_from_sealer, BagFilledState, BagLoadedState, NodeState, RyoIo, RyoState, RyoFailure, make_default_weighed_dispense_tasks, RyoRunState};
 use control_components::components::clear_core_io::HBridgeState;
 use control_components::components::clear_core_motor::{Status};
 use control_components::components::scale::{Scale, ScaleCmd};
@@ -20,6 +20,7 @@ use tokio::sync::Mutex;
 use tokio::task::{spawn_blocking, JoinHandle, JoinSet};
 use tokio::time::sleep;
 use crate::app_integration::RyoFirebaseClient;
+use crate::ryo::RyoRunState::Ready;
 
 pub mod config;
 
@@ -113,12 +114,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let app_state = Arc::new(Mutex::new(app_integration::Status::default()));
     let mut state;
     let shutdown = Arc::new(AtomicBool::new(false));
-    let app_state = app_state.clone();
+    let app_state_for_fb = app_state.clone();
     let shutdown_app = shutdown.clone();
     let app_scales = ryo_io.scale_txs.clone();
     let app_handler = tokio::spawn(async move{
-        firebase.update(app_scales.as_slice(), app_state, shutdown_app).await;  
+        firebase.update(app_scales.as_slice(), app_state_for_fb, shutdown_app).await;  
     });
+    
     loop {
         
         state = gantry.get_status().await;
@@ -138,11 +140,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         sleep(Duration::from_secs(3)).await;
     }
 
-    // while state != Status::Ready {
-    //     state = gantry.get_status().await;
-    //     info!("Gantry status: {:?}", state);
-    //     sleep(Duration::from_secs(3)).await;
-    // }
     info!("Gantry status: {:?}", gantry.get_status().await);
     gantry.set_acceleration(GANTRY_ACCELERATION).await;
     gantry.set_deceleration(GANTRY_ACCELERATION).await;
@@ -165,9 +162,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 if shutdown.load(Ordering::Relaxed) {
                     break;
                 }
-                ryo_state.check_failures();
-                info!("Cycling");
-                ryo_state = single_cycle(n_nodes, ryo_state, ryo_io.clone()).await;
+                ryo_state = app_state.lock().await.update_ryo_state(ryo_state);
+                
+                match ryo_state.get_run_state() {
+                    RyoRunState::Running => {
+                        ryo_state.check_failures();
+                        info!("Cycling");
+                        ryo_state = single_cycle(n_nodes, ryo_state, ryo_io.clone()).await;
+                    }
+                    // TODO: figure out how to differentiate these
+                    RyoRunState::Ready | RyoRunState::Faulted => (),
+                }
             }
         }
         _ => {
@@ -343,19 +348,17 @@ async fn single_cycle(n_nodes: usize, mut state: RyoState, io: RyoIo) -> RyoStat
             return state;
         }
     }
-
-    // make_sealer(io.clone()).timed_move_seal(Duration::from_millis(2700)).await;
-    // release_bag_from_sealer(io.clone()).await;
     
     let io_clone = io.clone();
     tokio::spawn(async move {
-        make_sealer(io_clone.clone()).timed_move_seal(Duration::from_millis(2700)).await;
+        make_sealer(io_clone.clone()).timed_move_seal(SEALER_MOVE_TIME).await;
         release_bag_from_sealer(io_clone.clone()).await;
     });
 
     pull_after_flight(io).await;
     
     state.clear_failures();
+    state.set_run_state(RyoRunState::Ready);
     state
 }
 

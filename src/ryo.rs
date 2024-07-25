@@ -5,6 +5,7 @@ use control_components::controllers::clear_core::Controller;
 use control_components::controllers::{clear_core, ek1100_io};
 use std::{array, io};
 use std::io::Write;
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::bag_handler::BagHandler;
@@ -19,8 +20,10 @@ use control_components::subsystems::sealer::Sealer;
 use futures::future::join_all;
 use log::{error, info};
 use tokio::sync::mpsc::Sender;
+use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
+use crate::app_integration::Status;
 use crate::recipe_handling::Ingredient;
 
 type CCController = clear_core::Controller;
@@ -53,11 +56,19 @@ pub enum BagFilledState {
 }
 
 #[derive(Debug, Clone)]
+pub enum RyoRunState {
+    Ready,
+    Faulted,
+    Running,
+}
+
+#[derive(Debug, Clone)]
 pub struct RyoState {
     bag_loaded: BagLoadedState,
     nodes: [NodeState; 4],
     bag_filled: Option<BagFilledState>,
     failures: Vec<RyoFailure>,
+    run_state: RyoRunState,
 }
 impl RyoState {
     pub fn fresh() -> Self {
@@ -66,7 +77,12 @@ impl RyoState {
             nodes: array::from_fn(|_| NodeState::Ready),
             bag_filled: None,
             failures: Vec::new(),
+            run_state: RyoRunState::Ready,
         }
+    }
+    
+    pub fn set_run_state(&mut self, state: RyoRunState) {
+        self.run_state = state;
     }
 
     pub fn set_bag_filled_state(&mut self, state: Option<BagFilledState>) {
@@ -87,6 +103,7 @@ impl RyoState {
         }
     }
 
+    pub fn get_run_state(&self) -> RyoRunState { self.run_state.clone() }
     pub fn get_node_state(&self, id: usize) -> NodeState {
         self.nodes[id].clone()
     }
@@ -137,6 +154,8 @@ pub enum RyoFailure {
     NodeFailure,
     BagDroppingFailure,
 }
+
+
 
 // pub type CycleOrder = [Option<Dispenser>; 4];
 // trait NewOrder {

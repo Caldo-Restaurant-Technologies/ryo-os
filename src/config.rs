@@ -32,6 +32,7 @@ pub const SEALER_ANALOG_INPUT: usize = 0; // also 1 since there are two actuator
 pub const SEALER_TIMEOUT: Duration = Duration::from_secs(10);
 pub const SEALER_EXTEND_SET_POINT: isize = 4090;
 pub const SEALER_RETRACT_SET_POINT: isize = 50;
+pub const SEALER_MOVE_TIME: Duration = Duration::from_millis(2700);
 pub const TRAP_DOOR_SLOT_ID: usize = 2;
 pub const TRAP_DOOR_OPEN_OUTPUT_ID: usize = 3;
 pub const TRAP_DOOR_CLOSE_OUTPUT_ID: usize = 2;
