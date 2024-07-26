@@ -107,7 +107,7 @@ pub struct IOControllers {
 type HTTPResult = Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error>;
 type HTTPRequest = Request<hyper::body::Incoming>;
 
-pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
+pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo, ryo_state: RyoState) -> HTTPResult {
     match (req.method(), req.uri().path()) {
         (&Method::OPTIONS, _) => {
             let response = Response::builder()
@@ -125,7 +125,6 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
         (&Method::POST, "/echo") => Ok(Response::new(req.into_body().boxed())),
         (&Method::POST, "/cycle") => {
             let _ = pull_before_flight(io.clone()).await;
-            let ryo_state = RyoState::new();
             single_cycle(ryo_state, io).await;
             info!("Cycle complete");
             Ok(Response::new(req.into_body().boxed()))
@@ -214,41 +213,42 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo) -> HTTPResult {
     }
 }
 
-pub async fn ui_server<T: ToSocketAddrs>(
-    addr: T,
-    controllers: RyoIo,
-    shutdown: Arc<AtomicBool>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let listener = TcpListener::bind(addr).await?;
-    loop {
-        info!("UI Loop");
-        if shutdown.load(Ordering::Relaxed) {
-            break;
-        }
-        let (stream, _) = listener.accept().await?;
-        let io = TokioIo::new(stream);
-        let controller = controllers.clone();
-        // Spawn a tokio task to serve multiple connections concurrently
-        tokio::task::spawn(async move {
-            // Finally, we bind the incoming connection to our `hello` service
-            if let Err(err) = http1::Builder::new()
-                // `service_fn` converts our function in a `Service`
-                .serve_connection(
-                    io,
-                    service_fn(|req| ui_request_handler(req, controller.clone())),
-                )
-                .await
-            {
-                eprintln!("Error serving connection: {:?}", err);
-            }
-        });
-    }
-    Ok(())
-}
+// pub async fn ui_server<T: ToSocketAddrs>(
+//     addr: T,
+//     controllers: RyoIo,
+//     shutdown: Arc<AtomicBool>,
+// ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+//     let listener = TcpListener::bind(addr).await?;
+//     loop {
+//         info!("UI Loop");
+//         if shutdown.load(Ordering::Relaxed) {
+//             break;
+//         }
+//         let (stream, _) = listener.accept().await?;
+//         let io = TokioIo::new(stream);
+//         let controller = controllers.clone();
+//         // Spawn a tokio task to serve multiple connections concurrently
+//         tokio::task::spawn(async move {
+//             // Finally, we bind the incoming connection to our `hello` service
+//             if let Err(err) = http1::Builder::new()
+//                 // `service_fn` converts our function in a `Service`
+//                 .serve_connection(
+//                     io,
+//                     service_fn(|req| ui_request_handler(req, controller.clone())),
+//                 )
+//                 .await
+//             {
+//                 eprintln!("Error serving connection: {:?}", err);
+//             }
+//         });
+//     }
+//     Ok(())
+// }
 
 pub async fn ui_server_with_fb<T: ToSocketAddrs>(
     addr: T,
     controllers: RyoIo,
+    ryo_state: RyoState,
     shutdown: Arc<AtomicBool>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = TcpListener::bind(addr).await?;
@@ -266,7 +266,7 @@ pub async fn ui_server_with_fb<T: ToSocketAddrs>(
             // `service_fn` converts our function in a `Service`
             .serve_connection(
                 io,
-                service_fn(|req| ui_request_handler(req, controller.clone())),
+                service_fn(|req| ui_request_handler(req, controller.clone(), ryo_state.clone())),
             )
             .await
         {

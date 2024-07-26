@@ -164,7 +164,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
             }
             RyoRunState::UI => {
-                hmi_with_fb(ryo_io.clone()).await;
+                hmi_with_fb(ryo_io.clone(), ryo_state.clone()).await;
             }
             // TODO: figure out how to differentiate these
             RyoRunState::Ready | RyoRunState::Faulted => (),
@@ -290,23 +290,23 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     state
 }
 
-async fn hmi(io: RyoIo) {
-    let shutdown = Arc::new(AtomicBool::new(false));
-    signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
-        .expect("Register hook");
-    info!("HMI Ready");
+// async fn hmi(io: RyoIo) {
+//     let shutdown = Arc::new(AtomicBool::new(false));
+//     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
+//         .expect("Register hook");
+//     info!("HMI Ready");
+// 
+//     hmi::ui_server(
+//         SocketAddr::from(([0, 0, 0, 0], 3000)),
+//         io.clone(),
+//         shutdown.clone(),
+//     )
+//     .await
+//     .unwrap();
+//     drop(io);
+// }
 
-    hmi::ui_server(
-        SocketAddr::from(([0, 0, 0, 0], 3000)),
-        io.clone(),
-        shutdown.clone(),
-    )
-    .await
-    .unwrap();
-    drop(io);
-}
-
-async fn hmi_with_fb(io: RyoIo) {
+async fn hmi_with_fb(io: RyoIo, ryo_state: RyoState) {
     let shutdown = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
         .expect("Register hook");
@@ -315,6 +315,7 @@ async fn hmi_with_fb(io: RyoIo) {
     ui_server_with_fb(
         SocketAddr::from(([0, 0, 0, 0], 3000)),
         io.clone(),
+        ryo_state,
         shutdown.clone(),
     )
     .await
