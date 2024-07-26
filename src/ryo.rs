@@ -125,6 +125,7 @@ impl RyoState {
         }
         for (id, weight) in weights.iter().enumerate() {
             if *weight <= NODE_LOW_THRESHOLDS[id] {
+                info!("Node {:?} Empty", id);
                 self.nodes[id] = NodeState::Empty;
             }
         }
