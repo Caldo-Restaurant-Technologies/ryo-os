@@ -419,9 +419,9 @@ pub fn make_bag_sensor(io: RyoIo) -> BagSensor {
 }
 
 pub fn make_dispense_tasks(
-    state: RyoState,
+    mut state: RyoState,
     io: RyoIo,
-) -> Vec<JoinHandle<()>> {
+) -> (RyoState, Vec<JoinHandle<()>>) {
     let mut dispensers = Vec::with_capacity(4);
     match state.get_is_single_ingredient() {
         false => {
@@ -438,11 +438,12 @@ pub fn make_dispense_tasks(
                                 setpoint,
                                 params,
                                 io.scale_txs[id].clone(),
-                            ))
+                            ));
+                            state.set_node_state(id, NodeState::Dispensed);
                         }
                         NodeState::Empty => {
                             error!("Node {:?} is empty", id);
-                            return Vec::new()
+                            return (state, Vec::new())
                         }
                     }
                 }
@@ -463,7 +464,8 @@ pub fn make_dispense_tasks(
                                 setpoint,
                                 params,
                                 io.scale_txs[id].clone(),
-                            ))
+                            ));
+                            state.set_node_state(id, NodeState::Dispensed);
                         }
                         NodeState::Empty => (),
                         // TODO: this shouldn't ever be encountered?
@@ -471,16 +473,19 @@ pub fn make_dispense_tasks(
                 }
                 None => {
                     error!("No loaded nodes!");
-                    return Vec::new()
+                    return (state, Vec::new())
                 }
             }
         }
     }
 
-    dispensers
-        .into_iter()
-        .map(|dispenser| tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await }))
-        .collect()
+    (
+        state,
+        dispensers
+            .into_iter()
+            .map(|dispenser| tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await }))
+            .collect()
+    )
 }
 
 pub fn make_default_dispense_tasks(ids: Vec<usize>, io: RyoIo) -> Vec<JoinHandle<()>> {

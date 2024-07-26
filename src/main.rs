@@ -196,7 +196,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         }
         Some(BagFilledState::Filling) | Some(BagFilledState::Empty) | None => {
             info!("Bag not full, dispensing");
-            dispense_and_bag_tasks = make_dispense_tasks(state.clone(), io.clone());
+            (state, dispense_and_bag_tasks) = make_dispense_tasks(state.clone(), io.clone());
             
         }
     }
