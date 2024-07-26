@@ -194,6 +194,15 @@ impl RyoState {
     pub fn get_is_single_ingredient(&self) -> bool {
         self.is_single_ingredient
     }
+    
+    pub fn get_first_available_ingredient_id(&self) -> Option<usize> {
+        for (id, ingredient) in self.recipe.iter().enumerate() {
+            if ingredient.is_some() {
+                return Some(id)
+            }
+        }
+        None
+    }
 
     pub fn log_failure(&mut self, failure: RyoFailure) {
         self.failures.push(failure);
@@ -400,21 +409,58 @@ pub fn make_bag_sensor(io: RyoIo) -> BagSensor {
 }
 
 pub fn make_dispense_tasks(
-    recipe: [Option<DispenseParameters>; 4],
+    state: RyoState,
     io: RyoIo,
 ) -> Vec<JoinHandle<()>> {
     let mut dispensers = Vec::with_capacity(4);
-    for (id, subrecipe) in recipe.iter().enumerate() {
-        let params = subrecipe.clone().unwrap().parameters;
-        let setpoint = subrecipe.clone().unwrap().setpoint;
-        dispensers.push(make_dispenser(
-            id,
-            io.cc2.clone(),
-            setpoint,
-            params,
-            io.scale_txs[id].clone(),
-        ))
+    match state.get_is_single_ingredient() {
+        false => {
+            for (id, subrecipe) in state.get_recipe().iter().enumerate() {
+                if let Some(sub) = subrecipe {
+                    match state.get_node_state(id) {
+                        NodeState::Dispensed => (),
+                        NodeState::Ready => {
+                            let params = sub.clone().parameters;
+                            let setpoint = sub.clone().setpoint;
+                            dispensers.push(make_dispenser(
+                                id,
+                                io.cc2.clone(),
+                                setpoint,
+                                params,
+                                io.scale_txs[id].clone(),
+                            ))
+                        }
+                    }
+                }
+            }
+        }
+        true => {
+            match state.get_first_available_ingredient_id() {
+                Some(id) => {
+                    match state.get_node_state(id) {
+                        NodeState::Dispensed => (),
+                        NodeState::Ready => {
+                            info!("Bag not yet filled, dispensing");
+                            let params = state.get_recipe()[id].clone().unwrap().parameters;
+                            let setpoint = state.get_recipe()[id].clone().unwrap().setpoint;
+                            dispensers.push(make_dispenser(
+                                id,
+                                io.cc2.clone(),
+                                setpoint,
+                                params,
+                                io.scale_txs[id].clone(),
+                            ))
+                        }
+                    }
+                }
+                None => {
+                    error!("No loaded nodes!");
+                    return Vec::new()
+                }
+            }
+        }
     }
+    
     dispensers
         .into_iter()
         .map(|dispenser| tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await }))

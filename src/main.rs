@@ -185,29 +185,17 @@ pub enum CycleCmd {
 async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     info!("Ryo State: {:?}", state);
 
-    let mut node_ids = Vec::with_capacity(NUMBER_OF_NODES);
+    let mut dispense_and_bag_tasks = Vec::new();
     match state.get_bag_filled_state() {
         Some(BagFilledState::Filled) => {
             info!("Bag already filled");
         }
         Some(BagFilledState::Filling) | Some(BagFilledState::Empty) | None => {
             info!("Bag not full, dispensing");
-            for id in 0..NUMBER_OF_NODES {
-                if state.get_dispenser_recipe(id).is_some() {
-                    match state.get_node_state(id) {
-                        NodeState::Ready => {
-                            node_ids.push(id);
-                        }
-                        NodeState::Dispensed => (),
-                    }
-                }
-            }
+            dispense_and_bag_tasks = make_dispense_tasks(state.clone(), io.clone());
+            
         }
     }
-    // let mut dispense_and_bag_tasks = make_default_dispense_tasks(node_ids, io.clone());
-    let mut dispense_and_bag_tasks =
-        // make_default_weighed_dispense_tasks(225., node_ids, io.clone());
-    make_dispense_tasks(state.get_recipe(), io.clone());
 
     match state.get_bag_loaded_state() {
         BagLoadedState::Bagless => {
@@ -231,6 +219,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     let io_clone = io.clone();
     tokio::spawn(async move {
         BagHandler::new(io_clone).dispense_bag().await;
+        info!("New bag dispensed");
     });
 
     match state.get_bag_filled_state() {
@@ -240,30 +229,28 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             let bag_sensor = make_bag_sensor(io.clone());
             let gantry = make_gantry(io.cc1.clone()).await;
             for node in 0..NUMBER_OF_NODES {
-                if state.get_dispenser_recipe(node).is_some() {
-                    let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[node]).await;
-                    gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
-                    match bag_sensor.check().await {
-                        BagSensorState::Bagful => {
-                            match state.get_node_state(node) {
-                                NodeState::Dispensed => {
-                                    info!("Dispensing from Node {:?}", node);
-                                    dump_from_hatch(node, io.clone()).await;
-                                    state.set_node_state(node, NodeState::Ready);
-                                }
-                                NodeState::Ready => (), // TODO:: this is an unreachable case?
+                match state.get_node_state(node) {
+                    NodeState::Dispensed => {
+                        let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[node]).await;
+                        gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
+                        match bag_sensor.check().await {
+                            BagSensorState::Bagful => {
+                                info!("Dispensing from Node {:?}", node);
+                                dump_from_hatch(node, io.clone()).await;
+                                state.set_node_state(node, NodeState::Ready);
+                                state.set_bag_filled_state(Some(BagFilledState::Filled));
+                            }
+                            BagSensorState::Bagless => {
+                                state.set_bag_loaded_state(BagLoadedState::Bagless);
+                                error!("Lost bag");
+                                state.log_failure(RyoFailure::BagDispenseFailure);
+                                return state;
                             }
                         }
-                        BagSensorState::Bagless => {
-                            state.set_bag_loaded_state(BagLoadedState::Bagless);
-                            error!("Lost bag");
-                            state.log_failure(RyoFailure::BagDispenseFailure);
-                            return state;
-                        }
                     }
+                    NodeState::Ready => (),
                 }
             }
-            state.set_bag_filled_state(Some(BagFilledState::Filled));
         }
         Some(BagFilledState::Filled) => {
             info!("Bag already filled");
