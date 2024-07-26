@@ -186,6 +186,7 @@ pub enum CycleCmd {
 }
 
 async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
+    state.update_node_levels(io.clone()).await;
     info!("Ryo State: {:?}", state);
 
     let mut dispense_and_bag_tasks = Vec::new();
