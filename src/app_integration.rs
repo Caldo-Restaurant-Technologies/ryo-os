@@ -1,4 +1,4 @@
-use crate::ryo::{RyoRunState, RyoState};
+use crate::ryo::{RyoIo, RyoRunState, RyoState};
 use control_components::components::scale::ScaleCmd;
 use firebase_rs::*;
 use log::error;
@@ -78,11 +78,12 @@ pub struct Status {
 }
 
 impl Status {
-    pub async fn update_ryo_state(&mut self, mut ryo_state: RyoState, mode: Arc<Mutex<SystemMode>>, job_order: Arc<Mutex<JobOrder>>) -> RyoState {
+    pub async fn update_ryo_state(&mut self, mut ryo_state: RyoState, mode: Arc<Mutex<SystemMode>>, job_order: Arc<Mutex<JobOrder>>, io: RyoIo) -> RyoState {
         let order = &*job_order.lock().await;
         ryo_state.set_recipe(order);
         ryo_state.set_is_single_ingredient(order.is_single_ingredient);
-        
+        ryo_state.update_node_levels(io).await;
+
         match &*mode.lock().await {
             SystemMode::UI => ryo_state.set_run_state(RyoRunState::UI),
             SystemMode::Cycle => {
@@ -151,12 +152,12 @@ pub struct JobOrder {
             node_d_ingredient: recipe[3].clone(),
         }
     }
-    
+
     pub fn get_ingredients(&self) -> [Option<Ingredient>; 4] {
         [
-            self.node_a_ingredient.clone(), 
-            self.node_b_ingredient.clone(), 
-            self.node_c_ingredient.clone(), 
+            self.node_a_ingredient.clone(),
+            self.node_b_ingredient.clone(),
+            self.node_c_ingredient.clone(),
             self.node_d_ingredient.clone()
         ]
     }
@@ -241,7 +242,7 @@ impl RyoFirebaseClient {
             error!("{e}")
         }
     }
-    
+
     pub async fn set_job_order(&self, job_order: JobOrder) {
         if let Err(e) = self.firebase.at("JobOrder").update(&job_order).await {
             error!("{e}");
@@ -271,21 +272,21 @@ impl RyoFirebaseClient {
                 weights.push(weight);
             }
             self.set_weight_readings(weights.as_slice()).await;
-            
+
             if let Ok(order) = self.firebase.at("JobOrder").get::<JobOrder>().await {
                 let mut job_order = job_order.lock().await;
                 *job_order = order;
             } else {
                 error!("Failed to get Job Order from Firebase");
             }
-            
+
             if let Ok(mode) = self.firebase.at("SystemMode").get::<SystemMode>().await {
                 let mut system_mode = system_mode.lock().await;
                 *system_mode = mode;
             } else {
                 error!("Failed to get System Mode from Firebase");
             }
-            
+
             if let Ok(status) = self.firebase.at("Status").get::<Status>().await {
                 let mut state = state.lock().await;
                 *state = status;
