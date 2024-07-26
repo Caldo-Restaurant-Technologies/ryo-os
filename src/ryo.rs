@@ -21,6 +21,7 @@ use crate::config::{
     SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID,
     SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID,
 };
+use crate::manual_control::enable_and_clear_all;
 use crate::recipe_handling::Ingredient;
 use control_components::subsystems::bag_handling::{BagDispenser, BagSensor};
 use control_components::subsystems::dispenser::{
@@ -35,7 +36,6 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tokio::task::{JoinHandle, JoinSet};
 use tokio::time::sleep;
-use crate::manual_control::enable_and_clear_all;
 
 type CCController = clear_core::Controller;
 type EtherCATIO = ek1100_io::Controller;
@@ -86,6 +86,23 @@ pub struct RyoState {
     failures: Vec<RyoFailure>,
     run_state: RyoRunState,
     recipe: [Option<DispenseParameters>; 4],
+}
+impl Default for RyoState {
+    fn default() -> Self {
+        Self {
+            bag_loaded: BagLoadedState::Bagless,
+            nodes: array::from_fn(|_| NodeState::Ready),
+            bag_filled: None,
+            failures: Vec::new(),
+            run_state: RyoRunState::Ready,
+            recipe: [
+                Some(DEFAULT_DISPENSE_PARAMETERS),
+                None,
+                None,
+                None,
+            ]
+        }
+    }
 }
 impl RyoState {
     pub fn new() -> Self {
@@ -262,21 +279,21 @@ pub fn make_dispenser(
     )
 }
 
-pub fn make_dispenser_from_ingredient(
-    node_id: usize,
-    ingredient: Ingredient,
-    io: RyoIo,
-) -> Dispenser {
-    Dispenser::new(
-        io.cc2.get_motor(node_id),
-        Setpoint::Weight(WeightedDispense {
-            setpoint: ingredient.get_portion_size(),
-            timeout: DEFAULT_DISPENSER_TIMEOUT,
-        }),
-        ingredient.get_parameters(),
-        io.scale_txs[node_id].clone(),
-    )
-}
+// pub fn make_dispenser_from_ingredient(
+//     node_id: usize,
+//     ingredient: Ingredient,
+//     io: RyoIo,
+// ) -> Dispenser {
+//     Dispenser::new(
+//         io.cc2.get_motor(node_id),
+//         Setpoint::Weight(WeightedDispense {
+//             setpoint: ingredient.get_portion_size(),
+//             timeout: DEFAULT_DISPENSER_TIMEOUT,
+//         }),
+//         ingredient.get_parameters(),
+//         io.scale_txs[node_id].clone(),
+//     )
+// }
 
 pub fn make_hatches(io: RyoIo) -> Vec<Hatch> {
     (0..4).map(|id| make_hatch(id, io.clone())).collect()
@@ -484,7 +501,9 @@ pub async fn pull_before_flight(io: RyoIo) -> RyoState {
     let gantry = make_gantry(io.cc1.clone()).await;
     loop {
         sleep(Duration::from_secs(1)).await;
-        if gantry.get_status().await == control_components::components::clear_core_motor::Status::Ready {
+        if gantry.get_status().await
+            == control_components::components::clear_core_motor::Status::Ready
+        {
             break;
         }
     }

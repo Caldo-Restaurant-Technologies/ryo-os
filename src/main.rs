@@ -1,10 +1,14 @@
 use crate::app_integration::RyoFirebaseClient;
 use crate::bag_handler::BagHandler;
 use crate::config::*;
-use crate::manual_control::enable_and_clear_all;
-use crate::ryo::RyoRunState::Ready;
-use crate::ryo::{drop_bag, dump_from_hatch, make_and_close_hatch, make_bag_handler, make_bag_load_task, make_bag_sensor, make_default_dispense_tasks, make_default_weighed_dispense_tasks, make_gantry, make_hatch, make_sealer, make_trap_door, pull_after_flight, release_bag_from_sealer, BagFilledState, BagLoadedState, NodeState, RyoFailure, RyoIo, RyoRunState, RyoState, make_dispense_tasks, pull_before_flight};
-use control_components::components::clear_core_io::HBridgeState;
+use crate::hmi::ui_server_with_fb;
+use crate::ryo::{
+    drop_bag, dump_from_hatch, make_bag_handler, make_bag_load_task,
+    make_bag_sensor,
+    make_dispense_tasks, make_gantry, make_sealer, pull_after_flight,
+    pull_before_flight, release_bag_from_sealer, BagFilledState, BagLoadedState, NodeState,
+    RyoFailure, RyoIo, RyoRunState, RyoState,
+};
 use control_components::components::clear_core_motor::Status;
 use control_components::components::scale::{Scale, ScaleCmd};
 use control_components::controllers::{clear_core, ek1100_io};
@@ -17,11 +21,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use std::{array, env};
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::{Sender};
 use tokio::sync::Mutex;
 use tokio::task::{spawn_blocking, JoinHandle, JoinSet};
 use tokio::time::sleep;
-use crate::hmi::ui_server_with_fb;
 
 pub mod config;
 
@@ -43,19 +46,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .nth(1)
         .expect("Is this running locally or on Ryo?");
 
-    let task = env::args()
-        .nth(2)
-        .expect("Do you want to run a cycle or hmi?");
-
-    let n_nodes = match env::args().nth(3) {
-        Some(n) => match n.as_str() {
-            "1" => 1,
-            "2" => 2,
-            "3" => 3,
-            _ => 4,
-        },
-        None => 4,
-    };
+    // let task = env::args()
+    //     .nth(2)
+    //     .expect("Do you want to run a cycle or hmi?");
 
     //TODO: Change so that interface can be defined as a compiler flag passed at compile time
     // Figure out a way to detect at launch
@@ -146,41 +139,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
     gantry.wait_for_move(Duration::from_secs(1)).await.unwrap();
 
-    match task.as_str() {
-        "hmi" => hmi(ryo_io).await,
-        "cycle" => {
-            info!("Starting cycle loop");
-            signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
-                .expect("Register hook");
-            let mut ryo_state = RyoState::new();
-            loop {
-                if shutdown.load(Ordering::Relaxed) {
-                    break;
-                }
-                ryo_state = app_state.lock().await.update_ryo_state(ryo_state);
-                ryo_state.check_failures();
-                
-                match ryo_state.get_run_state() {
-                    RyoRunState::NewJob => {
-                        info!("Starting cycle");
-                        ryo_state = pull_before_flight(ryo_io.clone()).await;
-                    }
-                    RyoRunState::Running => {
-                        ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
-                    }
-                    RyoRunState::UI => {
-                        hmi_with_fb(ryo_io.clone()).await;
-                    }
-                    // TODO: figure out how to differentiate these
-                    RyoRunState::Ready | RyoRunState::Faulted => (),
-                }
-            }
+    info!("Starting cycle loop");
+    signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
+        .expect("Register hook");
+    let mut ryo_state = RyoState::new();
+    loop {
+        if shutdown.load(Ordering::Relaxed) {
+            break;
         }
-        _ => {
-            error!("Must enter hmi or cycle");
-            return Ok(());
+        ryo_state = app_state.lock().await.update_ryo_state(ryo_state);
+        ryo_state.check_failures();
+
+        match ryo_state.get_run_state() {
+            RyoRunState::NewJob => {
+                info!("Starting cycle");
+                ryo_state = pull_before_flight(ryo_io.clone()).await;
+            }
+            RyoRunState::Running => {
+                ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
+            }
+            RyoRunState::UI => {
+                hmi_with_fb(ryo_io.clone()).await;
+            }
+            // TODO: figure out how to differentiate these
+            RyoRunState::Ready | RyoRunState::Faulted => (),
         }
     }
+
     let _ = app_handler.await;
     while (client_set.join_next().await).is_some() {}
     Ok(())
@@ -335,12 +320,12 @@ async fn hmi_with_fb(io: RyoIo) {
         .expect("Register hook");
     info!("HMI Ready");
 
-    hmi::ui_server_with_fb(
+    ui_server_with_fb(
         SocketAddr::from(([0, 0, 0, 0], 3000)),
         io.clone(),
         shutdown.clone(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     drop(io);
 }

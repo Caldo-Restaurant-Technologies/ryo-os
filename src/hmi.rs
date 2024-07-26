@@ -5,7 +5,7 @@ use crate::manual_control::{
     handle_hatches_req, handle_sealer_position_req, handle_sealer_req,
 };
 use crate::ryo::{make_bag_handler, make_bag_sensor, pull_before_flight, RyoIo, RyoState};
-use crate::{single_cycle};
+use crate::single_cycle;
 use bytes::{Buf, Bytes};
 use control_components::components::scale::ScaleCmd;
 use control_components::controllers::{clear_core, ek1100_io};
@@ -254,7 +254,7 @@ pub async fn ui_server_with_fb<T: ToSocketAddrs>(
     let listener = TcpListener::bind(addr).await?;
     info!("UI Loop");
     if shutdown.load(Ordering::Relaxed) {
-        return Ok(())
+        return Ok(());
     }
     let (stream, _) = listener.accept().await?;
     let io = TokioIo::new(stream);

@@ -57,7 +57,7 @@ enum SystemStatus {
     PreparingJob,
     RefillNodesSystem,
     UI,
-    Faulted
+    Faulted,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -85,9 +85,7 @@ impl Status {
             SystemStatus::PauseJob | SystemStatus::CancelJob => {
                 ryo_state.set_run_state(RyoRunState::Faulted);
             }
-            SystemStatus::UI => {
-                ryo_state.set_run_state(RyoRunState::UI)
-            }
+            SystemStatus::UI => ryo_state.set_run_state(RyoRunState::UI),
             SystemStatus::ReadyToStartJob | SystemStatus::RunningJob => (),
             _ => (),
         }
