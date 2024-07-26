@@ -423,6 +423,7 @@ pub fn make_dispense_tasks(
     io: RyoIo,
 ) -> (RyoState, Vec<JoinHandle<()>>) {
     let mut dispensers = Vec::with_capacity(4);
+    info!("IsSingleIngredient: {:?}", state.get_is_single_ingredient());
     match state.get_is_single_ingredient() {
         false => {
             for (id, subrecipe) in state.get_recipe().iter().enumerate() {
