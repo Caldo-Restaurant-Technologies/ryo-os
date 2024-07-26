@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{array, io};
 
-use crate::app_integration::Status;
+use crate::app_integration::{JobOrder, Status};
 use crate::bag_handler::BagHandler;
 use crate::config::{
     BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT,
@@ -85,6 +85,7 @@ pub struct RyoState {
     bag_filled: Option<BagFilledState>,
     failures: Vec<RyoFailure>,
     run_state: RyoRunState,
+    is_single_ingredient: bool,
     recipe: [Option<DispenseParameters>; 4],
 }
 impl Default for RyoState {
@@ -95,6 +96,7 @@ impl Default for RyoState {
             bag_filled: None,
             failures: Vec::new(),
             run_state: RyoRunState::Ready,
+            is_single_ingredient: false,
             recipe: [
                 Some(DEFAULT_DISPENSE_PARAMETERS),
                 None,
@@ -112,6 +114,7 @@ impl RyoState {
             bag_filled: None,
             failures: Vec::new(),
             run_state: RyoRunState::Ready,
+            is_single_ingredient: false,
             recipe: [
                 Some(DEFAULT_DISPENSE_PARAMETERS),
                 Some(DEFAULT_DISPENSE_PARAMETERS),
@@ -147,8 +150,18 @@ impl RyoState {
         self.recipe[id] = Some(recipe);
     }
 
-    pub fn set_recipe(&mut self, recipe: [Option<DispenseParameters>; 4]) {
-        self.recipe = recipe;
+    pub fn set_recipe(&mut self, job_order: &JobOrder) {
+        let ingredients = job_order.get_ingredients();
+        self.recipe = ingredients.map(|ingredient| {
+            match ingredient {
+                Some(ing) => Some(ing.get_parameters()),
+                None => None,
+            }
+        });
+    }
+    
+    pub fn set_is_single_ingredient(&mut self, is_single_ingredient: bool) {
+        self.is_single_ingredient = is_single_ingredient
     }
 
     pub fn get_run_state(&self) -> RyoRunState {
@@ -176,6 +189,10 @@ impl RyoState {
 
     pub fn get_recipe(&self) -> [Option<DispenseParameters>; 4] {
         self.recipe.clone()
+    }
+    
+    pub fn get_is_single_ingredient(&self) -> bool {
+        self.is_single_ingredient
     }
 
     pub fn log_failure(&mut self, failure: RyoFailure) {

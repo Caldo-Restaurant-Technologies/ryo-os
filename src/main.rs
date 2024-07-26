@@ -103,14 +103,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("Connecting to Firebase");
     let mut firebase = RyoFirebaseClient::new();
     let app_state = Arc::new(Mutex::new(app_integration::Status::default()));
+    let job_order = Arc::new(Mutex::new(app_integration::JobOrder::default()));
+    let system_mode = Arc::new(Mutex::new(app_integration::SystemMode::default()));
     let mut state;
     let shutdown = Arc::new(AtomicBool::new(false));
+    
     let app_state_for_fb = app_state.clone();
+    let job_order_for_fb = job_order.clone();
+    let system_mode_for_fb = system_mode.clone();
     let shutdown_app = shutdown.clone();
     let app_scales = ryo_io.scale_txs.clone();
     let app_handler = tokio::spawn(async move {
         firebase
-            .update(app_scales.as_slice(), app_state_for_fb, shutdown_app)
+            .update(app_scales.as_slice(), app_state_for_fb, job_order_for_fb, system_mode_for_fb, shutdown_app)
             .await;
     });
 
@@ -147,7 +152,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         if shutdown.load(Ordering::Relaxed) {
             break;
         }
-        ryo_state = app_state.lock().await.update_ryo_state(ryo_state);
+        ryo_state = app_state.lock().await.update_ryo_state(ryo_state, system_mode.clone(), job_order.clone()).await;
         ryo_state.check_failures();
 
         match ryo_state.get_run_state() {

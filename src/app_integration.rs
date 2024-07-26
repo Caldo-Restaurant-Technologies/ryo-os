@@ -6,8 +6,11 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use futures::future::err;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{oneshot, Mutex};
+use crate::recipe_handling::Ingredient;
+use crate::recipe_handling::Ingredient::Tortelloni;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -56,7 +59,7 @@ enum SystemStatus {
     StopSystem,
     PreparingJob,
     RefillNodesSystem,
-    UI,
+    // UI,
     Faulted,
 }
 
@@ -75,19 +78,26 @@ pub struct Status {
 }
 
 impl Status {
-    pub fn update_ryo_state(&mut self, mut ryo_state: RyoState) -> RyoState {
+    pub async fn update_ryo_state(&mut self, mut ryo_state: RyoState, mode: Arc<Mutex<SystemMode>>, job_order: Arc<Mutex<JobOrder>>) -> RyoState {
+        let order = &*job_order.lock().await;
+        ryo_state.set_recipe(order);
+        ryo_state.set_is_single_ingredient(order.is_single_ingredient);
         // TODO: figure out how to handle the rest of these
-        match self.system_status {
-            SystemStatus::RunJob => {
-                ryo_state.set_run_state(RyoRunState::NewJob);
-                self.system_status = SystemStatus::RunningJob;
+        match &*mode.lock().await {
+            SystemMode::UI => ryo_state.set_run_state(RyoRunState::UI),
+            SystemMode::Cycle => {
+                match self.system_status {
+                    SystemStatus::RunJob => {
+                        ryo_state.set_run_state(RyoRunState::NewJob);
+                        self.system_status = SystemStatus::RunningJob;
+                    }
+                    SystemStatus::PauseJob | SystemStatus::CancelJob => {
+                        ryo_state.set_run_state(RyoRunState::Faulted);
+                    }
+                    SystemStatus::ReadyToStartJob | SystemStatus::RunningJob => (),
+                    _ => (),
+                }
             }
-            SystemStatus::PauseJob | SystemStatus::CancelJob => {
-                ryo_state.set_run_state(RyoRunState::Faulted);
-            }
-            SystemStatus::UI => ryo_state.set_run_state(RyoRunState::UI),
-            SystemStatus::ReadyToStartJob | SystemStatus::RunningJob => (),
-            _ => (),
         }
         ryo_state
     }
@@ -99,6 +109,56 @@ impl Default for Status {
             front_door_status: "open".to_string(),
             system_status: SystemStatus::StopSystem,
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum SystemMode {
+    UI,
+    Cycle,
+} impl Default for SystemMode {
+    fn default() -> Self {
+        SystemMode::UI
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct JobOrder {
+    is_single_ingredient: bool,
+    node_a_ingredient: Option<Ingredient>,
+    node_b_ingredient: Option<Ingredient>,
+    node_c_ingredient: Option<Ingredient>,
+    node_d_ingredient: Option<Ingredient>,
+} impl Default for JobOrder {
+    fn default() -> Self {
+        Self {
+            is_single_ingredient: false,
+            node_a_ingredient: Some(Tortelloni),
+            node_b_ingredient: None,
+            node_c_ingredient: None,
+            node_d_ingredient: None,
+        }
+    }
+} impl JobOrder {
+    pub fn from_recipe(is_single_ingredient: bool, recipe: [Option<Ingredient>; 4]) -> Self {
+        Self {
+            is_single_ingredient,
+            node_a_ingredient: recipe[0].clone(),
+            node_b_ingredient: recipe[1].clone(),
+            node_c_ingredient: recipe[2].clone(),
+            node_d_ingredient: recipe[3].clone(),
+        }
+    }
+    
+    pub fn get_ingredients(&self) -> [Option<Ingredient>; 4] {
+        [
+            self.node_a_ingredient.clone(), 
+            self.node_b_ingredient.clone(), 
+            self.node_c_ingredient.clone(), 
+            self.node_d_ingredient.clone()
+        ]
     }
 }
 
@@ -181,11 +241,19 @@ impl RyoFirebaseClient {
             error!("{e}")
         }
     }
+    
+    pub async fn set_job_order(&self, job_order: JobOrder) {
+        if let Err(e) = self.firebase.at("JobOrder").update(&job_order).await {
+            error!("{e}");
+        }
+    }
 
     pub async fn update(
         &mut self,
         scale_senders: &[Sender<ScaleCmd>],
         state: Arc<Mutex<Status>>,
+        job_order: Arc<Mutex<JobOrder>>,
+        system_mode: Arc<Mutex<SystemMode>>,
         shutdown: Arc<AtomicBool>,
     ) {
         loop {
@@ -203,13 +271,28 @@ impl RyoFirebaseClient {
                 weights.push(weight);
             }
             self.set_weight_readings(weights.as_slice()).await;
+            
+            if let Ok(order) = self.firebase.at("JobOrder").get::<JobOrder>().await {
+                let mut job_order = job_order.lock().await;
+                *job_order = order;
+            } else {
+                error!("Failed to get Job Order from Firebase");
+            }
+            
+            if let Ok(mode) = self.firebase.at("SystemMode").get::<SystemMode>().await {
+                let mut system_mode = system_mode.lock().await;
+                *system_mode = mode;
+            } else {
+                error!("Failed to get System Mode from Firebase");
+            }
+            
             if let Ok(status) = self.firebase.at("Status").get::<Status>().await {
                 let mut state = state.lock().await;
                 *state = status;
             } else {
                 error!("Failed to get status from firebase");
             }
-            tokio::time::sleep(Duration::from_millis(250)).await;
+            tokio::time::sleep(Duration::from_millis(1000)).await;
         }
     }
 }
