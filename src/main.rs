@@ -25,6 +25,7 @@ use tokio::sync::mpsc::{Sender};
 use tokio::sync::Mutex;
 use tokio::task::{spawn_blocking, JoinHandle, JoinSet};
 use tokio::time::sleep;
+use crate::ryo::RyoRunState::Faulted;
 
 pub mod config;
 
@@ -154,6 +155,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
         ryo_state = app_state.lock().await.update_ryo_state(ryo_state, system_mode.clone(), job_order.clone()).await;
         ryo_state.check_failures();
+        
+        
 
         match ryo_state.get_run_state() {
             RyoRunState::NewJob => {
@@ -249,6 +252,11 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
                         }
                     }
                     NodeState::Ready => (),
+                    NodeState::Empty => {
+                        error!("Node {:?} is empty", node);
+                        state.set_run_state(Faulted);
+                        return state;
+                    }
                 }
             }
         }

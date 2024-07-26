@@ -10,17 +10,7 @@ use std::{array, io};
 
 use crate::app_integration::{JobOrder, Status};
 use crate::bag_handler::BagHandler;
-use crate::config::{
-    BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT,
-    DEFAULT_DISPENSE_PARAMETERS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION,
-    GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS,
-    GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS,
-    HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME,
-    HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID,
-    SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER,
-    SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID,
-    SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID,
-};
+use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT, DEFAULT_DISPENSE_PARAMETERS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, NODE_LOW_THRESHOLDS};
 use crate::manual_control::enable_and_clear_all;
 use crate::recipe_handling::Ingredient;
 use control_components::subsystems::bag_handling::{BagDispenser, BagSensor};
@@ -57,6 +47,7 @@ pub enum BagLoadedState {
 pub enum NodeState {
     Ready,
     Dispensed,
+    Empty,
 }
 
 #[derive(Debug, Clone)]
@@ -123,6 +114,21 @@ impl RyoState {
             ],
         }
     }
+    
+    pub async fn update_node_levels(&mut self, ryo_io: RyoIo) {
+        let mut weights = Vec::with_capacity(4);
+        for scale_tx in ryo_io.scale_txs {
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            scale_tx.send(ScaleCmd(tx)).await.expect("Failed to send ScaleCmd");
+            let weight = rx.await.expect("Failed to unwrap weight");
+            weights.push(weight);
+        }
+        for (id, weight) in weights.iter().enumerate() {
+            if *weight <= NODE_LOW_THRESHOLDS[id] {
+                self.nodes[id] = NodeState::Empty;
+            }
+        }
+    }
 
     pub fn set_run_state(&mut self, state: RyoRunState) {
         self.run_state = state;
@@ -159,7 +165,7 @@ impl RyoState {
             }
         });
     }
-    
+
     pub fn set_is_single_ingredient(&mut self, is_single_ingredient: bool) {
         self.is_single_ingredient = is_single_ingredient
     }
@@ -190,15 +196,18 @@ impl RyoState {
     pub fn get_recipe(&self) -> [Option<DispenseParameters>; 4] {
         self.recipe.clone()
     }
-    
+
     pub fn get_is_single_ingredient(&self) -> bool {
         self.is_single_ingredient
     }
-    
+
     pub fn get_first_available_ingredient_id(&self) -> Option<usize> {
         for (id, ingredient) in self.recipe.iter().enumerate() {
             if ingredient.is_some() {
-                return Some(id)
+                match self.get_node_state(id) {
+                    NodeState::Ready | NodeState::Dispensed => return Some(id),
+                    NodeState::Empty => ()
+                }
             }
         }
         None
@@ -430,6 +439,10 @@ pub fn make_dispense_tasks(
                                 io.scale_txs[id].clone(),
                             ))
                         }
+                        NodeState::Empty => {
+                            error!("Node {:?} is empty", id);
+                            return Vec::new()
+                        }
                     }
                 }
             }
@@ -451,6 +464,8 @@ pub fn make_dispense_tasks(
                                 io.scale_txs[id].clone(),
                             ))
                         }
+                        NodeState::Empty => (),
+                        // TODO: this shouldn't ever be encountered?
                     }
                 }
                 None => {
@@ -460,7 +475,7 @@ pub fn make_dispense_tasks(
             }
         }
     }
-    
+
     dispensers
         .into_iter()
         .map(|dispenser| tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await }))
@@ -649,3 +664,4 @@ pub async fn set_motor_accelerations(io: RyoIo, acceleration: f64) {
     join_all(enable_clear_cc2_handles).await;
     info!("Cleared Alerts and Enabled All Motors");
 }
+

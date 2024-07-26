@@ -82,7 +82,7 @@ impl Status {
         let order = &*job_order.lock().await;
         ryo_state.set_recipe(order);
         ryo_state.set_is_single_ingredient(order.is_single_ingredient);
-        // TODO: figure out how to handle the rest of these
+        
         match &*mode.lock().await {
             SystemMode::UI => ryo_state.set_run_state(RyoRunState::UI),
             SystemMode::Cycle => {

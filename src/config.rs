@@ -153,6 +153,18 @@ pub const NODE_COEFFICIENTS: [[f64; 4]; 4] = [
     NODE_C_COEFFICIENTS,
     NODE_D_COEFFICIENTS,
 ];
+
+pub const NODE_A_LOW_THRESHOLD: f64 = 8300.;
+pub const NODE_B_LOW_THRESHOLD: f64 = 7600.;
+pub const NODE_C_LOW_THRESHOLD: f64 = 7000.;
+pub const NODE_D_LOW_THRESHOLD: f64 = 7600.;
+pub const NODE_LOW_THRESHOLDS: [f64; 4] = [
+    NODE_A_LOW_THRESHOLD,
+    NODE_B_LOW_THRESHOLD,
+    NODE_C_LOW_THRESHOLD,
+    NODE_D_LOW_THRESHOLD
+];
+
 pub const DEFAULT_DISPENSER_TIMEOUT: Duration = Duration::from_secs(60);
 
 pub const GRIPPER_POSITIONS: [f64; 3] = [-0.4, 0.8, 0.4];
