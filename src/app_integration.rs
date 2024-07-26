@@ -113,7 +113,7 @@ impl Default for Status {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
+// #[serde(rename_all = "camelCase")]
 pub enum SystemMode {
     UI,
     Cycle,
