@@ -114,7 +114,7 @@ impl RyoState {
             ],
         }
     }
-    
+
     pub async fn update_node_levels(&mut self, ryo_io: RyoIo) {
         let mut weights = Vec::with_capacity(4);
         for scale_tx in ryo_io.scale_txs {
@@ -424,7 +424,9 @@ pub fn make_dispense_tasks(
 ) -> (RyoState, Vec<JoinHandle<()>>) {
     let mut dispensers = Vec::with_capacity(4);
     info!("IsSingleIngredient: {:?}", state.get_is_single_ingredient());
-    match state.get_is_single_ingredient() {
+    // match state.get_is_single_ingredient() {
+    // TODO: just hardcoding to single ingredient for now :(
+    match true {
         false => {
             for (id, subrecipe) in state.get_recipe().iter().enumerate() {
                 if let Some(sub) = subrecipe {
