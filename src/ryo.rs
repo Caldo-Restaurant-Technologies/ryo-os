@@ -105,7 +105,7 @@ impl RyoState {
             bag_filled: None,
             failures: Vec::new(),
             run_state: RyoRunState::Ready,
-            is_single_ingredient: false,
+            is_single_ingredient: true,
             recipe: [
                 Some(DEFAULT_DISPENSE_PARAMETERS),
                 Some(DEFAULT_DISPENSE_PARAMETERS),

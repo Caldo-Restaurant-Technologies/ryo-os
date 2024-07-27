@@ -105,7 +105,7 @@ impl Status {
                 }
             }
         }
-        
+
         ryo_state
     }
 }
@@ -126,7 +126,7 @@ pub enum SystemMode {
     Cycle,
 } impl Default for SystemMode {
     fn default() -> Self {
-        SystemMode::UI
+        SystemMode::Cycle
     }
 }
 
