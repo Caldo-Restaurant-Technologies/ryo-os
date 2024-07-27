@@ -84,7 +84,7 @@ impl Status {
             _ => {
                 let order = &*job_order.lock().await;
                 ryo_state.set_recipe(order);
-                ryo_state.set_is_single_ingredient(order.is_single_ingredient);
+                // ryo_state.set_is_single_ingredient(order.is_single_ingredient);
                 ryo_state.update_node_levels(io).await;
 
                 match &*mode.lock().await {
