@@ -135,11 +135,11 @@ pub struct JobOrder {
 } impl Default for JobOrder {
     fn default() -> Self {
         Self {
-            is_single_ingredient: false,
+            is_single_ingredient: true,
             node_a_ingredient: Some(Tortelloni),
-            node_b_ingredient: None,
-            node_c_ingredient: None,
-            node_d_ingredient: None,
+            node_b_ingredient: Some(Tortelloni),
+            node_c_ingredient: Some(Tortelloni),
+            node_d_ingredient: Some(Tortelloni),
         }
     }
 } impl JobOrder {
