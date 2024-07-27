@@ -79,27 +79,33 @@ pub struct Status {
 
 impl Status {
     pub async fn update_ryo_state(&mut self, mut ryo_state: RyoState, mode: Arc<Mutex<SystemMode>>, job_order: Arc<Mutex<JobOrder>>, io: RyoIo) -> RyoState {
-        let order = &*job_order.lock().await;
-        ryo_state.set_recipe(order);
-        ryo_state.set_is_single_ingredient(order.is_single_ingredient);
-        ryo_state.update_node_levels(io).await;
+        match ryo_state.get_run_state() {
+            RyoRunState::Running => (),
+            _ => {
+                let order = &*job_order.lock().await;
+                ryo_state.set_recipe(order);
+                ryo_state.set_is_single_ingredient(order.is_single_ingredient);
+                ryo_state.update_node_levels(io).await;
 
-        match &*mode.lock().await {
-            SystemMode::UI => ryo_state.set_run_state(RyoRunState::UI),
-            SystemMode::Cycle => {
-                match self.system_status {
-                    SystemStatus::RunJob => {
-                        ryo_state.set_run_state(RyoRunState::NewJob);
-                        self.system_status = SystemStatus::RunningJob;
+                match &*mode.lock().await {
+                    SystemMode::UI => ryo_state.set_run_state(RyoRunState::UI),
+                    SystemMode::Cycle => {
+                        match self.system_status {
+                            SystemStatus::RunJob => {
+                                ryo_state.set_run_state(RyoRunState::NewJob);
+                                self.system_status = SystemStatus::RunningJob;
+                            }
+                            SystemStatus::PauseJob | SystemStatus::CancelJob => {
+                                ryo_state.set_run_state(RyoRunState::Faulted);
+                            }
+                            SystemStatus::ReadyToStartJob | SystemStatus::RunningJob => (),
+                            _ => (),
+                        }
                     }
-                    SystemStatus::PauseJob | SystemStatus::CancelJob => {
-                        ryo_state.set_run_state(RyoRunState::Faulted);
-                    }
-                    SystemStatus::ReadyToStartJob | SystemStatus::RunningJob => (),
-                    _ => (),
                 }
             }
         }
+        
         ryo_state
     }
 }
