@@ -108,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let system_mode = Arc::new(Mutex::new(app_integration::SystemMode::default()));
     let mut state;
     let shutdown = Arc::new(AtomicBool::new(false));
-    
+
     let app_state_for_fb = app_state.clone();
     let job_order_for_fb = job_order.clone();
     let system_mode_for_fb = system_mode.clone();
@@ -155,8 +155,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
         // ryo_state = app_state.lock().await.update_ryo_state(ryo_state, system_mode.clone(), job_order.clone(), ryo_io.clone()).await;
         ryo_state.check_failures();
-        
-        
+
+
 
         match ryo_state.get_run_state() {
             RyoRunState::NewJob => {
@@ -198,7 +198,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         Some(BagFilledState::Filling) | Some(BagFilledState::Empty) | None => {
             info!("Bag not full, dispensing");
             (state, dispense_and_bag_tasks) = make_dispense_tasks(state.clone(), io.clone());
-            
+
         }
     }
 
@@ -304,7 +304,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
 //     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
 //         .expect("Register hook");
 //     info!("HMI Ready");
-// 
+//
 //     hmi::ui_server(
 //         SocketAddr::from(([0, 0, 0, 0], 3000)),
 //         io.clone(),

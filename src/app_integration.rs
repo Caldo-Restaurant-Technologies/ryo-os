@@ -126,7 +126,8 @@ pub enum SystemMode {
     Cycle,
 } impl Default for SystemMode {
     fn default() -> Self {
-        SystemMode::Cycle
+        // SystemMode::Cycle
+        SystemMode::UI
     }
 }
 

@@ -88,7 +88,7 @@ impl Default for RyoState {
             failures: Vec::new(),
             // run_state: RyoRunState::Ready,
             // TODO: put this on new job to start
-            run_state: RyoRunState::NewJob,
+            run_state: RyoRunState::UI,
             is_single_ingredient: true,
             recipe: [
                 Some(DEFAULT_DISPENSE_PARAMETERS),
