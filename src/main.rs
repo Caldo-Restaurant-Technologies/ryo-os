@@ -148,7 +148,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("Starting cycle loop");
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
         .expect("Register hook");
-    let mut ryo_state = RyoState::new();
+    let mut ryo_state = RyoState::default();
     loop {
         if shutdown.load(Ordering::Relaxed) {
             break;

@@ -87,12 +87,12 @@ impl Default for RyoState {
             bag_filled: None,
             failures: Vec::new(),
             run_state: RyoRunState::Ready,
-            is_single_ingredient: false,
+            is_single_ingredient: true,
             recipe: [
                 Some(DEFAULT_DISPENSE_PARAMETERS),
-                None,
-                None,
-                None,
+                Some(DEFAULT_DISPENSE_PARAMETERS),
+                Some(DEFAULT_DISPENSE_PARAMETERS),
+                Some(DEFAULT_DISPENSE_PARAMETERS),
             ]
         }
     }
@@ -474,6 +474,7 @@ pub fn make_dispense_tasks(
                 }
                 None => {
                     error!("No loaded nodes!");
+                    state.set_run_state(RyoRunState::Faulted);
                     return (state, Vec::new())
                 }
             }
