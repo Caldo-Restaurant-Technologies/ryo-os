@@ -148,7 +148,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("Starting cycle loop");
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
         .expect("Register hook");
-    let mut ryo_state = RyoState::default();
+    let mut ryo_state = RyoState::new();
     loop {
         if shutdown.load(Ordering::Relaxed) {
             break;
@@ -162,7 +162,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             RyoRunState::NewJob => {
                 info!("Starting cycle");
                 ryo_state = pull_before_flight(ryo_io.clone()).await;
-                ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
+                // ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
             }
             RyoRunState::Running => {
                 ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
@@ -184,7 +184,7 @@ pub enum CycleCmd {
     Cycle(usize),
     Pause,
     Cancel,
-}
+} 
 
 async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     state.update_node_levels(io.clone()).await;
