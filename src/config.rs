@@ -1,5 +1,5 @@
 use control_components::controllers::clear_core::MotorBuilder;
-use control_components::subsystems::dispenser::{DispenseParameters, Parameters, Setpoint};
+use control_components::subsystems::dispenser::{DispenseParameters, Parameters, Setpoint, WeightedDispense};
 use std::time::Duration;
 
 //E-Stop
@@ -172,7 +172,7 @@ pub const GRIPPER_POSITIONS: [f64; 3] = [-0.4, 0.8, 0.4];
 pub const DISPENSER_TIMEOUT: Duration = Duration::from_secs(120);
 
 pub const GANTRY_NODE_POSITIONS: [f64; 4] = [25., 47., 70., 92.5];
-pub const GANTRY_HOME_POSITION: f64 = 0.;
+pub const GANTRY_HOME_POSITION: f64 = -0.5;
 pub const GANTRY_BAG_DROP_POSITION: f64 = 83.;
 pub const GANTRY_ALL_POSITIONS: [f64; 6] = [
     GANTRY_HOME_POSITION,
@@ -192,10 +192,13 @@ pub const DEFAULT_DISPENSE_PARAMETERS: DispenseParameters = DispenseParameters {
         motor_speed: 0.3,
         sample_rate: 50.0,
         cutoff_frequency: 0.5,
-        check_offset: 15.0,
-        stop_offset: 7.0,
+        check_offset: 35.0,
+        stop_offset: 28.0,
         retract_before: None,
-        retract_after: Some(1.),
+        retract_after: None,
     },
-    setpoint: Setpoint::Timed(Duration::from_secs(10)),
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 93.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
 };
