@@ -169,7 +169,7 @@ pub const DEFAULT_DISPENSER_TIMEOUT: Duration = Duration::from_secs(60);
 
 pub const GRIPPER_POSITIONS: [f64; 3] = [-0.4, 0.8, 0.4];
 
-pub const DISPENSER_TIMEOUT: Duration = Duration::from_secs(120);
+pub const DISPENSER_TIMEOUT: Duration = Duration::from_secs(90);
 
 pub const GANTRY_NODE_POSITIONS: [f64; 4] = [25., 47., 70., 92.5];
 pub const GANTRY_HOME_POSITION: f64 = -0.5;
