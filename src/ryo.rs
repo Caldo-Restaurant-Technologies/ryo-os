@@ -573,6 +573,7 @@ pub async fn drop_bag(io: RyoIo) {
 
 pub async fn release_bag_from_sealer(io: RyoIo) {
     let mut trap_door = make_trap_door(io.clone());
+    trap_door.actuate(HBridgeState::Off).await;
     trap_door.actuate(HBridgeState::Neg).await;
     sleep(SEALER_MOVE_DOOR_TIME).await;
     trap_door.actuate(HBridgeState::Off).await;

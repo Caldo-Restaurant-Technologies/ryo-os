@@ -290,6 +290,8 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             return state;
         }
     }
+    
+    let _ = make_gantry(io.cc1.clone()).await.absolute_move(GANTRY_HOME_POSITION).await;
 
     let io_clone = io.clone();
     tokio::spawn(async move {
@@ -299,7 +301,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         release_bag_from_sealer(io_clone.clone()).await;
     });
 
-    pull_after_flight(io).await;
+    // pull_after_flight(io).await;
 
     state.clear_failures();
     // TODO: prob put it back in ready and up a counter of cycles run? will work on with firebase integration
