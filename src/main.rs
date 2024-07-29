@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .expect("Do you want to run a cycle or hmi?");
     
     let run_state = match task.as_str() {
-        "cycle" => RyoRunState::NewJob,
+        "cycle" => RyoRunState::Ready,
         "hmi" => RyoRunState::UI,
         _ => RyoRunState::NewJob,
     };
