@@ -103,7 +103,7 @@ impl RyoState {
             bag: BagState::Bagless,
             nodes: array::from_fn(|_| NodeState::Ready),
             failures: Vec::new(),
-            run_state: RyoRunState::NewJob,
+            run_state: RyoRunState::Ready,
             is_single_ingredient: true,
             recipe: [
                 Some(DEFAULT_DISPENSE_PARAMETERS),
