@@ -6,7 +6,7 @@ use crate::ryo::{
     drop_bag, dump_from_hatch, make_bag_handler, make_bag_load_task,
     make_bag_sensor,
     make_dispense_tasks, make_gantry, make_sealer, pull_after_flight,
-    pull_before_flight, release_bag_from_sealer, BagFilledState, BagLoadedState, NodeState,
+    pull_before_flight, release_bag_from_sealer, BagFilledState, BagState, NodeState,
     RyoFailure, RyoIo, RyoRunState, RyoState,
 };
 use control_components::components::clear_core_motor::Status;
@@ -198,19 +198,18 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     info!("Ryo State: {:?}", state);
 
     let mut dispense_and_bag_tasks = Vec::new();
-    match state.get_bag_filled_state() {
-        Some(BagFilledState::Filled) => {
-            info!("Bag already filled");
+    match state.get_bag_state() {
+        BagState::Bagful(BagFilledState::Filled) => {
+            info!("Bag already filled")
         }
-        Some(BagFilledState::Filling) | Some(BagFilledState::Empty) | None => {
+        BagState::Bagful(BagFilledState::Filling) | BagState::Bagful(BagFilledState::Empty) | BagState::Bagless => {
             info!("Bag not full, dispensing");
             (state, dispense_and_bag_tasks) = make_dispense_tasks(state.clone(), io.clone());
-
         }
     }
 
-    match state.get_bag_loaded_state() {
-        BagLoadedState::Bagless => {
+    match state.get_bag_state() {
+        BagState::Bagless => {
             info!("Getting bag");
             make_bag_handler(io.clone()).dispense_bag().await;
             let gantry = make_gantry(io.cc1.clone()).await;
@@ -218,10 +217,9 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
             dispense_and_bag_tasks.push(make_bag_load_task(io.clone()));
             // TODO: maybe have above return results so we know whether to update states?
-            state.set_bag_loaded_state(BagLoadedState::Bagful);
-            state.set_bag_filled_state(Some(BagFilledState::Filling));
+            state.set_bag_state(BagState::Bagful(BagFilledState::Filling));
         }
-        BagLoadedState::Bagful => {
+        BagState::Bagful(_) => {
             info!("Bag already loaded");
         }
     }
@@ -229,10 +227,10 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     let _ = join_all(dispense_and_bag_tasks).await;
     
 
-    match state.get_bag_filled_state() {
-        Some(BagFilledState::Empty) | Some(BagFilledState::Filling) => {
+    match state.get_bag_state() {
+        BagState::Bagful(BagFilledState::Empty) | BagState::Bagful(BagFilledState::Filling) => {
             info!("Bag not filled, dumping from hatches");
-            state.set_bag_filled_state(Some(BagFilledState::Filling));
+            state.set_bag_state(BagState::Bagful(BagFilledState::Filling));
             let bag_sensor = make_bag_sensor(io.clone());
             let gantry = make_gantry(io.cc1.clone()).await;
             for node in 0..NUMBER_OF_NODES {
@@ -245,10 +243,10 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
                                 info!("Dispensing from Node {:?}", node);
                                 dump_from_hatch(node, io.clone()).await;
                                 state.set_node_state(node, NodeState::Ready);
-                                state.set_bag_filled_state(Some(BagFilledState::Filled));
+                                state.set_bag_state(BagState::Bagful(BagFilledState::Filled));
                             }
                             BagSensorState::Bagless => {
-                                state.set_bag_loaded_state(BagLoadedState::Bagless);
+                                state.set_bag_state(BagState::Bagless);
                                 error!("Lost bag");
                                 state.log_failure(RyoFailure::BagDispenseFailure);
                                 return state;
@@ -265,11 +263,11 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
                 }
             }
         }
-        Some(BagFilledState::Filled) => {
+        BagState::Bagful(BagFilledState::Filled) => {
             info!("Bag already filled");
         }
-        None => {
-            warn!("Bag not filled, retrying");
+        BagState::Bagless => {
+            warn!("No bag, retrying");
             return state;
         }
     }
@@ -284,8 +282,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
 
     match make_bag_sensor(io.clone()).check().await {
         BagSensorState::Bagless => {
-            state.set_bag_loaded_state(BagLoadedState::Bagless);
-            state.set_bag_filled_state(None);
+            state.set_bag_state(BagState::Bagless);
         }
         BagSensorState::Bagful => {
             error!("Failed to drop bag");
