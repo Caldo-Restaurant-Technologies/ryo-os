@@ -80,7 +80,7 @@ pub struct Status {
 impl Status {
     pub async fn update_ryo_state(&mut self, mut ryo_state: RyoState) -> RyoState {
         match self.system_status {
-            SystemStatus::RunJob => {
+            SystemStatus::RunJob | SystemStatus::RunningJob => {
                 ryo_state.set_run_state(RyoRunState::NewJob)
             }
             _ => (),
