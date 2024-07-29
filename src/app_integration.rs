@@ -83,6 +83,10 @@ impl Status {
             SystemStatus::RunJob | SystemStatus::RunningJob => {
                 ryo_state.set_run_state(RyoRunState::NewJob)
             }
+            SystemStatus::ResumeJob => {
+                ryo_state.set_run_state(RyoRunState::Running);
+                ryo_state.clear_failures();
+            }
             _ => (),
         }
 
