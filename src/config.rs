@@ -184,7 +184,7 @@ pub const GANTRY_ALL_POSITIONS: [f64; 6] = [
 ];
 pub const GANTRY_SAMPLE_INTERVAL: Duration = Duration::from_millis(250);
 pub const GANTRY_ACCELERATION: f64 = 80.;
-pub const GANTRY_VELOCITY: f64 = 7.;
+pub const GANTRY_VELOCITY: f64 = 6.;
 pub const ETHERCAT_NUMBER_OF_SLOTS: u8 = 3;
 
 pub const DEFAULT_DISPENSE_PARAMETERS: DispenseParameters = DispenseParameters {
