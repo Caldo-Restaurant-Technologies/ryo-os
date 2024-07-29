@@ -227,12 +227,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     }
 
     let _ = join_all(dispense_and_bag_tasks).await;
-
-    let io_clone = io.clone();
-    tokio::spawn(async move {
-        BagHandler::new(io_clone).dispense_bag().await;
-        info!("New bag dispensed");
-    });
+    
 
     match state.get_bag_filled_state() {
         Some(BagFilledState::Empty) | Some(BagFilledState::Filling) => {
@@ -262,9 +257,10 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
                     }
                     NodeState::Ready => (),
                     NodeState::Empty => {
-                        error!("Node {:?} is empty", node);
-                        state.set_run_state(Faulted);
-                        return state;
+                        // TODO: hmmm figure out how to reimplement this but with single node dispensing (or not needed?)
+                        // error!("Node {:?} is empty", node);
+                        // state.set_run_state(Faulted);
+                        // return state;
                     }
                 }
             }
@@ -277,6 +273,12 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             return state;
         }
     }
+
+    let io_clone = io.clone();
+    tokio::spawn(async move {
+        BagHandler::new(io_clone).dispense_bag().await;
+        info!("New bag dispensed");
+    });
 
     drop_bag(io.clone()).await;
 
