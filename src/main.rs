@@ -210,7 +210,6 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
             gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
             dispense_and_bag_tasks.push(make_bag_load_task(io.clone()));
-            let _ = join_all(dispense_and_bag_tasks).await;
             // TODO: maybe have above return results so we know whether to update states?
             state.set_bag_loaded_state(BagLoadedState::Bagful);
             state.set_bag_filled_state(Some(BagFilledState::Filling));
@@ -219,6 +218,8 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             info!("Bag already loaded");
         }
     }
+
+    let _ = join_all(dispense_and_bag_tasks).await;
 
     let io_clone = io.clone();
     tokio::spawn(async move {
