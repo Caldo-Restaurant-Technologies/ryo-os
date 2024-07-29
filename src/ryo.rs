@@ -448,6 +448,7 @@ pub fn make_dispense_tasks(
                         }
                         NodeState::Empty => {
                             error!("Node {:?} is empty", id);
+                            state.set_run_state(RyoRunState::Faulted);
                             return (state, Vec::new())
                         }
                     }
@@ -472,7 +473,10 @@ pub fn make_dispense_tasks(
                             ));
                             state.set_node_state(id, NodeState::Dispensed);
                         }
-                        NodeState::Empty => (),
+                        NodeState::Empty => {
+                            state.set_run_state(RyoRunState::Faulted);
+                            return (state, Vec::new())
+                        }
                         // TODO: this shouldn't ever be encountered?
                     }
                 }
@@ -571,7 +575,10 @@ pub async fn drop_bag(io: RyoIo) {
     let mut bag_handler = make_bag_handler(io);
     bag_handler.open_gripper().await;
     let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[2]).await;
-    bag_handler.close_gripper().await;
+    // bag_handler.close_gripper().await;
+    tokio::spawn(async move {
+        bag_handler.close_gripper().await;
+    });
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
 }
 
