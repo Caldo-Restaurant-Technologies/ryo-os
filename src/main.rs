@@ -47,9 +47,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .nth(1)
         .expect("Is this running locally or on Ryo?");
 
-    // let task = env::args()
-    //     .nth(2)
-    //     .expect("Do you want to run a cycle or hmi?");
+    let task = env::args()
+        .nth(2)
+        .expect("Do you want to run a cycle or hmi?");
+    
+    let run_state = match task.as_str() {
+        "cycle" => RyoRunState::NewJob,
+        "hmi" => RyoRunState::UI,
+        _ => RyoRunState::NewJob,
+    };
 
     //TODO: Change so that interface can be defined as a compiler flag passed at compile time
     // Figure out a way to detect at launch
@@ -149,6 +155,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
         .expect("Register hook");
     let mut ryo_state = RyoState::new();
+    ryo_state.set_run_state(run_state);
     loop {
         if shutdown.load(Ordering::Relaxed) {
             break;
