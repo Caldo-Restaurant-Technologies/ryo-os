@@ -624,11 +624,12 @@ pub async fn pull_before_flight(io: RyoIo) -> RyoState {
 
     for id in 0..NUMBER_OF_NODES {
         let io_clone = io.clone();
-        info!("Closing Hatch {:?}", id);
-        // make_and_close_hatch(id, io_clone).await;
         set.spawn(async move {
             info!("Closing Hatch {:?}", id);
-            make_and_close_hatch(id, io_clone).await;
+            let mut hatch = make_hatch(id, io_clone);
+            if hatch.get_position().await < HATCHES_CLOSE_SET_POINTS[id] {
+                hatch.close(HATCHES_CLOSE_SET_POINTS[id]).await;
+            }
         });
     }
 
