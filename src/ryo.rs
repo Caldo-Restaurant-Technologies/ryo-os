@@ -106,7 +106,7 @@ impl RyoState {
             nodes: array::from_fn(|_| NodeState::Ready),
             bag_filled: None,
             failures: Vec::new(),
-            run_state: RyoRunState::Ready,
+            run_state: RyoRunState::NewJob,
             is_single_ingredient: true,
             recipe: [
                 Some(DEFAULT_DISPENSE_PARAMETERS),
