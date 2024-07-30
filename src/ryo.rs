@@ -10,7 +10,7 @@ use std::{array, io};
 
 use crate::app_integration::{JobOrder, Status};
 use crate::bag_handler::BagHandler;
-use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT, DEFAULT_DISPENSE_PARAMETERS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, NODE_LOW_THRESHOLDS, NUMBER_OF_NODES, SEALER_MOVE_TIME};
+use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT, DEFAULT_DISPENSE_PARAMETERS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, NODE_LOW_THRESHOLDS, NUMBER_OF_NODES, SEALER_MOVE_TIME, PESTO_CAVATAPPI_RECIPE};
 use crate::manual_control::enable_and_clear_all;
 use crate::recipe_handling::Ingredient;
 use control_components::subsystems::bag_handling::{BagDispenser, BagSensor};
@@ -113,6 +113,16 @@ impl RyoState {
                 Some(DEFAULT_DISPENSE_PARAMETERS),
                 Some(DEFAULT_DISPENSE_PARAMETERS),
             ],
+        }
+    }
+    pub fn new_with_recipe(recipe: [Option<DispenseParameters>; 4]) -> Self {
+        Self {
+            bag: BagState::Bagless,
+            nodes: array::from_fn(|_| NodeState::Ready),
+            failures: Vec::new(),
+            run_state: RyoRunState::Ready,
+            is_single_ingredient: false,
+            recipe,
         }
     }
 
@@ -424,9 +434,9 @@ pub fn make_dispense_tasks(
 ) -> (RyoState, Vec<JoinHandle<()>>) {
     let mut dispensers = Vec::with_capacity(4);
     info!("IsSingleIngredient: {:?}", state.get_is_single_ingredient());
-    // match state.get_is_single_ingredient() {
+    match state.get_is_single_ingredient() {
     // TODO: just hardcoding to single ingredient for now :(
-    match true {
+    // match true {
         false => {
             for (id, subrecipe) in state.get_recipe().iter().enumerate() {
                 if let Some(sub) = subrecipe {
@@ -649,7 +659,8 @@ pub async fn pull_before_flight(io: RyoIo) -> RyoState {
     drop(io);
     info!("All systems go.");
     while (set.join_next().await).is_some() {}
-    let mut state = RyoState::new();
+    // let mut state = RyoState::new();
+    let mut state = RyoState::new_with_recipe(PESTO_CAVATAPPI_RECIPE);
     state.set_run_state(RyoRunState::Running);
     state
 }

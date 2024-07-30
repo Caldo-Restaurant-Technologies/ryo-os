@@ -204,3 +204,71 @@ pub const DEFAULT_DISPENSE_PARAMETERS: DispenseParameters = DispenseParameters {
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
+
+pub const PESTO_CAVATAPPI_RECIPE: [Option<DispenseParameters>; 4] = [
+    Some(BROCCOLI_PARAMETERS),
+    Some(CAVATAPPI_PARAMETERS),
+    Some(TOMATO_PARAMETERS),
+    Some(MUSHROOM_PARAMETERS),
+];
+
+pub const BROCCOLI_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.7,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 35.,
+        stop_offset: 30.,
+        retract_before: None,
+        retract_after: None,
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 125.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const CAVATAPPI_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.5,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 15.,
+        stop_offset: 7.,
+        retract_before: None,
+        retract_after: None,
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 225.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const TOMATO_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.2,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 10.,
+        stop_offset: 4.,
+        retract_before: None,
+        retract_after: None,
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 35.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const MUSHROOM_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.5,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 25.,
+        stop_offset: 21.,
+        retract_before: None,
+        retract_after: None,
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 85.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
