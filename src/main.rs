@@ -2,7 +2,13 @@ use crate::app_integration::RyoFirebaseClient;
 use crate::bag_handler::BagHandler;
 use crate::config::*;
 use crate::hmi::ui_server_with_fb;
-use crate::ryo::{dump_from_hatch, make_bag_handler, make_bag_load_task, make_bag_sensor, make_dispense_tasks, make_gantry, make_sealer, pull_after_flight, pull_before_flight, release_bag_from_sealer, BagFilledState, BagState, NodeState, RyoFailure, RyoIo, RyoRunState, RyoState, drop_bag_sequence};
+use crate::ryo::RyoRunState::Faulted;
+use crate::ryo::{
+    drop_bag_sequence, dump_from_hatch, make_bag_handler, make_bag_load_task, make_bag_sensor,
+    make_dispense_tasks, make_gantry, make_sealer, pull_after_flight, pull_before_flight,
+    release_bag_from_sealer, BagFilledState, BagState, NodeState, RyoFailure, RyoIo, RyoRunState,
+    RyoState,
+};
 use control_components::components::clear_core_motor::Status;
 use control_components::components::scale::{Scale, ScaleCmd};
 use control_components::controllers::{clear_core, ek1100_io};
@@ -15,11 +21,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use std::{array, env};
-use tokio::sync::mpsc::{Sender};
+use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tokio::task::{spawn_blocking, JoinHandle, JoinSet};
 use tokio::time::sleep;
-use crate::ryo::RyoRunState::Faulted;
 
 pub mod config;
 
@@ -177,15 +182,15 @@ pub enum CycleCmd {
     Cycle(usize),
     Pause,
     Cancel,
-} 
+}
 
 async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     state.update_node_levels(io.clone()).await;
     if let RyoRunState::Faulted = state.get_run_state() {
         error!("All nodes are empty");
-        return state
+        return state;
     }
-    
+
     info!("Ryo State: {:?}", state);
 
     let mut dispense_and_bag_tasks = Vec::new();
@@ -193,7 +198,9 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         BagState::Bagful(BagFilledState::Filled) => {
             info!("Bag already filled")
         }
-        BagState::Bagful(BagFilledState::Filling) | BagState::Bagful(BagFilledState::Empty) | BagState::Bagless => {
+        BagState::Bagful(BagFilledState::Filling)
+        | BagState::Bagful(BagFilledState::Empty)
+        | BagState::Bagless => {
             info!("Bag not full, dispensing");
             (state, dispense_and_bag_tasks) = make_dispense_tasks(state.clone(), io.clone());
         }
@@ -216,7 +223,6 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     }
 
     let _ = join_all(dispense_and_bag_tasks).await;
-
 
     match state.get_bag_state() {
         BagState::Bagful(BagFilledState::Empty) | BagState::Bagful(BagFilledState::Filling) => {
@@ -282,7 +288,10 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         }
     }
 
-    let _ = make_gantry(io.cc1.clone()).await.absolute_move(GANTRY_HOME_POSITION).await;
+    let _ = make_gantry(io.cc1.clone())
+        .await
+        .absolute_move(GANTRY_HOME_POSITION)
+        .await;
 
     let io_clone = io.clone();
     tokio::spawn(async move {

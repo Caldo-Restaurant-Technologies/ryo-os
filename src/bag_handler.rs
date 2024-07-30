@@ -1,8 +1,11 @@
 use control_components::components::clear_core_io::DigitalInput;
 use control_components::subsystems::bag_handling::{BagDispenser, BagGripper};
-use tokio::time::{Duration, interval};
+use tokio::time::{interval, Duration};
 
-use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, BLOWER_OUTPUT_ID, BLOWER_SLOT_ID, ETHERCAT_RACK_ID, GRIPPER_ACTUATOR, GRIPPER_DROP_DURATION, GRIPPER_MOTOR_ID};
+use crate::config::{
+    BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, BLOWER_OUTPUT_ID, BLOWER_SLOT_ID,
+    ETHERCAT_RACK_ID, GRIPPER_ACTUATOR, GRIPPER_DROP_DURATION, GRIPPER_MOTOR_ID,
+};
 use crate::ryo::RyoIo;
 use control_components::controllers::clear_core::Controller;
 use control_components::controllers::ek1100_io::IOCard;
@@ -45,7 +48,7 @@ impl BagHandler {
     pub async fn close_gripper(&mut self) {
         self.bag_gripper.close().await;
     }
-    
+
     pub async fn drop_bag(&mut self) {
         let mut interval = interval(Duration::from_millis(100));
         self.bag_gripper.timed_open(GRIPPER_DROP_DURATION).await;

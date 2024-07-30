@@ -1,5 +1,7 @@
 use control_components::controllers::clear_core::MotorBuilder;
-use control_components::subsystems::dispenser::{DispenseParameters, Parameters, Setpoint, WeightedDispense};
+use control_components::subsystems::dispenser::{
+    DispenseParameters, Parameters, Setpoint, WeightedDispense,
+};
 use std::time::Duration;
 
 //E-Stop
@@ -154,15 +156,15 @@ pub const NODE_COEFFICIENTS: [[f64; 4]; 4] = [
     NODE_D_COEFFICIENTS,
 ];
 
-pub const NODE_A_LOW_THRESHOLD: f64 = 8030.;
-pub const NODE_B_LOW_THRESHOLD: f64 = 7250.;
-pub const NODE_C_LOW_THRESHOLD: f64 = 6720.;
-pub const NODE_D_LOW_THRESHOLD: f64 = 7320.;
+pub const NODE_A_LOW_THRESHOLD: f64 = 5000.;
+pub const NODE_B_LOW_THRESHOLD: f64 = 5000.;
+pub const NODE_C_LOW_THRESHOLD: f64 = 4500.;
+pub const NODE_D_LOW_THRESHOLD: f64 = 5000.;
 pub const NODE_LOW_THRESHOLDS: [f64; 4] = [
     NODE_A_LOW_THRESHOLD,
     NODE_B_LOW_THRESHOLD,
     NODE_C_LOW_THRESHOLD,
-    NODE_D_LOW_THRESHOLD
+    NODE_D_LOW_THRESHOLD,
 ];
 
 pub const DEFAULT_DISPENSER_TIMEOUT: Duration = Duration::from_secs(60);

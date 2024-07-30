@@ -10,7 +10,18 @@ use std::{array, io};
 
 use crate::app_integration::{JobOrder, Status};
 use crate::bag_handler::BagHandler;
-use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT, DEFAULT_DISPENSE_PARAMETERS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, NODE_LOW_THRESHOLDS, NUMBER_OF_NODES, SEALER_MOVE_TIME, PESTO_CAVATAPPI_RECIPE};
+use crate::config::{
+    BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT,
+    DEFAULT_DISPENSE_PARAMETERS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION,
+    GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS,
+    GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS,
+    HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME,
+    HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, NODE_LOW_THRESHOLDS,
+    NUMBER_OF_NODES, PESTO_CAVATAPPI_RECIPE, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT,
+    SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME,
+    SEALER_MOVE_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT,
+    TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID,
+};
 use crate::manual_control::enable_and_clear_all;
 use crate::recipe_handling::Ingredient;
 use control_components::subsystems::bag_handling::{BagDispenser, BagSensor};
@@ -130,7 +141,10 @@ impl RyoState {
         let mut weights = Vec::with_capacity(4);
         for scale_tx in ryo_io.scale_txs {
             let (tx, rx) = tokio::sync::oneshot::channel();
-            scale_tx.send(ScaleCmd(tx)).await.expect("Failed to send ScaleCmd");
+            scale_tx
+                .send(ScaleCmd(tx))
+                .await
+                .expect("Failed to send ScaleCmd");
             let weight = rx.await.expect("Failed to unwrap weight");
             weights.push(weight);
         }
@@ -173,11 +187,9 @@ impl RyoState {
 
     pub fn set_recipe(&mut self, job_order: &JobOrder) {
         let ingredients = job_order.get_ingredients();
-        self.recipe = ingredients.map(|ingredient| {
-            match ingredient {
-                Some(ing) => Some(ing.get_parameters()),
-                None => None,
-            }
+        self.recipe = ingredients.map(|ingredient| match ingredient {
+            Some(ing) => Some(ing.get_parameters()),
+            None => None,
         });
     }
 
@@ -217,7 +229,7 @@ impl RyoState {
             if ingredient.is_some() {
                 match self.get_node_state(id) {
                     NodeState::Ready | NodeState::Dispensed => return Some(id),
-                    NodeState::Empty => ()
+                    NodeState::Empty => (),
                 }
             }
         }
@@ -428,15 +440,12 @@ pub fn make_bag_sensor(io: RyoIo) -> BagSensor {
     BagSensor::new(io.cc1.get_digital_input(BAG_DETECT_PE))
 }
 
-pub fn make_dispense_tasks(
-    mut state: RyoState,
-    io: RyoIo,
-) -> (RyoState, Vec<JoinHandle<()>>) {
+pub fn make_dispense_tasks(mut state: RyoState, io: RyoIo) -> (RyoState, Vec<JoinHandle<()>>) {
     let mut dispensers = Vec::with_capacity(4);
     info!("IsSingleIngredient: {:?}", state.get_is_single_ingredient());
     match state.get_is_single_ingredient() {
-    // TODO: just hardcoding to single ingredient for now :(
-    // match true {
+        // TODO: just hardcoding to single ingredient for now :(
+        // match true {
         false => {
             for (id, subrecipe) in state.get_recipe().iter().enumerate() {
                 if let Some(sub) = subrecipe {
@@ -457,7 +466,7 @@ pub fn make_dispense_tasks(
                         NodeState::Empty => {
                             error!("Node {:?} is empty", id);
                             state.set_run_state(RyoRunState::Faulted);
-                            return (state, Vec::new())
+                            return (state, Vec::new());
                         }
                     }
                 }
@@ -483,15 +492,14 @@ pub fn make_dispense_tasks(
                         }
                         NodeState::Empty => {
                             state.set_run_state(RyoRunState::Faulted);
-                            return (state, Vec::new())
-                        }
-                        // TODO: this shouldn't ever be encountered?
+                            return (state, Vec::new());
+                        } // TODO: this shouldn't ever be encountered?
                     }
                 }
                 None => {
                     error!("No loaded nodes!");
                     state.set_run_state(RyoRunState::Faulted);
-                    return (state, Vec::new())
+                    return (state, Vec::new());
                 }
             }
         }
@@ -501,8 +509,10 @@ pub fn make_dispense_tasks(
         state,
         dispensers
             .into_iter()
-            .map(|dispenser| tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await }))
-            .collect()
+            .map(|dispenser| {
+                tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await })
+            })
+            .collect(),
     )
 }
 
@@ -583,7 +593,8 @@ pub async fn drop_bag_sequence(io: RyoIo) {
     let mut bag_handler = make_bag_handler(io.clone());
     let _drop_bag_handle = tokio::spawn(async move {
         bag_handler.drop_bag().await;
-    }).await;
+    })
+    .await;
     let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[2]).await;
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
 }
@@ -626,7 +637,9 @@ pub async fn pull_before_flight(io: RyoIo) -> RyoState {
 
     // make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_bag_handler(io.clone()).close_gripper().await;
-    make_sealer(io.clone()).timed_retract_actuator(SEALER_MOVE_TIME).await;
+    make_sealer(io.clone())
+        .timed_retract_actuator(SEALER_MOVE_TIME)
+        .await;
     info!("Sealer retracted");
 
     make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
@@ -690,4 +703,3 @@ pub async fn set_motor_accelerations(io: RyoIo, acceleration: f64) {
     join_all(enable_clear_cc2_handles).await;
     info!("Cleared Alerts and Enabled All Motors");
 }
-

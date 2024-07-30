@@ -1,5 +1,8 @@
 use crate::bag_handler::{BagHandler, ManualBagHandlingCmd};
-use crate::config::{GANTRY_ACCELERATION, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL, GANTRY_VELOCITY, SEALER_MOVE_DOOR_TIME, SEALER_MOVE_TIME};
+use crate::config::{
+    GANTRY_ACCELERATION, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL,
+    GANTRY_VELOCITY, SEALER_MOVE_DOOR_TIME, SEALER_MOVE_TIME,
+};
 use crate::ryo::{
     make_and_close_hatch, make_and_move_hatch, make_and_open_hatch, make_dispenser, make_gantry,
     make_hatch, make_sealer, make_trap_door, RyoIo,
@@ -266,7 +269,9 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
 pub async fn handle_sealer_req(body: Bytes, io: RyoIo) {
     match body[0] {
         b's' => {
-            make_sealer(io.clone()).timed_move_seal(SEALER_MOVE_TIME).await;
+            make_sealer(io.clone())
+                .timed_move_seal(SEALER_MOVE_TIME)
+                .await;
         }
         b'o' => {
             let mut trap_door = make_trap_door(io.clone());

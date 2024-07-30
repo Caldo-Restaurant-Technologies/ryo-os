@@ -1,16 +1,16 @@
+use crate::recipe_handling::Ingredient;
+use crate::recipe_handling::Ingredient::Tortelloni;
 use crate::ryo::{RyoIo, RyoRunState, RyoState};
 use control_components::components::scale::ScaleCmd;
 use firebase_rs::*;
+use futures::future::err;
 use log::error;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use futures::future::err;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{oneshot, Mutex};
-use crate::recipe_handling::Ingredient;
-use crate::recipe_handling::Ingredient::Tortelloni;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -79,15 +79,10 @@ pub struct Status {
 impl Status {
     pub async fn update_ryo_state(&mut self, mut ryo_state: RyoState) -> RyoState {
         match self.system_status {
-            SystemStatus::RunJob | SystemStatus::RunningJob => {
-                match ryo_state.get_run_state() {
-                    RyoRunState::Faulted => (),
-                    _ => {
-                        ryo_state.set_run_state(RyoRunState::NewJob)
-                    }
-                }
-                
-            }
+            SystemStatus::RunJob | SystemStatus::RunningJob => match ryo_state.get_run_state() {
+                RyoRunState::Faulted => (),
+                _ => ryo_state.set_run_state(RyoRunState::NewJob),
+            },
             SystemStatus::ResumeJob => {
                 ryo_state.set_run_state(RyoRunState::Running);
                 ryo_state.clear_failures();
@@ -113,7 +108,8 @@ impl Default for Status {
 pub enum SystemMode {
     UI,
     Cycle,
-} impl Default for SystemMode {
+}
+impl Default for SystemMode {
     fn default() -> Self {
         // SystemMode::Cycle
         SystemMode::UI
@@ -128,7 +124,8 @@ pub struct JobOrder {
     node_b_ingredient: Option<Ingredient>,
     node_c_ingredient: Option<Ingredient>,
     node_d_ingredient: Option<Ingredient>,
-} impl Default for JobOrder {
+}
+impl Default for JobOrder {
     fn default() -> Self {
         Self {
             is_single_ingredient: true,
@@ -138,7 +135,8 @@ pub struct JobOrder {
             node_d_ingredient: Some(Tortelloni),
         }
     }
-} impl JobOrder {
+}
+impl JobOrder {
     pub fn from_recipe(is_single_ingredient: bool, recipe: [Option<Ingredient>; 4]) -> Self {
         Self {
             is_single_ingredient,
@@ -154,7 +152,7 @@ pub struct JobOrder {
             self.node_a_ingredient.clone(),
             self.node_b_ingredient.clone(),
             self.node_c_ingredient.clone(),
-            self.node_d_ingredient.clone()
+            self.node_d_ingredient.clone(),
         ]
     }
 }
