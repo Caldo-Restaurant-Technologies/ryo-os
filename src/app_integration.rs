@@ -122,6 +122,8 @@ impl Default for Status {
 #[derive(Serialize, Deserialize, Debug)]
 // #[serde(rename_all = "camelCase")]
 pub enum SystemMode {
+    Clean,
+    Maintenance,
     UI,
     Cycle,
 } impl Default for SystemMode {
