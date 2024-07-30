@@ -214,16 +214,16 @@ pub const PESTO_CAVATAPPI_RECIPE: [Option<DispenseParameters>; 4] = [
 
 pub const BROCCOLI_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
-        motor_speed: 0.7,
+        motor_speed: 0.5,
         sample_rate: 50.,
         cutoff_frequency: 0.5,
-        check_offset: 35.,
-        stop_offset: 30.,
+        check_offset: 15.,
+        stop_offset: 11.,
         retract_before: None,
-        retract_after: None,
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
-        setpoint: 125.,
+        setpoint: 60.,
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
@@ -232,13 +232,13 @@ pub const CAVATAPPI_PARAMETERS: DispenseParameters = DispenseParameters {
         motor_speed: 0.5,
         sample_rate: 50.,
         cutoff_frequency: 0.5,
-        check_offset: 15.,
-        stop_offset: 7.,
+        check_offset: 17.,
+        stop_offset: 15.,
         retract_before: None,
-        retract_after: None,
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
-        setpoint: 225.,
+        setpoint: 60.,
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
@@ -247,28 +247,28 @@ pub const TOMATO_PARAMETERS: DispenseParameters = DispenseParameters {
         motor_speed: 0.2,
         sample_rate: 50.,
         cutoff_frequency: 0.5,
-        check_offset: 10.,
-        stop_offset: 4.,
+        check_offset: 15.,
+        stop_offset: 9.,
         retract_before: None,
-        retract_after: None,
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
-        setpoint: 35.,
+        setpoint: 25.,
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
 pub const MUSHROOM_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
-        motor_speed: 0.5,
+        motor_speed: 0.2,
         sample_rate: 50.,
         cutoff_frequency: 0.5,
-        check_offset: 25.,
-        stop_offset: 21.,
+        check_offset: 20.,
+        stop_offset: 16.,
         retract_before: None,
-        retract_after: None,
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
-        setpoint: 85.,
+        setpoint: 25.,
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
