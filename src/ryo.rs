@@ -130,6 +130,13 @@ impl RyoState {
                 self.nodes[id] = NodeState::Empty;
             }
         }
+        for node_state in self.nodes.clone() {
+            match node_state {
+                NodeState::Empty => continue,
+                _ => return,
+            }
+        }
+        self.set_run_state(RyoRunState::Faulted);
     }
 
     pub fn set_run_state(&mut self, state: RyoRunState) {
@@ -469,7 +476,7 @@ pub fn make_dispense_tasks(
                             return (state, Vec::new())
                         }
                         // TODO: this shouldn't ever be encountered?
-                    } 
+                    }
                 }
                 None => {
                     error!("No loaded nodes!");

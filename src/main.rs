@@ -8,7 +8,7 @@ use control_components::components::scale::{Scale, ScaleCmd};
 use control_components::controllers::{clear_core, ek1100_io};
 use control_components::subsystems::bag_handling::BagSensorState;
 use env_logger::Env;
-use futures::future::join_all;
+use futures::future::{err, join_all};
 use log::{error, info, warn};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -181,6 +181,11 @@ pub enum CycleCmd {
 
 async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     state.update_node_levels(io.clone()).await;
+    if let RyoRunState::Faulted = state.get_run_state() {
+        error!("All nodes are empty");
+        return state
+    }
+    
     info!("Ryo State: {:?}", state);
 
     let mut dispense_and_bag_tasks = Vec::new();
