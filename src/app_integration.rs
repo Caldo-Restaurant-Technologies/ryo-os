@@ -59,7 +59,6 @@ enum SystemStatus {
     StopSystem,
     PreparingJob,
     RefillNodesSystem,
-    // UI,
     Faulted,
 }
 

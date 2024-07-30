@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let mut client_set = JoinSet::new();
 
-    let scales_handles: [JoinHandle<Scale>; 4] = array::from_fn(|scale_id| {
+    let scales_handles: [JoinHandle<Scale>; NUMBER_OF_NODES] = array::from_fn(|scale_id| {
         spawn_blocking(move || {
             let mut scale = Scale::new(PHIDGET_SNS[scale_id]);
             scale = Scale::change_coefficients(scale, NODE_COEFFICIENTS[scale_id].to_vec());
@@ -104,14 +104,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("Connecting to Firebase");
     let mut firebase = RyoFirebaseClient::new();
     let app_state = Arc::new(Mutex::new(app_integration::Status::default()));
-    // let job_order = Arc::new(Mutex::new(app_integration::JobOrder::default()));
-    // let system_mode = Arc::new(Mutex::new(app_integration::SystemMode::default()));
     let mut state;
     let shutdown = Arc::new(AtomicBool::new(false));
 
     let app_state_for_fb = app_state.clone();
-    // let job_order_for_fb = job_order.clone();
-    // let system_mode_for_fb = system_mode.clone();
     let shutdown_app = shutdown.clone();
     let app_scales = ryo_io.scale_txs.clone();
     let app_handler = tokio::spawn(async move {
