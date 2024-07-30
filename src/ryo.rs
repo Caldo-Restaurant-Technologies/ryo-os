@@ -469,7 +469,7 @@ pub fn make_dispense_tasks(
                             return (state, Vec::new())
                         }
                         // TODO: this shouldn't ever be encountered?
-                    }
+                    } 
                 }
                 None => {
                     error!("No loaded nodes!");
@@ -566,7 +566,7 @@ pub async fn drop_bag_sequence(io: RyoIo) {
     let mut bag_handler = make_bag_handler(io.clone());
     let _drop_bag_handle = tokio::spawn(async move {
         bag_handler.drop_bag().await;
-    });
+    }).await;
     let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[2]).await;
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
 }
