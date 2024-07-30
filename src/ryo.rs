@@ -77,7 +77,7 @@ pub struct RyoState {
     run_state: RyoRunState,
     is_single_ingredient: bool,
     recipe: [Option<DispenseParameters>; 4],
-    jobs_remaining: usize,
+    // jobs_remaining: usize,
 }
 impl Default for RyoState {
     fn default() -> Self {
@@ -95,7 +95,7 @@ impl Default for RyoState {
                 Some(DEFAULT_DISPENSE_PARAMETERS),
                 Some(DEFAULT_DISPENSE_PARAMETERS),
             ],
-            jobs_remaining: 0,
+            // jobs_remaining: 0,
         }
     }
 }
@@ -559,20 +559,15 @@ pub async fn dump_from_hatch(id: usize, io: RyoIo) {
     // make_and_close_hatch(id, io).await;
 }
 
-pub async fn drop_bag(io: RyoIo) {
+pub async fn drop_bag_sequence(io: RyoIo) {
     let gantry = make_gantry(io.cc1.clone()).await;
     let _ = gantry.absolute_move(GANTRY_BAG_DROP_POSITION).await;
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
     let mut bag_handler = make_bag_handler(io.clone());
-    let open_handle = tokio::spawn(async move {
-        bag_handler.open_gripper().await;
+    let _drop_bag_handle = tokio::spawn(async move {
+        bag_handler.drop_bag().await;
     });
     let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[2]).await;
-    open_handle.await.unwrap();
-    let mut bag_handler = make_bag_handler(io);
-    tokio::spawn(async move {
-        bag_handler.close_gripper().await;
-    });
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
 }
 

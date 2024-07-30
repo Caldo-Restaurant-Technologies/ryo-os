@@ -2,13 +2,7 @@ use crate::app_integration::RyoFirebaseClient;
 use crate::bag_handler::BagHandler;
 use crate::config::*;
 use crate::hmi::ui_server_with_fb;
-use crate::ryo::{
-    drop_bag, dump_from_hatch, make_bag_handler, make_bag_load_task,
-    make_bag_sensor,
-    make_dispense_tasks, make_gantry, make_sealer, pull_after_flight,
-    pull_before_flight, release_bag_from_sealer, BagFilledState, BagState, NodeState,
-    RyoFailure, RyoIo, RyoRunState, RyoState,
-};
+use crate::ryo::{dump_from_hatch, make_bag_handler, make_bag_load_task, make_bag_sensor, make_dispense_tasks, make_gantry, make_sealer, pull_after_flight, pull_before_flight, release_bag_from_sealer, BagFilledState, BagState, NodeState, RyoFailure, RyoIo, RyoRunState, RyoState, drop_bag_sequence};
 use control_components::components::clear_core_motor::Status;
 use control_components::components::scale::{Scale, ScaleCmd};
 use control_components::controllers::{clear_core, ek1100_io};
@@ -274,7 +268,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         info!("New bag dispensed");
     });
 
-    drop_bag(io.clone()).await;
+    drop_bag_sequence(io.clone()).await;
 
     match make_bag_sensor(io.clone()).check().await {
         BagSensorState::Bagless => {
