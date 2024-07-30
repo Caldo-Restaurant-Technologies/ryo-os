@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let task = env::args()
         .nth(2)
         .expect("Do you want to run a cycle or hmi?");
-    
+
     let run_state = match task.as_str() {
         "cycle" => RyoRunState::Ready,
         "hmi" => RyoRunState::UI,
@@ -165,7 +165,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             RyoRunState::NewJob => {
                 info!("Starting cycle");
                 ryo_state = pull_before_flight(ryo_io.clone()).await;
-                // ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
             }
             RyoRunState::Running => {
                 ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
@@ -222,7 +221,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     }
 
     let _ = join_all(dispense_and_bag_tasks).await;
-    
+
 
     match state.get_bag_state() {
         BagState::Bagful(BagFilledState::Empty) | BagState::Bagful(BagFilledState::Filling) => {
@@ -287,7 +286,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             return state;
         }
     }
-    
+
     let _ = make_gantry(io.cc1.clone()).await.absolute_move(GANTRY_HOME_POSITION).await;
 
     let io_clone = io.clone();
