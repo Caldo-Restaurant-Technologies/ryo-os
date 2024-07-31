@@ -102,6 +102,6 @@ pub fn make_bag_gripper(io: RyoIo) -> BagGripper {
     BagGripper::new(
         io.cc1.get_motor(GRIPPER_MOTOR_ID),
         SimpleLinearActuator::new(io.cc1.get_h_bridge(GRIPPER_ACTUATOR)),
-        [0.4, -0.8, 0.38].to_vec(),
+        [0.4, -0.4, 0.0].to_vec(),
     )
 }
