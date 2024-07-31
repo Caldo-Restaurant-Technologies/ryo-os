@@ -35,6 +35,7 @@ pub mod recipe_handling;
 pub mod bag_handler;
 pub mod manual_control;
 pub mod ryo;
+pub mod state_server;
 
 type CCController = clear_core::Controller;
 type EtherCATIO = ek1100_io::Controller;
