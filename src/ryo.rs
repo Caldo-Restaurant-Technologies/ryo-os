@@ -516,62 +516,6 @@ pub fn make_dispense_tasks(mut state: RyoState, io: RyoIo) -> (RyoState, Vec<Joi
     )
 }
 
-pub fn make_default_dispense_tasks(ids: Vec<usize>, io: RyoIo) -> Vec<JoinHandle<()>> {
-    let mut dispensers = Vec::with_capacity(4);
-    for id in ids {
-        let params = Parameters::default();
-        let set_point = Setpoint::Timed(Duration::from_secs(10));
-        dispensers.push(make_dispenser(
-            id,
-            io.cc2.clone(),
-            set_point,
-            params,
-            io.scale_txs[id].clone(),
-        ))
-    }
-
-    dispensers
-        .into_iter()
-        .map(|dispenser| tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await }))
-        .collect()
-}
-
-pub fn make_default_weighed_dispense_tasks(
-    serving: f64,
-    ids: Vec<usize>,
-    io: RyoIo,
-) -> Vec<JoinHandle<()>> {
-    let mut dispensers = Vec::with_capacity(4);
-    for id in ids {
-        // let params = Parameters::default();
-        let params = Parameters {
-            motor_speed: 0.5,
-            sample_rate: 50.,
-            cutoff_frequency: 0.5,
-            check_offset: 50.,
-            stop_offset: 35.,
-            retract_before: None,
-            retract_after: Some(5.),
-        };
-        let set_point = Setpoint::Weight(WeightedDispense {
-            setpoint: serving,
-            timeout: Duration::from_secs(60),
-        });
-        dispensers.push(make_dispenser(
-            id,
-            io.cc2.clone(),
-            set_point,
-            params,
-            io.scale_txs[id].clone(),
-        ))
-    }
-
-    dispensers
-        .into_iter()
-        .map(|dispenser| tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await }))
-        .collect()
-}
-
 pub fn make_bag_load_task(io: RyoIo) -> JoinHandle<()> {
     let mut bag_handler = BagHandler::new(io);
     tokio::spawn(async move { bag_handler.load_bag().await })
@@ -622,14 +566,13 @@ pub async fn pull_before_flight(io: RyoIo) -> RyoState {
             break;
         }
     }
-    for node in 0..4 {
+    for node in 0..NUMBER_OF_NODES {
         let motor = io.cc2.get_motor(node);
         motor.set_velocity(0.5).await;
         motor.set_acceleration(90.).await;
         motor.set_deceleration(90.).await;
     }
-
-    // set_motor_accelerations(io.clone(), 50.).await;
+    
     sleep(Duration::from_millis(500)).await;
 
     let mut set = JoinSet::new();
@@ -642,9 +585,10 @@ pub async fn pull_before_flight(io: RyoIo) -> RyoState {
         .await;
     info!("Sealer retracted");
 
-    make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
+    let mut trap_door = make_trap_door(io.clone());
+    trap_door.actuate(HBridgeState::Pos).await;
     sleep(SEALER_MOVE_DOOR_TIME).await;
-    make_trap_door(io.clone()).actuate(HBridgeState::Off).await;
+    trap_door.actuate(HBridgeState::Off).await;
     info!("Trap door opened");
 
     for id in 0..NUMBER_OF_NODES {
