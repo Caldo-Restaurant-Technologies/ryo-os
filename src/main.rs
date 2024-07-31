@@ -114,7 +114,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let app_state = Arc::new(Mutex::new(app_integration::Status::default()));
     let mut state;
     let shutdown = Arc::new(AtomicBool::new(false));
-
+    signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
+        .expect("Register hook");
     let app_state_for_fb = app_state.clone();
     let shutdown_app = shutdown.clone();
     let app_scales = ryo_io.scale_txs.clone();
@@ -160,8 +161,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     gantry.wait_for_move(Duration::from_secs(1)).await.unwrap();
 
     info!("Starting cycle loop");
-    signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
-        .expect("Register hook");
+
     let mut ryo_state = RyoState::new_with_recipe(PESTO_CAVATAPPI_RECIPE);
     ryo_state.set_run_state(run_state);
     loop {
