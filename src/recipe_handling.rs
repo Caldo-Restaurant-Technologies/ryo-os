@@ -1,8 +1,10 @@
-use control_components::subsystems::dispenser::{DispenseParameters, Dispenser, Parameters, Setpoint, WeightedDispense};
+use crate::config::DISPENSER_TIMEOUT;
+use control_components::subsystems::dispenser::{
+    DispenseParameters, Dispenser, Parameters, Setpoint, WeightedDispense,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
-use crate::config::DISPENSER_TIMEOUT;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Ingredient {
@@ -47,7 +49,7 @@ impl Ingredient {
                     stop_offset: 37.,
                     retract_before: None,
                     retract_after: None,
-                }
+                },
             },
             Ingredient::Udon
             | Ingredient::Fettuccine
@@ -65,10 +67,9 @@ impl Ingredient {
                     stop_offset: 7.,
                     retract_before: None,
                     retract_after: Some(5.),
-                }
+                },
             },
-                
-          
+
             Ingredient::Tortelloni => DispenseParameters {
                 setpoint: Setpoint::Weight(WeightedDispense {
                     setpoint: 225.,
@@ -82,27 +83,15 @@ impl Ingredient {
                     stop_offset: 7.,
                     retract_before: None,
                     retract_after: None,
-                }
+                },
             },
             _ => DispenseParameters {
                 setpoint: Setpoint::Timed(Duration::from_secs(10)),
                 parameters: Parameters::default(),
-            }
+            },
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 // #[derive(Debug, Clone, Deserialize, Serialize)]
 // pub struct Ingredient {
@@ -129,7 +118,7 @@ impl Ingredient {
 //     name: String,
 //     pub ingredients: Vec<Ingredient>,
 // }
-// 
+//
 // pub fn get_sample_recipe() -> HashMap<String, Recipe> {
 //     let json_str = r#"[
 //         {
@@ -187,9 +176,9 @@ impl Ingredient {
 //             ]
 //         }
 //     ]"#;
-// 
+//
 //     let recipes: Vec<Recipe> = serde_json::from_str(json_str).unwrap();
-// 
+//
 //     recipes
 //         .into_iter()
 //         .map(|recipe| (recipe.id.clone(), recipe))

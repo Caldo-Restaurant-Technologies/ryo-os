@@ -1,5 +1,7 @@
 use control_components::controllers::clear_core::MotorBuilder;
-use control_components::subsystems::dispenser::{DispenseParameters, Parameters, Setpoint};
+use control_components::subsystems::dispenser::{
+    DispenseParameters, Parameters, Setpoint, WeightedDispense,
+};
 use std::time::Duration;
 
 //E-Stop
@@ -154,25 +156,27 @@ pub const NODE_COEFFICIENTS: [[f64; 4]; 4] = [
     NODE_D_COEFFICIENTS,
 ];
 
-pub const NODE_A_LOW_THRESHOLD: f64 = 8000.;
-pub const NODE_B_LOW_THRESHOLD: f64 = 7250.;
-pub const NODE_C_LOW_THRESHOLD: f64 = 6720.;
-pub const NODE_D_LOW_THRESHOLD: f64 = 7320.;
+pub const NODE_A_LOW_THRESHOLD: f64 = 5000.;
+pub const NODE_B_LOW_THRESHOLD: f64 = 5000.;
+pub const NODE_C_LOW_THRESHOLD: f64 = 4500.;
+pub const NODE_D_LOW_THRESHOLD: f64 = 5000.;
 pub const NODE_LOW_THRESHOLDS: [f64; 4] = [
     NODE_A_LOW_THRESHOLD,
     NODE_B_LOW_THRESHOLD,
     NODE_C_LOW_THRESHOLD,
-    NODE_D_LOW_THRESHOLD
+    NODE_D_LOW_THRESHOLD,
 ];
 
 pub const DEFAULT_DISPENSER_TIMEOUT: Duration = Duration::from_secs(60);
 
 pub const GRIPPER_POSITIONS: [f64; 3] = [-0.4, 0.8, 0.4];
 
-pub const DISPENSER_TIMEOUT: Duration = Duration::from_secs(120);
+pub const GRIPPER_DROP_DURATION: Duration = Duration::from_millis(500);
 
-pub const GANTRY_NODE_POSITIONS: [f64; 4] = [25., 47., 70., 92.5];
-pub const GANTRY_HOME_POSITION: f64 = 0.;
+pub const DISPENSER_TIMEOUT: Duration = Duration::from_secs(90);
+
+pub const GANTRY_NODE_POSITIONS: [f64; 4] = [25., 47., 70., 92.];
+pub const GANTRY_HOME_POSITION: f64 = -0.5;
 pub const GANTRY_BAG_DROP_POSITION: f64 = 83.;
 pub const GANTRY_ALL_POSITIONS: [f64; 6] = [
     GANTRY_HOME_POSITION,
@@ -183,8 +187,8 @@ pub const GANTRY_ALL_POSITIONS: [f64; 6] = [
     GANTRY_BAG_DROP_POSITION,
 ];
 pub const GANTRY_SAMPLE_INTERVAL: Duration = Duration::from_millis(250);
-pub const GANTRY_ACCELERATION: f64 = 80.;
-pub const GANTRY_VELOCITY: f64 = 10.;
+pub const GANTRY_ACCELERATION: f64 = 70.;
+pub const GANTRY_VELOCITY: f64 = 6.;
 pub const ETHERCAT_NUMBER_OF_SLOTS: u8 = 3;
 
 pub const DEFAULT_DISPENSE_PARAMETERS: DispenseParameters = DispenseParameters {
@@ -192,10 +196,81 @@ pub const DEFAULT_DISPENSE_PARAMETERS: DispenseParameters = DispenseParameters {
         motor_speed: 0.3,
         sample_rate: 50.0,
         cutoff_frequency: 0.5,
-        check_offset: 15.0,
-        stop_offset: 7.0,
+        check_offset: 35.0,
+        stop_offset: 28.0,
         retract_before: None,
-        retract_after: Some(1.),
+        retract_after: None,
     },
-    setpoint: Setpoint::Timed(Duration::from_secs(10)),
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 93.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+
+pub const PESTO_CAVATAPPI_RECIPE: [Option<DispenseParameters>; 4] = [
+    Some(BROCCOLI_PARAMETERS),
+    Some(CAVATAPPI_PARAMETERS),
+    Some(TOMATO_PARAMETERS),
+    Some(MUSHROOM_PARAMETERS),
+];
+
+pub const BROCCOLI_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.5,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 15.,
+        stop_offset: 11.,
+        retract_before: None,
+        retract_after: Some(0.25),
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 60.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const CAVATAPPI_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.5,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 17.,
+        stop_offset: 15.,
+        retract_before: None,
+        retract_after: Some(0.25),
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 60.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const TOMATO_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.2,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 15.,
+        stop_offset: 9.,
+        retract_before: None,
+        retract_after: Some(0.25),
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 25.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const MUSHROOM_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.2,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 20.,
+        stop_offset: 16.,
+        retract_before: None,
+        retract_after: Some(0.25),
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 25.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
 };

@@ -10,7 +10,18 @@ use std::{array, io};
 
 use crate::app_integration::{JobOrder, Status};
 use crate::bag_handler::BagHandler;
-use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT, DEFAULT_DISPENSE_PARAMETERS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, NODE_LOW_THRESHOLDS};
+use crate::config::{
+    BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT,
+    DEFAULT_DISPENSE_PARAMETERS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION,
+    GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS,
+    GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS,
+    HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME,
+    HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, NODE_LOW_THRESHOLDS,
+    NUMBER_OF_NODES, PESTO_CAVATAPPI_RECIPE, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT,
+    SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME,
+    SEALER_MOVE_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT,
+    TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID,
+};
 use crate::manual_control::enable_and_clear_all;
 use crate::recipe_handling::Ingredient;
 use control_components::subsystems::bag_handling::{BagDispenser, BagSensor};
@@ -38,8 +49,8 @@ pub struct RyoIo {
 }
 
 #[derive(Debug, Clone)]
-pub enum BagLoadedState {
-    Bagful,
+pub enum BagState {
+    Bagful(BagFilledState),
     Bagless,
 }
 
@@ -71,20 +82,19 @@ pub struct RyoRecipe {}
 
 #[derive(Debug, Clone)]
 pub struct RyoState {
-    bag_loaded: BagLoadedState,
+    bag: BagState,
     nodes: [NodeState; 4],
-    bag_filled: Option<BagFilledState>,
     failures: Vec<RyoFailure>,
     run_state: RyoRunState,
     is_single_ingredient: bool,
     recipe: [Option<DispenseParameters>; 4],
+    // jobs_remaining: usize,
 }
 impl Default for RyoState {
     fn default() -> Self {
         Self {
-            bag_loaded: BagLoadedState::Bagless,
+            bag: BagState::Bagless,
             nodes: array::from_fn(|_| NodeState::Ready),
-            bag_filled: None,
             failures: Vec::new(),
             // run_state: RyoRunState::Ready,
             // TODO: put this on new job to start
@@ -95,16 +105,16 @@ impl Default for RyoState {
                 Some(DEFAULT_DISPENSE_PARAMETERS),
                 Some(DEFAULT_DISPENSE_PARAMETERS),
                 Some(DEFAULT_DISPENSE_PARAMETERS),
-            ]
+            ],
+            // jobs_remaining: 0,
         }
     }
 }
 impl RyoState {
     pub fn new() -> Self {
         Self {
-            bag_loaded: BagLoadedState::Bagless,
+            bag: BagState::Bagless,
             nodes: array::from_fn(|_| NodeState::Ready),
-            bag_filled: None,
             failures: Vec::new(),
             run_state: RyoRunState::Ready,
             is_single_ingredient: true,
@@ -116,12 +126,25 @@ impl RyoState {
             ],
         }
     }
+    pub fn new_with_recipe(recipe: [Option<DispenseParameters>; 4]) -> Self {
+        Self {
+            bag: BagState::Bagless,
+            nodes: array::from_fn(|_| NodeState::Ready),
+            failures: Vec::new(),
+            run_state: RyoRunState::Ready,
+            is_single_ingredient: false,
+            recipe,
+        }
+    }
 
     pub async fn update_node_levels(&mut self, ryo_io: RyoIo) {
         let mut weights = Vec::with_capacity(4);
         for scale_tx in ryo_io.scale_txs {
             let (tx, rx) = tokio::sync::oneshot::channel();
-            scale_tx.send(ScaleCmd(tx)).await.expect("Failed to send ScaleCmd");
+            scale_tx
+                .send(ScaleCmd(tx))
+                .await
+                .expect("Failed to send ScaleCmd");
             let weight = rx.await.expect("Failed to unwrap weight");
             weights.push(weight);
         }
@@ -131,22 +154,25 @@ impl RyoState {
                 self.nodes[id] = NodeState::Empty;
             }
         }
+        for node_state in self.nodes.clone() {
+            match node_state {
+                NodeState::Empty => continue,
+                _ => return,
+            }
+        }
+        self.set_run_state(RyoRunState::Faulted);
     }
 
     pub fn set_run_state(&mut self, state: RyoRunState) {
         self.run_state = state;
     }
 
-    pub fn set_bag_filled_state(&mut self, state: Option<BagFilledState>) {
-        self.bag_filled = state;
+    pub fn set_bag_state(&mut self, state: BagState) {
+        self.bag = state;
     }
 
     pub fn set_node_state(&mut self, id: usize, state: NodeState) {
         self.nodes[id] = state;
-    }
-
-    pub fn set_bag_loaded_state(&mut self, state: BagLoadedState) {
-        self.bag_loaded = state;
     }
 
     pub fn set_all_node_states(&mut self, state: NodeState) {
@@ -161,11 +187,9 @@ impl RyoState {
 
     pub fn set_recipe(&mut self, job_order: &JobOrder) {
         let ingredients = job_order.get_ingredients();
-        self.recipe = ingredients.map(|ingredient| {
-            match ingredient {
-                Some(ing) => Some(ing.get_parameters()),
-                None => None,
-            }
+        self.recipe = ingredients.map(|ingredient| match ingredient {
+            Some(ing) => Some(ing.get_parameters()),
+            None => None,
         });
     }
 
@@ -180,12 +204,8 @@ impl RyoState {
         self.nodes[id].clone()
     }
 
-    pub fn get_bag_filled_state(&self) -> Option<BagFilledState> {
-        self.bag_filled.clone()
-    }
-
-    pub fn get_bag_loaded_state(&self) -> BagLoadedState {
-        self.bag_loaded.clone()
+    pub fn get_bag_state(&self) -> BagState {
+        self.bag.clone()
     }
 
     pub fn get_failures(&self) -> Vec<RyoFailure> {
@@ -209,7 +229,7 @@ impl RyoState {
             if ingredient.is_some() {
                 match self.get_node_state(id) {
                     NodeState::Ready | NodeState::Dispensed => return Some(id),
-                    NodeState::Empty => ()
+                    NodeState::Empty => (),
                 }
             }
         }
@@ -420,15 +440,12 @@ pub fn make_bag_sensor(io: RyoIo) -> BagSensor {
     BagSensor::new(io.cc1.get_digital_input(BAG_DETECT_PE))
 }
 
-pub fn make_dispense_tasks(
-    mut state: RyoState,
-    io: RyoIo,
-) -> (RyoState, Vec<JoinHandle<()>>) {
+pub fn make_dispense_tasks(mut state: RyoState, io: RyoIo) -> (RyoState, Vec<JoinHandle<()>>) {
     let mut dispensers = Vec::with_capacity(4);
     info!("IsSingleIngredient: {:?}", state.get_is_single_ingredient());
-    // match state.get_is_single_ingredient() {
-    // TODO: just hardcoding to single ingredient for now :(
-    match true {
+    match state.get_is_single_ingredient() {
+        // TODO: just hardcoding to single ingredient for now :(
+        // match true {
         false => {
             for (id, subrecipe) in state.get_recipe().iter().enumerate() {
                 if let Some(sub) = subrecipe {
@@ -448,7 +465,8 @@ pub fn make_dispense_tasks(
                         }
                         NodeState::Empty => {
                             error!("Node {:?} is empty", id);
-                            return (state, Vec::new())
+                            state.set_run_state(RyoRunState::Faulted);
+                            return (state, Vec::new());
                         }
                     }
                 }
@@ -472,14 +490,16 @@ pub fn make_dispense_tasks(
                             ));
                             state.set_node_state(id, NodeState::Dispensed);
                         }
-                        NodeState::Empty => (),
-                        // TODO: this shouldn't ever be encountered?
+                        NodeState::Empty => {
+                            state.set_run_state(RyoRunState::Faulted);
+                            return (state, Vec::new());
+                        } // TODO: this shouldn't ever be encountered?
                     }
                 }
                 None => {
                     error!("No loaded nodes!");
                     state.set_run_state(RyoRunState::Faulted);
-                    return (state, Vec::new())
+                    return (state, Vec::new());
                 }
             }
         }
@@ -489,8 +509,10 @@ pub fn make_dispense_tasks(
         state,
         dispensers
             .into_iter()
-            .map(|dispenser| tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await }))
-            .collect()
+            .map(|dispenser| {
+                tokio::spawn(async move { dispenser.dispense(DISPENSER_TIMEOUT).await })
+            })
+            .collect(),
     )
 }
 
@@ -564,19 +586,22 @@ pub async fn dump_from_hatch(id: usize, io: RyoIo) {
     // make_and_close_hatch(id, io).await;
 }
 
-pub async fn drop_bag(io: RyoIo) {
+pub async fn drop_bag_sequence(io: RyoIo) {
     let gantry = make_gantry(io.cc1.clone()).await;
     let _ = gantry.absolute_move(GANTRY_BAG_DROP_POSITION).await;
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
-    let mut bag_handler = make_bag_handler(io);
-    bag_handler.open_gripper().await;
+    let mut bag_handler = make_bag_handler(io.clone());
+    let _drop_bag_handle = tokio::spawn(async move {
+        bag_handler.drop_bag().await;
+    })
+    .await;
     let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[2]).await;
-    bag_handler.close_gripper().await;
     gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
 }
 
 pub async fn release_bag_from_sealer(io: RyoIo) {
     let mut trap_door = make_trap_door(io.clone());
+    trap_door.actuate(HBridgeState::Off).await;
     trap_door.actuate(HBridgeState::Neg).await;
     sleep(SEALER_MOVE_DOOR_TIME).await;
     trap_door.actuate(HBridgeState::Off).await;
@@ -613,7 +638,7 @@ pub async fn pull_before_flight(io: RyoIo) -> RyoState {
     // make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_bag_handler(io.clone()).close_gripper().await;
     make_sealer(io.clone())
-        .absolute_move(SEALER_RETRACT_SET_POINT)
+        .timed_retract_actuator(SEALER_MOVE_TIME)
         .await;
     info!("Sealer retracted");
 
@@ -622,13 +647,14 @@ pub async fn pull_before_flight(io: RyoIo) -> RyoState {
     make_trap_door(io.clone()).actuate(HBridgeState::Off).await;
     info!("Trap door opened");
 
-    for id in 0..4 {
+    for id in 0..NUMBER_OF_NODES {
         let io_clone = io.clone();
-        info!("Closing Hatch {:?}", id);
-        // make_and_close_hatch(id, io_clone).await;
         set.spawn(async move {
             info!("Closing Hatch {:?}", id);
-            make_and_close_hatch(id, io_clone).await;
+            let mut hatch = make_hatch(id, io_clone);
+            if hatch.get_position().await < HATCHES_CLOSE_SET_POINTS[id] {
+                hatch.close(HATCHES_CLOSE_SET_POINTS[id]).await;
+            }
         });
     }
 
@@ -646,7 +672,8 @@ pub async fn pull_before_flight(io: RyoIo) -> RyoState {
     drop(io);
     info!("All systems go.");
     while (set.join_next().await).is_some() {}
-    let mut state = RyoState::new();
+    // let mut state = RyoState::new();
+    let mut state = RyoState::new_with_recipe(PESTO_CAVATAPPI_RECIPE);
     state.set_run_state(RyoRunState::Running);
     state
 }
@@ -676,4 +703,3 @@ pub async fn set_motor_accelerations(io: RyoIo, acceleration: f64) {
     join_all(enable_clear_cc2_handles).await;
     info!("Cleared Alerts and Enabled All Motors");
 }
-
