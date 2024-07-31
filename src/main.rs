@@ -25,6 +25,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tokio::task::{spawn_blocking, JoinHandle, JoinSet};
 use tokio::time::sleep;
+use crate::state_server::serve_weights;
 
 pub mod config;
 
@@ -66,7 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         _ => RYO_INTERFACE,
     };
 
-    let mut client_set = JoinSet::new();
+    let mut io_set = JoinSet::new();
 
     let scales_handles: [JoinHandle<Scale>; NUMBER_OF_NODES] = array::from_fn(|scale_id| {
         spawn_blocking(move || {
@@ -79,7 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     scales.reverse();
     let scale_txs: [Sender<ScaleCmd>; 4] = array::from_fn(|_scale_id| {
         let (tx, actor) = scales.pop().unwrap().unwrap().actor_tx_pair();
-        client_set.spawn(actor);
+        io_set.spawn(actor);
         // info!("Spawned {phidget_id} client-actor");
         tx
     });
@@ -89,10 +90,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (cc2, cl2) = CCController::with_client(CLEAR_CORE_2_ADDR, CC2_MOTORS.as_slice());
     let (etc_io, cl3) = EtherCATIO::with_client(interface(), ETHERCAT_NUMBER_OF_SLOTS);
 
-    client_set.spawn(cl3);
+    io_set.spawn(cl3);
     sleep(Duration::from_secs(2)).await;
-    client_set.spawn(cl1);
-    client_set.spawn(cl2);
+    io_set.spawn(cl1);
+    io_set.spawn(cl2);
 
     info!("Controller-Client pairs created successfully");
 
@@ -121,6 +122,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .update(app_scales.as_slice(), app_state_for_fb, shutdown_app)
             .await;
     });
+    
+    let weight_server_txs = ryo_io.scale_txs.clone();
+    let weight_server_shutdown = shutdown.clone();
+    let weight_server = tokio::spawn( 
+        async move { 
+            serve_weights(weight_server_txs.as_slice(), Arc::clone(&weight_server_shutdown)).await 
+        }
+    );
+    
+    
 
     loop {
         state = gantry.get_status().await;
@@ -175,7 +186,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 
     let _ = app_handler.await;
-    while (client_set.join_next().await).is_some() {}
+    let _ = weight_server.await;
+    while (io_set.join_next().await).is_some() {}
     Ok(())
 }
 
