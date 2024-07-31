@@ -44,7 +44,7 @@ type EtherCATIO = ek1100_io::Controller;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    console_subscriber::init();
+    // console_subscriber::init();
     let host = env::args()
         .nth(1)
         .expect("Is this running locally or on Ryo?");
