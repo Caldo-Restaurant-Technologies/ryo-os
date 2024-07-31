@@ -207,7 +207,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
 
     info!("Ryo State: {:?}", state);
 
-    let mut dispense_and_bag_tasks = Vec::new();
+    let mut dispense_tasks = Vec::new();
     match state.get_bag_state() {
         BagState::Bagful(BagFilledState::Filled) => {
             info!("Bag already filled")
@@ -216,7 +216,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         | BagState::Bagful(BagFilledState::Empty)
         | BagState::Bagless => {
             info!("Bag not full, dispensing");
-            (state, dispense_and_bag_tasks) = make_dispense_tasks(state.clone(), io.clone());
+            (state, dispense_tasks) = make_dispense_tasks(state.clone(), io.clone());
         }
     }
 
@@ -227,7 +227,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             let gantry = make_gantry(io.cc1.clone()).await;
             let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
             gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
-            dispense_and_bag_tasks.push(make_bag_load_task(io.clone()));
+            let _ = make_bag_load_task(io.clone()).await;
             // TODO: maybe have above return results so we know whether to update states?
             state.set_bag_state(BagState::Bagful(BagFilledState::Filling));
         }
@@ -235,8 +235,21 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             info!("Bag already loaded");
         }
     }
+    
+    let gantry = make_gantry(io.cc1.clone()).await;
+    let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[0]).await;
+    let _ = gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+    match make_bag_sensor(io.clone()).check().await {
+        BagSensorState::Bagless => {
+            warn!("Lost bag");
+            state.set_bag_state(BagState::Bagless);
+            state.log_failure(RyoFailure::BagDispenseFailure);
+            return state
+        }
+        BagSensorState::Bagful => (),
+    }
 
-    let _ = join_all(dispense_and_bag_tasks).await;
+    let _ = join_all(dispense_tasks).await;
 
     match state.get_bag_state() {
         BagState::Bagful(BagFilledState::Empty) | BagState::Bagful(BagFilledState::Filling) => {
@@ -266,10 +279,11 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
                     }
                     NodeState::Ready => (),
                     NodeState::Empty => {
-                        // TODO: hmmm figure out how to reimplement this but with single node dispensing (or not needed?)
-                        // error!("Node {:?} is empty", node);
-                        // state.set_run_state(Faulted);
-                        // return state;
+                        if !state.get_is_single_ingredient() {
+                            error!("Node {:?} is empty", node);
+                            state.set_run_state(Faulted);
+                            return state;
+                        }
                     }
                 }
             }
