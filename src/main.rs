@@ -127,7 +127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     
     let weight_server_txs = ryo_io.scale_txs.clone();
     let weight_server_shutdown = shutdown.clone();
-    let weight_server = tokio::spawn( 
+    let weight_server = tokio::spawn(
         async move { 
             serve_weights(weight_server_txs.as_slice(), Arc::clone(&weight_server_shutdown)).await 
         }
@@ -235,7 +235,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             info!("Bag already loaded");
         }
     }
-    
+
     let gantry = make_gantry(io.cc1.clone()).await;
     let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[0]).await;
     let _ = gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;

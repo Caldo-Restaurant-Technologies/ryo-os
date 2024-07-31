@@ -4,7 +4,7 @@ use crate::manual_control::{
     handle_gantry_req, handle_gripper_req, handle_hatch_position_req, handle_hatch_req,
     handle_hatches_req, handle_sealer_position_req, handle_sealer_req,
 };
-use crate::ryo::{make_bag_handler, make_bag_sensor, pull_before_flight, RyoIo, RyoState};
+use crate::ryo::{make_bag_handler, make_bag_sensor, make_gantry, pull_before_flight, RyoIo, RyoState};
 use crate::single_cycle;
 use bytes::{Buf, Bytes};
 use control_components::components::scale::ScaleCmd;
@@ -25,6 +25,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::mpsc::Sender;
+use crate::config::{GANTRY_HOME_POSITION, GANTRY_SAMPLE_INTERVAL};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -136,7 +137,12 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo, ryo_state: RyoState
             Ok(Response::new(full("Gripper Moved")))
         }
         (&Method::POST, "/load_bag") => {
-            BagHandler::new(io).load_bag().await;
+            let mut bag_handler = BagHandler::new(io.clone());
+            bag_handler.dispense_bag().await;
+            let gantry = make_gantry(io.cc1).await;
+            let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
+            let _ = gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+            bag_handler.load_bag().await;
             Ok(Response::new(req.into_body().boxed()))
         }
         (&Method::POST, "/dispense_bag") => {
