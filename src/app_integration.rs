@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use futures::future::err;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{oneshot, Mutex};
 use crate::recipe_handling::Ingredient;
@@ -102,6 +101,8 @@ impl Status {
                             _ => (),
                         }
                     }
+                    SystemMode::Clean => ryo_state.set_run_state(RyoRunState::UI),
+                    SystemMode::Maintenance => ryo_state.set_run_state(RyoRunState::UI),
                 }
             }
         }
