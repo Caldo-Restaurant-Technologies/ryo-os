@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{oneshot, Mutex};
+use tokio::time;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -251,6 +252,7 @@ impl RyoFirebaseClient {
         state: Arc<Mutex<Status>>,
         shutdown: Arc<AtomicBool>,
     ) {
+        let mut interval = time::interval(Duration::from_millis(500));
         loop {
             if shutdown.load(Ordering::Relaxed) {
                 break;
@@ -273,7 +275,7 @@ impl RyoFirebaseClient {
             } else {
                 error!("Failed to get status from firebase");
             }
-            tokio::time::sleep(Duration::from_millis(1000)).await;
+            interval.tick().await;
         }
     }
 }
