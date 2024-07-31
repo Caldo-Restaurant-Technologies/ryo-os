@@ -578,12 +578,12 @@ pub fn make_bag_load_task(io: RyoIo) -> JoinHandle<()> {
 }
 
 pub async fn dump_from_hatch(id: usize, io: RyoIo) {
-    make_and_open_hatch(id, io.clone()).await;
+    let mut hatch = make_hatch(id, io);
+    hatch.open(HATCHES_OPEN_SET_POINTS[id]).await;
     sleep(Duration::from_millis(100)).await;
     tokio::spawn(async move {
-        make_and_close_hatch(id, io).await;
+        hatch.close(HATCHES_CLOSE_SET_POINTS[id]).await;
     });
-    // make_and_close_hatch(id, io).await;
 }
 
 pub async fn drop_bag_sequence(io: RyoIo) {
