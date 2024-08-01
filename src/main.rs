@@ -234,8 +234,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             warn!("MADE DISPENSE TASKS");
         }
     }
-    let dispense_handles = tokio::spawn(join_all(dispense_tasks));
-    warn!("AWAITED DISPENSE HANDLES (maybe?)");
+    
     match state.get_bag_state() {
         BagState::Bagless => {
             info!("Getting bag");
@@ -266,7 +265,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         }
     }
 
-    let _ = join!(dispense_handles);
+    let _ = join_all(dispense_tasks);
 
     match state.get_bag_state() {
         BagState::Bagful(BagFilledState::Empty) | BagState::Bagful(BagFilledState::Filling) => {

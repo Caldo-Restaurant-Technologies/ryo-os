@@ -21,7 +21,7 @@ use control_components::subsystems::hatch::Hatch;
 use control_components::subsystems::linear_actuator::{Output, RelayHBridge};
 use control_components::subsystems::sealer::Sealer;
 use futures::future::join_all;
-use log::{error, info};
+use log::{error, info, warn};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tokio::task::{JoinHandle, JoinSet};
@@ -508,6 +508,7 @@ pub fn make_dispense_tasks(mut state: RyoState, io: RyoIo) -> (RyoState, Vec<Joi
     for dispenser in dispensers {
         handles.push(
             tokio::spawn(async move {
+                warn!("STARTING DISPENSER");
                 dispenser.dispense(DISPENSER_TIMEOUT).await; 
             })
         )
