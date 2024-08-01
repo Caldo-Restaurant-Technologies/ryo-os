@@ -21,6 +21,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use std::{array, env};
+use tokio::join;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tokio::task::{spawn_blocking, JoinHandle, JoinSet};
@@ -230,6 +231,9 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             (state, dispense_tasks) = make_dispense_tasks(state.clone(), io.clone());
         }
     }
+    let dispense_handles = tokio::spawn(async move {
+        join_all(dispense_tasks).await;
+    });
 
     match state.get_bag_state() {
         BagState::Bagless => {
@@ -261,8 +265,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         }
     }
     
-
-    let _ = join_all(dispense_tasks).await;
+    let _ = join!(dispense_handles);
 
     match state.get_bag_state() {
         BagState::Bagful(BagFilledState::Empty) | BagState::Bagful(BagFilledState::Filling) => {
