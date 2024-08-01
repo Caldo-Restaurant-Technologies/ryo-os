@@ -25,6 +25,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tokio::task::{spawn_blocking, JoinHandle, JoinSet};
 use tokio::time::sleep;
+use crate::sealer::{sealer, SealerCmd};
 use crate::state_server::serve_weights;
 
 pub mod config;
@@ -37,6 +38,7 @@ pub mod bag_handler;
 pub mod manual_control;
 pub mod ryo;
 pub mod state_server;
+pub mod sealer;
 
 type CCController = clear_core::Controller;
 type EtherCATIO = ek1100_io::Controller;
@@ -85,6 +87,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // info!("Spawned {phidget_id} client-actor");
         tx
     });
+    
+    let (sealer_tx, sealer_rx) = tokio::sync::mpsc::channel(10);
 
     //Create IO controllers and their relevant clients
     let (cc1, cl1) = CCController::with_client(CLEAR_CORE_1_ADDR, CC1_MOTORS.as_slice());
@@ -103,7 +107,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         cc2,
         etc_io,
         scale_txs,
+        sealer_tx,
     };
+    
+    let sealer_io = ryo_io.clone();
+    let sealer_handle = tokio::spawn(async move {
+        sealer(sealer_io, sealer_rx).await;
+    });
 
     let gantry = make_gantry(ryo_io.cc1.clone()).await;
     gantry.clear_alerts().await;
@@ -188,6 +198,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let _ = app_handler.await;
     let _ = weight_server.await;
+    let _ = sealer_handle.await;
     while (io_set.join_next().await).is_some() {}
     Ok(())
 }
@@ -321,15 +332,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         .absolute_move(GANTRY_HOME_POSITION)
         .await;
 
-    let io_clone = io.clone();
-    tokio::spawn(async move {
-        make_sealer(io_clone.clone())
-            .timed_move_seal(SEALER_MOVE_TIME)
-            .await;
-        release_bag_from_sealer(io_clone.clone()).await;
-    });
-
-    // pull_after_flight(io).await;
+    let _ = io.sealer_tx.send(SealerCmd::Seal).await;
 
     state.clear_failures();
     // TODO: prob put it back in ready and up a counter of cycles run? will work on with firebase integration
