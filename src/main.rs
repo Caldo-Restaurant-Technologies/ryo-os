@@ -265,6 +265,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
                     warn!("Lost bag");
                     state.set_bag_state(BagState::Bagless);
                     state.log_failure(RyoFailure::BagDispenseFailure);
+                    let _ = join_all(dispense_tasks).await;
                     return state
                 }
                 BagSensorState::Bagful => (),
@@ -275,11 +276,8 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         }
     }
     
-    if let BagState::Bagful(BagFilledState::Filled) = state.get_bag_state() {
-        
-    }
 
-    let _ = join_all(dispense_tasks);
+    let _ = join_all(dispense_tasks).await;
 
     match state.get_bag_state() {
         BagState::Bagful(BagFilledState::Empty) | BagState::Bagful(BagFilledState::Filling) => {
