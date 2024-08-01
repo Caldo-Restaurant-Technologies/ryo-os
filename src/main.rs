@@ -246,19 +246,21 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             info!("Bag already loaded");
         }
     }
-
-    let gantry = make_gantry(io.cc1.clone()).await;
-    let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[0]).await;
-    let _ = gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
-    match make_bag_sensor(io.clone()).check().await {
-        BagSensorState::Bagless => {
-            warn!("Lost bag");
-            state.set_bag_state(BagState::Bagless);
-            state.log_failure(RyoFailure::BagDispenseFailure);
-            return state
+    if let BagState::Bagful(BagFilledState::Filled) = state.get_bag_state() {
+        let gantry = make_gantry(io.cc1.clone()).await;
+        let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[0]).await;
+        let _ = gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+        match make_bag_sensor(io.clone()).check().await {
+            BagSensorState::Bagless => {
+                warn!("Lost bag");
+                state.set_bag_state(BagState::Bagless);
+                state.log_failure(RyoFailure::BagDispenseFailure);
+                return state
+            }
+            BagSensorState::Bagful => (),
         }
-        BagSensorState::Bagful => (),
     }
+    
 
     let _ = join_all(dispense_tasks).await;
 
