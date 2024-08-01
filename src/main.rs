@@ -88,7 +88,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // info!("Spawned {phidget_id} client-actor");
         tx
     });
-    
+
     let (sealer_tx, sealer_rx) = tokio::sync::mpsc::channel(10);
 
     //Create IO controllers and their relevant clients
@@ -110,7 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         scale_txs,
         sealer_tx,
     };
-    
+
     let sealer_io = ryo_io.clone();
     let sealer_handle = tokio::spawn(async move {
         sealer(sealer_io, sealer_rx).await;
@@ -211,11 +211,13 @@ pub enum CycleCmd {
 }
 
 async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
+    warn!("STARTING SINGLE CYCLE");
     state.update_node_levels(io.clone()).await;
     if let RyoRunState::Faulted = state.get_run_state() {
         error!("All nodes are empty");
         return state;
     }
+    warn!("CHECKED NODE LEVELS");
 
     info!("Ryo State: {:?}", state);
 
@@ -229,12 +231,11 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         | BagState::Bagless => {
             info!("Bag not full, dispensing");
             (state, dispense_tasks) = make_dispense_tasks(state.clone(), io.clone());
+            warn!("MADE DISPENSE TASKS");
         }
     }
-    let dispense_handles = tokio::spawn(async move {
-        join_all(dispense_tasks).await;
-    });
-
+    let dispense_handles = tokio::spawn(join_all(dispense_tasks));
+    warn!("AWAITED DISPENSE HANDLES (maybe?)");
     match state.get_bag_state() {
         BagState::Bagless => {
             info!("Getting bag");
@@ -264,7 +265,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             BagSensorState::Bagful => (),
         }
     }
-    
+
     let _ = join!(dispense_handles);
 
     match state.get_bag_state() {
@@ -318,8 +319,9 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         BagHandler::new(io_clone).dispense_bag().await;
         info!("New bag dispensed");
     });
-
+    warn!("STARTING DROP BAG SEQ");
     drop_bag_sequence(io.clone()).await;
+    warn!("FINISHED DROP BAG SEQ");
 
     match make_bag_sensor(io.clone()).check().await {
         BagSensorState::Bagless => {
@@ -336,12 +338,13 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         .await
         .absolute_move(GANTRY_HOME_POSITION)
         .await;
-
+    warn!("SENDING SEALER CMD");
     let _ = io.sealer_tx.send(SealerCmd::Seal).await;
-
+    warn!("SEALER CMD SENT");
     state.clear_failures();
     // TODO: prob put it back in ready and up a counter of cycles run? will work on with firebase integration
     state.set_run_state(RyoRunState::NewJob);
+    warn!("FINISHED FULL CYCLE");
     state
 }
 
