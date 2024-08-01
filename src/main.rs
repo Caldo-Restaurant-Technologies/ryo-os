@@ -343,7 +343,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     warn!("SEALER CMD SENT");
     state.clear_failures();
     // TODO: prob put it back in ready and up a counter of cycles run? will work on with firebase integration
-    state.set_run_state(RyoRunState::NewJob);
+    state.set_run_state(RyoRunState::Running);
     warn!("FINISHED FULL CYCLE");
     state
 }
