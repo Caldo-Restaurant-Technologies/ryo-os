@@ -9,6 +9,8 @@ use crate::ryo::{
     release_bag_from_sealer, BagFilledState, BagState, NodeState, RyoFailure, RyoIo, RyoRunState,
     RyoState,
 };
+use crate::sealer::{sealer, SealerCmd};
+use crate::state_server::serve_weights;
 use control_components::components::clear_core_motor::Status;
 use control_components::components::scale::{Scale, ScaleCmd};
 use control_components::controllers::{clear_core, ek1100_io};
@@ -26,8 +28,6 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tokio::task::{spawn_blocking, JoinHandle, JoinSet};
 use tokio::time::sleep;
-use crate::sealer::{sealer, SealerCmd};
-use crate::state_server::serve_weights;
 
 pub mod config;
 
@@ -38,8 +38,8 @@ pub mod recipe_handling;
 pub mod bag_handler;
 pub mod manual_control;
 pub mod ryo;
-pub mod state_server;
 pub mod sealer;
+pub mod state_server;
 
 type CCController = clear_core::Controller;
 type EtherCATIO = ek1100_io::Controller;
@@ -135,16 +135,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .update(app_scales.as_slice(), app_state_for_fb, shutdown_app)
             .await;
     });
-    
+
     let weight_server_txs = ryo_io.scale_txs.clone();
     let weight_server_shutdown = shutdown.clone();
-    let weight_server = tokio::spawn(
-        async move { 
-            serve_weights(weight_server_txs.as_slice(), Arc::clone(&weight_server_shutdown)).await 
-        }
-    );
-    
-    
+    let weight_server = tokio::spawn(async move {
+        serve_weights(
+            weight_server_txs.as_slice(),
+            Arc::clone(&weight_server_shutdown),
+        )
+        .await
+    });
 
     loop {
         state = gantry.get_status().await;
@@ -254,7 +254,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
     match state.get_bag_state() {
         BagState::Bagful(BagFilledState::Filled) => {
             info!("Bag already filled, continuing on");
-        },
+        }
         BagState::Bagful(_) => {
             info!("Bag loaded but not yet full, continuing to dump from hatches");
             info!("No bag, getting one");
@@ -267,7 +267,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
                     state.set_bag_state(BagState::Bagless);
                     state.log_failure(RyoFailure::BagDispenseFailure);
                     let _ = join_all(dispense_tasks).await;
-                    return state
+                    return state;
                 }
                 BagSensorState::Bagful => (),
             }
@@ -276,7 +276,6 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             warn!("hmmm this state should not be possible")
         }
     }
-    
 
     let _ = join_all(dispense_tasks).await;
 

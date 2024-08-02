@@ -1,10 +1,13 @@
 use crate::bag_handler::BagHandler;
+use crate::config::{GANTRY_HOME_POSITION, GANTRY_SAMPLE_INTERVAL};
 use crate::manual_control::{
     disable_all, enable_and_clear_all, handle_dispenser_req, handle_gantry_position_req,
     handle_gantry_req, handle_gripper_req, handle_hatch_position_req, handle_hatch_req,
     handle_hatches_req, handle_sealer_position_req, handle_sealer_req,
 };
-use crate::ryo::{make_bag_handler, make_bag_sensor, make_gantry, pull_before_flight, RyoIo, RyoState};
+use crate::ryo::{
+    make_bag_handler, make_bag_sensor, make_gantry, pull_before_flight, RyoIo, RyoState,
+};
 use crate::single_cycle;
 use bytes::{Buf, Bytes};
 use control_components::components::scale::ScaleCmd;
@@ -25,7 +28,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::mpsc::Sender;
-use crate::config::{GANTRY_HOME_POSITION, GANTRY_SAMPLE_INTERVAL};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]

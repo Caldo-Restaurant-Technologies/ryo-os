@@ -63,6 +63,7 @@ pub const HATCH_CLOSE_TIMES: [Duration; 4] = [
     HATCH_C_CLOSE_TIME,
     HATCH_D_CLOSE_TIME,
 ];
+pub const HATCH_TIMEOUT: Duration = Duration::from_millis(2500);
 
 // Digital Inputs CC1
 pub const BAG_ROLLER_PE: usize = 1;

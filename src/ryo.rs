@@ -10,9 +10,10 @@ use std::{array, io};
 
 use crate::app_integration::{JobOrder, Status};
 use crate::bag_handler::BagHandler;
-use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT, DEFAULT_DISPENSE_PARAMETERS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, NODE_LOW_THRESHOLDS, NUMBER_OF_NODES, PESTO_CAVATAPPI_RECIPE, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_MOVE_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, NODE_D_MOTOR_ID};
+use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT, DEFAULT_DISPENSE_PARAMETERS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, NODE_D_MOTOR_ID, NODE_LOW_THRESHOLDS, NUMBER_OF_NODES, PESTO_CAVATAPPI_RECIPE, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_MOVE_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, HATCH_TIMEOUT};
 use crate::manual_control::enable_and_clear_all;
 use crate::recipe_handling::Ingredient;
+use crate::sealer::SealerCmd;
 use control_components::subsystems::bag_handling::{BagDispenser, BagSensor};
 use control_components::subsystems::dispenser::{
     DispenseParameters, Dispenser, Parameters, Setpoint, WeightedDispense,
@@ -26,7 +27,6 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tokio::task::{JoinHandle, JoinSet};
 use tokio::time::sleep;
-use crate::sealer::SealerCmd;
 
 type CCController = clear_core::Controller;
 type EtherCATIO = ek1100_io::Controller;
@@ -361,6 +361,7 @@ pub fn make_hatch(hatch_id: usize, mut io: RyoIo) -> Hatch {
             HATCHES_CLOSE_OUTPUT_IDS[hatch_id] as u8,
         ),
         io.cc2.get_analog_input(HATCHES_ANALOG_INPUTS[hatch_id]),
+        HATCH_TIMEOUT,
     )
 }
 
@@ -503,17 +504,15 @@ pub fn make_dispense_tasks(mut state: RyoState, io: RyoIo) -> (RyoState, Vec<Joi
     //         })
     //         .collect(),
     // )
-    
+
     let mut handles = Vec::with_capacity(NUMBER_OF_NODES);
     for dispenser in dispensers {
-        handles.push(
-            tokio::spawn(async move {
-                warn!("STARTING DISPENSER");
-                dispenser.dispense(DISPENSER_TIMEOUT).await; 
-            })
-        )
+        handles.push(tokio::spawn(async move {
+            warn!("STARTING DISPENSER");
+            dispenser.dispense(DISPENSER_TIMEOUT).await;
+        }))
     }
-    
+
     (state, handles)
 }
 
@@ -573,7 +572,7 @@ pub async fn pull_before_flight(io: RyoIo) -> RyoState {
         motor.set_acceleration(90.).await;
         motor.set_deceleration(90.).await;
     }
-    
+
     sleep(Duration::from_millis(500)).await;
 
     let mut set = JoinSet::new();
@@ -581,7 +580,7 @@ pub async fn pull_before_flight(io: RyoIo) -> RyoState {
 
     // make_trap_door(io.clone()).actuate(HBridgeState::Pos).await;
     make_bag_handler(io.clone()).close_gripper().await;
-    
+
     let _ = io.sealer_tx.send(SealerCmd::Reset).await;
     // make_sealer(io.clone())
     //     .timed_retract_actuator(SEALER_MOVE_TIME)

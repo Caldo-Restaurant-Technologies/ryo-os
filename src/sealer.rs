@@ -1,10 +1,10 @@
-use std::time::Duration;
-use control_components::components::clear_core_io::HBridgeState;
-use log::info;
-use tokio::sync::mpsc::Receiver;
-use tokio::time::sleep;
 use crate::config::{SEALER_MOVE_DOOR_TIME, SEALER_MOVE_TIME};
 use crate::ryo::{make_sealer, make_trap_door, RyoIo};
+use control_components::components::clear_core_io::HBridgeState;
+use log::info;
+use std::time::Duration;
+use tokio::sync::mpsc::Receiver;
+use tokio::time::sleep;
 
 pub enum SealerCmd {
     Seal,
@@ -19,7 +19,7 @@ pub async fn sealer(io: RyoIo, mut rx: Receiver<SealerCmd>) {
                 info!("Running seal cycle");
                 // Seal
                 sealer.timed_move_seal(SEALER_MOVE_TIME).await;
-                
+
                 // Release from sealer
                 trap_door.actuate(HBridgeState::Off).await;
                 trap_door.actuate(HBridgeState::Neg).await;
@@ -29,7 +29,7 @@ pub async fn sealer(io: RyoIo, mut rx: Receiver<SealerCmd>) {
                 trap_door.actuate(HBridgeState::Pos).await;
                 sleep(SEALER_MOVE_DOOR_TIME).await;
                 trap_door.actuate(HBridgeState::Off).await;
-                
+
                 info!("Bag released");
             }
             SealerCmd::Reset => {
