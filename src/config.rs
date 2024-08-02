@@ -278,7 +278,7 @@ pub const MUSHROOM_PARAMETERS: DispenseParameters = DispenseParameters {
 
 pub const POTATO_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
-        motor_speed: 0.2,
+        motor_speed: 0.3,
         sample_rate: 50.,
         cutoff_frequency: 0.5,
         check_offset: 20.,
@@ -287,7 +287,7 @@ pub const POTATO_PARAMETERS: DispenseParameters = DispenseParameters {
         retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
-        setpoint: 25.,
+        setpoint: 80.,
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
@@ -319,7 +319,7 @@ pub const PEPPER_PARAMETERS: DispenseParameters = DispenseParameters {
         retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
-        setpoint: 25.,
+        setpoint: 33.,
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
@@ -335,7 +335,14 @@ pub const HAM_PARAMETERS: DispenseParameters = DispenseParameters {
         retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
-        setpoint: 25.,
+        setpoint: 33.,
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
+
+pub const POTATO_HASH_RECIPE: [Option<DispenseParameters>; 4] = [
+    Some(ONION_PARAMETERS),
+    Some(HAM_PARAMETERS),
+    Some(POTATO_PARAMETERS),
+    Some(PEPPER_PARAMETERS),
+];
