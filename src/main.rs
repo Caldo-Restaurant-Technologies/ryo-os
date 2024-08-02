@@ -243,7 +243,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             let gantry = make_gantry(io.cc1.clone()).await;
             let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
             gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await.unwrap();
-            let _ = make_bag_load_task(io.clone()).await;
+            make_bag_handler(io.clone()).load_bag().await;
             // TODO: maybe have above return results so we know whether to update states?
             state.set_bag_state(BagState::Bagful(BagFilledState::Filling));
         }
