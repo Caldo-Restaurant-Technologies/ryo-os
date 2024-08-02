@@ -113,7 +113,7 @@ pub const CC2_MOTORS: [MotorBuilder; 4] = [
     },
     MotorBuilder {
         id: NODE_B_MOTOR_ID as u8,
-        scale: 6400,
+        scale: 800,
     },
     MotorBuilder {
         id: NODE_C_MOTOR_ID as u8,
@@ -261,6 +261,70 @@ pub const TOMATO_PARAMETERS: DispenseParameters = DispenseParameters {
     }),
 };
 pub const MUSHROOM_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.2,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 20.,
+        stop_offset: 16.,
+        retract_before: None,
+        retract_after: Some(0.25),
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 25.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+
+pub const POTATO_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.2,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 20.,
+        stop_offset: 16.,
+        retract_before: None,
+        retract_after: Some(0.25),
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 25.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+
+pub const ONION_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.2,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 20.,
+        stop_offset: 16.,
+        retract_before: None,
+        retract_after: Some(0.25),
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 25.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+
+pub const PEPPER_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.2,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 20.,
+        stop_offset: 16.,
+        retract_before: None,
+        retract_after: Some(0.25),
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 25.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+
+pub const HAM_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
         motor_speed: 0.2,
         sample_rate: 50.,
