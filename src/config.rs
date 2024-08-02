@@ -209,9 +209,9 @@ pub const DEFAULT_DISPENSE_PARAMETERS: DispenseParameters = DispenseParameters {
 
 pub const PESTO_CAVATAPPI_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(BROCCOLI_PARAMETERS),
+    Some(MUSHROOM_PARAMETERS),
     Some(CAVATAPPI_PARAMETERS),
     Some(TOMATO_PARAMETERS),
-    Some(MUSHROOM_PARAMETERS),
 ];
 
 pub const BROCCOLI_PARAMETERS: DispenseParameters = DispenseParameters {

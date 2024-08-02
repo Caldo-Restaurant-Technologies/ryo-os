@@ -223,6 +223,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
 
     let mut dispense_tasks = Vec::new();
     match state.get_bag_state() {
+        // TODO: make this fault instead of handling
         BagState::Bagful(BagFilledState::Filled) => {
             info!("Bag already filled")
         }
