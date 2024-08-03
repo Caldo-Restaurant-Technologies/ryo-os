@@ -256,7 +256,6 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             info!("Bag already filled, continuing on");
         }
         BagState::Bagful(_) => {
-            info!("Bag loaded but not yet full, continuing to dump from hatches");
             info!("No bag, getting one");
             let gantry = make_gantry(io.cc1.clone()).await;
             let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[0]).await;
@@ -330,9 +329,8 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         BagHandler::new(io_clone).dispense_bag().await;
         info!("New bag dispensed");
     });
-    warn!("STARTING DROP BAG SEQ");
+
     drop_bag_sequence(io.clone()).await;
-    warn!("FINISHED DROP BAG SEQ");
 
     match make_bag_sensor(io.clone()).check().await {
         BagSensorState::Bagless => {
@@ -349,13 +347,11 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         .await
         .absolute_move(GANTRY_HOME_POSITION)
         .await;
-    warn!("SENDING SEALER CMD");
     let _ = io.sealer_tx.send(SealerCmd::Seal).await;
-    warn!("SEALER CMD SENT");
     state.clear_failures();
     // TODO: prob put it back in ready and up a counter of cycles run? will work on with firebase integration
     state.set_run_state(RyoRunState::Running);
-    warn!("FINISHED FULL CYCLE");
+    info!("Bag complete!");
     state
 }
 

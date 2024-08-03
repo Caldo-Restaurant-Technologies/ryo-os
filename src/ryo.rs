@@ -508,7 +508,6 @@ pub fn make_dispense_tasks(mut state: RyoState, io: RyoIo) -> (RyoState, Vec<Joi
     let mut handles = Vec::with_capacity(NUMBER_OF_NODES);
     for dispenser in dispensers {
         handles.push(tokio::spawn(async move {
-            warn!("STARTING DISPENSER");
             dispenser.dispense(DISPENSER_TIMEOUT).await;
         }))
     }
