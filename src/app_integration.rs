@@ -78,19 +78,33 @@ pub struct Status {
 }
 
 impl Status {
-    pub async fn update_ryo_state(&mut self, mut ryo_state: RyoState) -> RyoState {
-        match self.system_status {
-            SystemStatus::RunJob | SystemStatus::RunningJob => match ryo_state.get_run_state() {
-                RyoRunState::Faulted => (),
-                _ => ryo_state.set_run_state(RyoRunState::NewJob),
-            },
-            SystemStatus::ResumeJob => {
-                ryo_state.set_run_state(RyoRunState::Running);
-                ryo_state.clear_failures();
+    pub async fn update_ryo_state(&mut self, mut ryo_state: RyoState, system_mode: Arc<Mutex<SystemMode>>) -> RyoState {
+        let mode = system_mode.lock().await;
+        match *mode {
+            SystemMode::UI => {
+                ryo_state.set_run_state(RyoRunState::UI);
             }
-            _ => (),
+            SystemMode::Cycle => {
+                match self.system_status {
+                    SystemStatus::RunJob | SystemStatus::RunningJob => match ryo_state.get_run_state() {
+                        RyoRunState::Faulted => (),
+                        _ => ryo_state.set_run_state(RyoRunState::NewJob),
+                    },
+                    SystemStatus::ResumeJob => {
+                        ryo_state.set_run_state(RyoRunState::Running);
+                        ryo_state.clear_failures();
+                    }
+                    _ => (),
+                }
+            }
+            SystemMode::Maintenance => {
+                // TODO: create maintenance mode
+            }
+            SystemMode::Clean => {
+                // TODO: create cleaning mode
+            }
         }
-
+        
         ryo_state
     }
 }
@@ -250,6 +264,7 @@ impl RyoFirebaseClient {
         &mut self,
         scale_senders: &[Sender<ScaleCmd>],
         state: Arc<Mutex<Status>>,
+        system_mode: Arc<Mutex<SystemMode>>,
         shutdown: Arc<AtomicBool>,
     ) {
         let mut interval = time::interval(Duration::from_millis(500));
@@ -275,6 +290,14 @@ impl RyoFirebaseClient {
             } else {
                 error!("Failed to get status from firebase");
             }
+            
+            if let Ok(mode) = self.firebase.at("SystemMode").get::<SystemMode>().await {
+                let mut system_mode = system_mode.lock().await;
+                *system_mode = mode;
+            } else {
+                error!("Failed to get mode from firebase");
+            }
+            
             interval.tick().await;
         }
     }

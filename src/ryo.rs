@@ -3,28 +3,24 @@ use control_components::components::clear_core_motor::ClearCoreMotor;
 use control_components::components::scale::ScaleCmd;
 use control_components::controllers::clear_core::Controller;
 use control_components::controllers::{clear_core, ek1100_io};
-use std::io::Write;
-use std::sync::Arc;
 use std::time::Duration;
-use std::{array, io};
+use std::{array};
 
-use crate::app_integration::{JobOrder, Status};
+use crate::app_integration::{JobOrder};
 use crate::bag_handler::BagHandler;
 use crate::config::{BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, CC2_MOTORS, DEFAULT_DISPENSER_TIMEOUT, DEFAULT_DISPENSE_PARAMETERS, DISPENSER_TIMEOUT, ETHERCAT_RACK_ID, GANTRY_ACCELERATION, GANTRY_BAG_DROP_POSITION, GANTRY_HOME_POSITION, GANTRY_MOTOR_ID, GANTRY_NODE_POSITIONS, GANTRY_SAMPLE_INTERVAL, GRIPPER_POSITIONS, HATCHES_ANALOG_INPUTS, HATCHES_CLOSE_OUTPUT_IDS, HATCHES_CLOSE_SET_POINTS, HATCHES_OPEN_OUTPUT_IDS, HATCHES_OPEN_SET_POINTS, HATCHES_OPEN_TIME, HATCHES_SLOT_ID, HATCH_CLOSE_TIMES, HEATER_OUTPUT_ID, HEATER_SLOT_ID, NODE_D_MOTOR_ID, NODE_LOW_THRESHOLDS, NUMBER_OF_NODES, PESTO_CAVATAPPI_RECIPE, SEALER_ACTUATOR_ID, SEALER_ANALOG_INPUT, SEALER_EXTEND_ID, SEALER_EXTEND_SET_POINT, SEALER_HEATER, SEALER_MOVE_DOOR_TIME, SEALER_MOVE_TIME, SEALER_RETRACT_ID, SEALER_RETRACT_SET_POINT, SEALER_SLOT_ID, SEALER_TIMEOUT, TRAP_DOOR_CLOSE_OUTPUT_ID, TRAP_DOOR_OPEN_OUTPUT_ID, TRAP_DOOR_SLOT_ID, HATCH_TIMEOUT, POTATO_HASH_RECIPE};
 use crate::manual_control::enable_and_clear_all;
-use crate::recipe_handling::Ingredient;
 use crate::sealer::SealerCmd;
 use control_components::subsystems::bag_handling::{BagDispenser, BagSensor};
 use control_components::subsystems::dispenser::{
-    DispenseParameters, Dispenser, Parameters, Setpoint, WeightedDispense,
+    DispenseParameters, Dispenser, Parameters, Setpoint,
 };
 use control_components::subsystems::hatch::Hatch;
 use control_components::subsystems::linear_actuator::{Output, RelayHBridge};
 use control_components::subsystems::sealer::Sealer;
 use futures::future::join_all;
-use log::{error, info, warn};
+use log::{error, info};
 use tokio::sync::mpsc::Sender;
-use tokio::sync::Mutex;
 use tokio::task::{JoinHandle, JoinSet};
 use tokio::time::sleep;
 
