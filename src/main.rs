@@ -4,10 +4,9 @@ use crate::config::*;
 use crate::hmi::ui_server_with_fb;
 use crate::ryo::RyoRunState::Faulted;
 use crate::ryo::{
-    drop_bag_sequence, dump_from_hatch, make_bag_handler, make_bag_sensor,
-    make_dispense_tasks, make_gantry, make_sealer, pull_after_flight, pull_before_flight,
-    release_bag_from_sealer, BagFilledState, BagState, NodeState, RyoFailure, RyoIo, RyoRunState,
-    RyoState,
+    drop_bag_sequence, dump_from_hatch, make_bag_handler, make_bag_sensor, make_dispense_tasks,
+    make_gantry, make_sealer, pull_after_flight, pull_before_flight, release_bag_from_sealer,
+    BagFilledState, BagState, NodeState, RyoFailure, RyoIo, RyoRunState, RyoState,
 };
 use crate::sealer::{sealer, SealerCmd};
 use crate::state_server::serve_weights;
@@ -124,7 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut firebase = RyoFirebaseClient::new();
     let app_state = Arc::new(Mutex::new(app_integration::Status::default()));
     let mut state;
-    let mut system_mode = Arc::new(Mutex::new(app_integration::SystemMode::UI));
+    let system_mode = Arc::new(Mutex::new(app_integration::SystemMode::UI));
     let shutdown = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
         .expect("Register hook");
@@ -134,7 +133,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let app_scales = ryo_io.scale_txs.clone();
     let app_handler = tokio::spawn(async move {
         firebase
-            .update(app_scales.as_slice(), app_state_for_fb, system_mode_for_fb, shutdown_app)
+            .update(
+                app_scales.as_slice(),
+                app_state_for_fb,
+                system_mode_for_fb,
+                shutdown_app,
+            )
             .await;
     });
 
@@ -177,7 +181,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let mut ryo_state = RyoState::new_with_recipe(PESTO_CAVATAPPI_RECIPE);
     ryo_state.set_run_state(run_state);
-    
+
     let mut loop_interval = interval(Duration::from_millis(100));
     loop {
         if shutdown.load(Ordering::Relaxed) {
@@ -194,12 +198,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             }
             RyoRunState::UI => {
                 hmi_with_fb(ryo_io.clone(), ryo_state.clone()).await;
-            }
-            RyoRunState::Ready | RyoRunState::Faulted => {
                 ryo_state = app_state.lock().await.update_ryo_state(ryo_state, system_mode.clone()).await;
             }
+            RyoRunState::Ready | RyoRunState::Faulted => {
+                ryo_state = app_state
+                    .lock()
+                    .await
+                    .update_ryo_state(ryo_state, system_mode.clone())
+                    .await;
+            }
         }
-        
+
         loop_interval.tick().await;
     }
 
