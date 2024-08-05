@@ -346,3 +346,22 @@ pub const POTATO_HASH_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(POTATO_PARAMETERS),
     Some(PEPPER_PARAMETERS),
 ];
+
+pub const TIMED_DISPENSE_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.3,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 10.,
+        stop_offset: 5.,
+        retract_before: None,
+        retract_after: None,
+    },
+    setpoint: Setpoint::Timed(Duration::from_secs(5)),
+};
+pub const TIMED_RECIPE: [Option<DispenseParameters>; 4] = [
+    Some(TIMED_DISPENSE_PARAMETERS),
+    Some(TIMED_DISPENSE_PARAMETERS),
+    Some(TIMED_DISPENSE_PARAMETERS),
+    Some(TIMED_DISPENSE_PARAMETERS),
+];

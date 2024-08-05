@@ -60,6 +60,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         "hmi" => RyoRunState::UI,
         _ => RyoRunState::NewJob,
     };
+    
+    let recipe = match env::args().nth(3) {
+        Some(rec) => {
+            match rec.as_str() {
+                "potato" => POTATO_HASH_RECIPE,
+                "cav" => PESTO_CAVATAPPI_RECIPE,
+                _ => TIMED_RECIPE,
+            }
+        }
+        None => TIMED_RECIPE
+    };
 
     //TODO: Change so that interface can be defined as a compiler flag passed at compile time
     // Figure out a way to detect at launch
@@ -179,7 +190,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     info!("Starting cycle loop");
 
-    let mut ryo_state = RyoState::new_with_recipe(PESTO_CAVATAPPI_RECIPE);
+    let mut ryo_state = RyoState::new_with_recipe(recipe);
     ryo_state.set_run_state(run_state);
 
     let mut loop_interval = interval(Duration::from_millis(100));
