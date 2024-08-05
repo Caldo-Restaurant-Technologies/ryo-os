@@ -1,4 +1,4 @@
-use control_components::subsystems::bag_handling::{BagDispenser, BagGripper};
+use control_components::subsystems::bag_handling::{BagDispenser, BagGripper, BagSensorState};
 use tokio::time::{interval, Duration};
 
 use crate::config::{
@@ -21,7 +21,6 @@ impl BagHandler {
     pub fn new(mut io: RyoIo) -> Self {
         let bag_dispenser = make_bag_dispenser(io.cc1.clone());
         let bag_gripper = make_bag_gripper(io.clone());
-        // let blower = Output::EtherCat(io.etc_io.get_io(ETHERCAT_RACK_ID), BLOWER_SLOT_ID, BLOWER_OUTPUT_ID as u8);
         let blower = io.etc_io.get_io(ETHERCAT_RACK_ID);
         Self {
             bag_dispenser,
@@ -51,6 +50,10 @@ impl BagHandler {
         interval.tick().await;
         interval.tick().await;
         self.bag_gripper.timed_close(GRIPPER_DROP_DURATION).await;
+    }
+    
+    pub async fn check_bag_roller_photo_eye(&self) -> BagSensorState {
+        self.bag_dispenser.check_photo_eye().await
     }
 }
 pub enum BagHandlingCmd {

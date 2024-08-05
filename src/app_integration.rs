@@ -123,19 +123,14 @@ impl Default for Status {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 // #[serde(rename_all = "camelCase")]
 pub enum SystemMode {
     Clean,
     Maintenance,
+    #[default]
     UI,
     Cycle,
-}
-impl Default for SystemMode {
-    fn default() -> Self {
-        // SystemMode::Cycle
-        SystemMode::UI
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]

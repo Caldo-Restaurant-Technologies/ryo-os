@@ -185,7 +185,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
     gantry.wait_for_move(Duration::from_secs(1)).await.unwrap();
 
-    info!("Starting cycle loop");
+    info!("Starting main loop");
 
     let mut ryo_state = RyoState::new_with_recipe(recipe);
     ryo_state.set_run_state(run_state);
@@ -238,13 +238,11 @@ pub enum CycleCmd {
 }
 
 async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
-    warn!("STARTING SINGLE CYCLE");
     state.update_node_levels(io.clone()).await;
     if let RyoRunState::Faulted = state.get_run_state() {
         error!("All nodes are empty");
         return state;
     }
-    warn!("CHECKED NODE LEVELS");
 
     info!("Ryo State: {:?}", state);
 
@@ -259,7 +257,6 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         | BagState::Bagless => {
             info!("Bag not full, dispensing");
             (state, dispense_tasks) = make_dispense_tasks(state.clone(), io.clone());
-            warn!("MADE DISPENSE TASKS");
         }
     }
 

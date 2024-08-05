@@ -4,6 +4,7 @@ use control_components::components::scale::ScaleCmd;
 use control_components::controllers::clear_core::Controller;
 use control_components::controllers::{clear_core, ek1100_io};
 use std::array;
+use std::error::Error;
 use std::time::Duration;
 
 use crate::app_integration::JobOrder;
@@ -21,7 +22,7 @@ use crate::config::{
 };
 use crate::manual_control::enable_and_clear_all;
 use crate::sealer::SealerCmd;
-use control_components::subsystems::bag_handling::{BagDispenser, BagSensor};
+use control_components::subsystems::bag_handling::{BagDispenser, BagSensor, BagSensorState};
 use control_components::subsystems::dispenser::{
     DispenseParameters, Dispenser, Parameters, Setpoint,
 };
@@ -643,4 +644,45 @@ pub async fn set_motor_accelerations(io: RyoIo, acceleration: f64) {
     join_all(enable_clear_cc1_handles).await;
     join_all(enable_clear_cc2_handles).await;
     info!("Cleared Alerts and Enabled All Motors");
+}
+
+async fn _diagnose(io: RyoIo) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let gantry = make_gantry(io.cc1.clone()).await;
+    let mut bag_handler = make_bag_handler(io.clone());
+    let bag_sensor = make_bag_sensor(io.clone());
+
+    info!("Checking Bag Roller Photo Eye");
+    // TODO: add way to check bag roller photo eye
+
+    info!("Checking Bag Gripper Photo Eye");
+    for node in 0..NUMBER_OF_NODES {
+        let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[node]).await;
+        let _ = gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+        match bag_sensor.check().await {
+            BagSensorState::Bagless => (),
+            BagSensorState::Bagful => {
+                error!("Bag Gripper Photo Eye not detected at Node {:?}", node);
+                return Err("Gripper Photo Eye".into());
+            }
+        }
+    }
+    let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
+    let _ = gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+    bag_handler.load_bag().await;
+    for node in 0..NUMBER_OF_NODES {
+        let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[node]).await;
+        let _ = gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+        match bag_sensor.check().await {
+            BagSensorState::Bagful => (),
+            BagSensorState::Bagless => {
+                error!("Bag Gripper Photo Eye detected at Node {:?}", node);
+                return Err("Gripper Photo Eye".into());
+            }
+        }
+    }
+    info!("Bag Gripper Photo Eye Validated");
+
+    // TODO: make diagnostic tests for hatches, sealer, etc
+
+    Ok(())
 }
