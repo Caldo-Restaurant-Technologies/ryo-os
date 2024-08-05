@@ -1,10 +1,9 @@
-use control_components::components::clear_core_io::DigitalInput;
 use control_components::subsystems::bag_handling::{BagDispenser, BagGripper};
 use tokio::time::{interval, Duration};
 
 use crate::config::{
-    BAG_DETECT_PE, BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, BLOWER_OUTPUT_ID, BLOWER_SLOT_ID,
-    ETHERCAT_RACK_ID, GRIPPER_ACTUATOR, GRIPPER_DROP_DURATION, GRIPPER_MOTOR_ID,
+    BAG_ROLLER_MOTOR_ID, BAG_ROLLER_PE, BLOWER_OUTPUT_ID, BLOWER_SLOT_ID, ETHERCAT_RACK_ID,
+    GRIPPER_ACTUATOR, GRIPPER_DROP_DURATION, GRIPPER_MOTOR_ID,
 };
 use crate::ryo::RyoIo;
 use control_components::controllers::clear_core::Controller;
@@ -16,7 +15,6 @@ pub struct BagHandler {
     bag_dispenser: BagDispenser,
     bag_gripper: BagGripper,
     blower: IOCard,
-    bag_detect: DigitalInput,
 }
 
 impl BagHandler {
@@ -25,12 +23,10 @@ impl BagHandler {
         let bag_gripper = make_bag_gripper(io.clone());
         // let blower = Output::EtherCat(io.etc_io.get_io(ETHERCAT_RACK_ID), BLOWER_SLOT_ID, BLOWER_OUTPUT_ID as u8);
         let blower = io.etc_io.get_io(ETHERCAT_RACK_ID);
-        let bag_detect = io.cc1.get_digital_input(BAG_DETECT_PE);
         Self {
             bag_dispenser,
             bag_gripper,
             blower,
-            bag_detect,
         }
     }
 

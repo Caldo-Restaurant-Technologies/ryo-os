@@ -13,8 +13,6 @@ use bytes::{Buf, Bytes};
 use control_components::components::scale::ScaleCmd;
 use control_components::controllers::{clear_core, ek1100_io};
 use control_components::subsystems::bag_handling::BagSensorState;
-use control_components::subsystems::gantry::GantryCommand;
-use control_components::subsystems::node::NodeCommand;
 use control_components::util::utils::ascii_to_int;
 use http_body_util::{combinators::BoxBody, BodyExt, Empty, Full};
 use hyper::server::conn::http1;
@@ -95,10 +93,6 @@ pub enum ManualCmd {
     LoadBag,
 }
 
-pub struct OperationSenders {
-    node: Sender<NodeCommand>,
-    gantry: Sender<GantryCommand>,
-}
 #[derive(Clone)]
 pub struct IOControllers {
     pub cc1: clear_core::Controller,

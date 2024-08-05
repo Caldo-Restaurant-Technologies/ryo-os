@@ -5,8 +5,8 @@ use crate::hmi::ui_server_with_fb;
 use crate::ryo::RyoRunState::Faulted;
 use crate::ryo::{
     drop_bag_sequence, dump_from_hatch, make_bag_handler, make_bag_sensor, make_dispense_tasks,
-    make_gantry, make_sealer, pull_after_flight, pull_before_flight, release_bag_from_sealer,
-    BagFilledState, BagState, NodeState, RyoFailure, RyoIo, RyoRunState, RyoState,
+    make_gantry, pull_before_flight, BagFilledState, BagState, NodeState, RyoFailure, RyoIo,
+    RyoRunState, RyoState,
 };
 use crate::sealer::{sealer, SealerCmd};
 use crate::state_server::serve_weights;
@@ -15,14 +15,13 @@ use control_components::components::scale::{Scale, ScaleCmd};
 use control_components::controllers::{clear_core, ek1100_io};
 use control_components::subsystems::bag_handling::BagSensorState;
 use env_logger::Env;
-use futures::future::{err, join_all};
+use futures::future::join_all;
 use log::{error, info, warn};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use std::{array, env};
-use tokio::join;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tokio::task::{spawn_blocking, JoinHandle, JoinSet};
@@ -60,16 +59,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         "hmi" => RyoRunState::UI,
         _ => RyoRunState::NewJob,
     };
-    
+
     let recipe = match env::args().nth(3) {
-        Some(rec) => {
-            match rec.as_str() {
-                "potato" => POTATO_HASH_RECIPE,
-                "cav" => PESTO_CAVATAPPI_RECIPE,
-                _ => TIMED_RECIPE,
-            }
-        }
-        None => TIMED_RECIPE
+        Some(rec) => match rec.as_str() {
+            "potato" => POTATO_HASH_RECIPE,
+            "cav" => PESTO_CAVATAPPI_RECIPE,
+            _ => TIMED_RECIPE,
+        },
+        None => TIMED_RECIPE,
     };
 
     //TODO: Change so that interface can be defined as a compiler flag passed at compile time
@@ -209,7 +206,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             }
             RyoRunState::UI => {
                 hmi_with_fb(ryo_io.clone(), ryo_state.clone()).await;
-                ryo_state = app_state.lock().await.update_ryo_state(ryo_state, system_mode.clone()).await;
+                ryo_state = app_state
+                    .lock()
+                    .await
+                    .update_ryo_state(ryo_state, system_mode.clone())
+                    .await;
             }
             RyoRunState::Ready | RyoRunState::Faulted => {
                 ryo_state = app_state

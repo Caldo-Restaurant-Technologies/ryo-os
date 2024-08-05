@@ -1,9 +1,8 @@
 use crate::recipe_handling::Ingredient;
 use crate::recipe_handling::Ingredient::Tortelloni;
-use crate::ryo::{RyoIo, RyoRunState, RyoState};
+use crate::ryo::{RyoRunState, RyoState};
 use control_components::components::scale::ScaleCmd;
 use firebase_rs::*;
-use futures::future::err;
 use log::error;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};

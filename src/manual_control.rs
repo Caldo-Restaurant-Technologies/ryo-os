@@ -1,4 +1,4 @@
-use crate::bag_handler::{BagHandler, ManualBagHandlingCmd};
+use crate::bag_handler::BagHandler;
 use crate::config::{
     GANTRY_ACCELERATION, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL,
     GANTRY_VELOCITY, SEALER_MOVE_DOOR_TIME, SEALER_MOVE_TIME,
@@ -14,16 +14,11 @@ use control_components::components::scale::ScaleCmd;
 use control_components::subsystems::dispenser::{Parameters, Setpoint, WeightedDispense};
 use control_components::util::utils::ascii_to_int;
 use futures::future::join_all;
-use http_body_util::combinators::BoxBody;
-use hyper::{Request, Response};
 use log::{error, info, warn};
 use std::array;
 use std::time::Duration;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
-
-// type HTTPResult = Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error>;
-// type HTTPRequest = Request<hyper::body::Incoming>;
 
 pub enum ActuatorCmd {
     Open,
@@ -241,7 +236,7 @@ pub async fn handle_dispenser_req(json: serde_json::Value, io: RyoIo) {
                 })
             }
             "weigh" => {
-                let (tx, mut rx) = tokio::sync::oneshot::channel();
+                let (tx, rx) = tokio::sync::oneshot::channel();
                 io.scale_txs[node_id].send(ScaleCmd(tx)).await.unwrap();
                 match rx.await {
                     Ok(weight) => {

@@ -1,9 +1,8 @@
 use crate::config::DISPENSER_TIMEOUT;
 use control_components::subsystems::dispenser::{
-    DispenseParameters, Dispenser, Parameters, Setpoint, WeightedDispense,
+    DispenseParameters, Parameters, Setpoint, WeightedDispense,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
