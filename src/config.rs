@@ -365,3 +365,18 @@ pub const TIMED_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(TIMED_DISPENSE_PARAMETERS),
     Some(TIMED_DISPENSE_PARAMETERS),
 ];
+
+pub const SINGLE_CC_IP_ADDR: &str = "192.168.1.12:8888";
+pub const NODE_MOTOR: MotorBuilder = MotorBuilder {
+    id: 0u8,
+    scale: 800,
+};
+
+pub const SINGLE_NODE_PHIDGET_SN: i32 = 716692;
+
+pub const SINGLE_NODE_COEFFICIENTS: [f64; 4] = [
+    5302313.46721787,
+    -6624738.1831354,
+    -5321030.50546779,
+    -4425139.25384297,
+];
