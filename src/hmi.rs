@@ -1,6 +1,4 @@
-use crate::manual_control::{
-    disable_all, enable_and_clear_all, handle_dispenser_req,
-};
+use crate::manual_control::{disable_all, enable_and_clear_all, handle_dispenser_req, response_builder};
 use crate::CCController;
 use bytes::{Buf, Bytes};
 use control_components::components::scale::ScaleCmd;
@@ -104,18 +102,17 @@ pub async fn ui_request_handler(req: HTTPRequest, cc: CCController, scale_tx: Se
         (&Method::POST, "/echo") => Ok(Response::new(req.into_body().boxed())),
         (&Method::POST, "/dispense") => {
             let body = req.collect().await?.aggregate();
-            // warn!("DEBUG: {:?}", body.chunk());
             let params_json: serde_json::Value = serde_json::from_reader(body.reader()).unwrap();
             handle_dispenser_req(params_json, cc, scale_tx).await;
-            Ok(Response::new(full("Dispensed")))
+            Ok(response_builder("Dispensed".to_string()))
         }
         (&Method::POST, "/enable") => {
             enable_and_clear_all(cc).await;
-            Ok(Response::new(full("Enabled all")))
+            Ok(response_builder("Motors enabled".to_string()))
         }
         (&Method::POST, "/disable") => {
             disable_all(cc).await;
-            Ok(Response::new(full("Disabled all")))
+            Ok(response_builder("Motors disabled".to_string()))
         }
         (_, _) => {
             let mut not_found = Response::new(empty());

@@ -1,16 +1,14 @@
 use std::time::Duration;
-use crate::bag_handler::BagHandler;
-use crate::config::{
-    GANTRY_ACCELERATION, GANTRY_ALL_POSITIONS, GANTRY_MOTOR_ID, GANTRY_SAMPLE_INTERVAL,
-    GANTRY_VELOCITY, SEALER_MOVE_DOOR_TIME, SEALER_MOVE_TIME,
-};
 use crate::ryo::make_dispenser;
 use control_components::components::clear_core_motor::{ClearCoreMotor, Status};
 use control_components::components::scale::ScaleCmd;
 use control_components::subsystems::dispenser::{Parameters, Setpoint, WeightedDispense};
+use http_body_util::combinators::BoxBody;
+use hyper::Response;
 use log::{error, info, warn};
 use tokio::sync::mpsc::Sender;
 use crate::CCController;
+use crate::hmi::full;
 
 pub enum ActuatorCmd {
     Open,
@@ -26,6 +24,16 @@ pub enum ManualCmd {
     GantryCmd(usize),
     Dispense(usize),
     CancelDispense(usize),
+}
+
+pub fn response_builder(response: String) -> Response<BoxBody<bytes::Bytes, hyper::Error>> {
+    Response::builder()
+        .status(204)
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+        .header("Access-Control-Allow-Headers", "*")
+        .body(full(response))
+        .unwrap()
 }
 
 pub async fn enable_and_clear_all(cc: CCController) {
