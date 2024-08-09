@@ -365,3 +365,139 @@ pub const TIMED_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(TIMED_DISPENSE_PARAMETERS),
     Some(TIMED_DISPENSE_PARAMETERS),
 ];
+
+pub const TORTELLONI_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.3,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 35.,
+        stop_offset: 8.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 93.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const TOFU_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.3,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 45.,
+        stop_offset: 37.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 125.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const STEAK_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.3,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 38.,
+        stop_offset: 27.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 125.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const SHRIMP_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.5,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 35.,
+        stop_offset: 30.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 70.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const GNOCCHI_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.3,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 35.,
+        stop_offset: 8.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 93.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const CHICKEN_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.3,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 35.,
+        stop_offset: 8.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 93.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const LETTUCE_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.2,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 14.,
+        stop_offset: 5.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 30.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const CARROT_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.3,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 7.,
+        stop_offset: 5.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 20.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const DICED_TOMATO_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.3,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 17.,
+        stop_offset: 10.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 35.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
