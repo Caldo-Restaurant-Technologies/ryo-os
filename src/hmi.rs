@@ -1,10 +1,6 @@
 use crate::bag_handler::BagHandler;
 use crate::config::{GANTRY_HOME_POSITION, GANTRY_SAMPLE_INTERVAL};
-use crate::manual_control::{
-    disable_all, enable_and_clear_all, handle_dispenser_req, handle_gantry_position_req,
-    handle_gantry_req, handle_gripper_req, handle_hatch_position_req, handle_hatch_req,
-    handle_hatches_req, handle_sealer_position_req, handle_sealer_req,
-};
+use crate::manual_control::{disable_all, enable_and_clear_all, handle_dispenser_req, handle_gantry_position_req, handle_gantry_req, handle_gripper_req, handle_hatch_position_req, handle_hatch_req, handle_hatches_req, handle_sealer_position_req, handle_sealer_req, response_builder};
 use crate::ryo::{
     make_bag_handler, make_bag_sensor, make_gantry, pull_before_flight, RyoIo, RyoState,
 };
@@ -124,13 +120,13 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo, ryo_state: RyoState
             let _ = pull_before_flight(io.clone()).await;
             single_cycle(ryo_state, io).await;
             info!("Cycle complete");
-            Ok(Response::new(req.into_body().boxed()))
+            Ok(response_builder("Single cycle"))
         }
         (&Method::POST, "/gripper") => {
             let body = req.collect().await?.to_bytes();
             let bag_handler = make_bag_handler(io);
             handle_gripper_req(body, bag_handler).await;
-            Ok(Response::new(full("Gripper Moved")))
+            Ok(response_builder("Gripper Moved"))
         }
         (&Method::POST, "/load_bag") => {
             let mut bag_handler = BagHandler::new(io.clone());
@@ -139,62 +135,62 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo, ryo_state: RyoState
             let _ = gantry.absolute_move(GANTRY_HOME_POSITION).await;
             let _ = gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
             bag_handler.load_bag().await;
-            Ok(Response::new(req.into_body().boxed()))
+            Ok(response_builder("Bag loaded"))
         }
         (&Method::POST, "/dispense_bag") => {
             BagHandler::new(io).dispense_bag().await;
-            Ok(Response::new(req.into_body().boxed()))
+            Ok(response_builder("Bag dispensed"))
         }
         (&Method::POST, "/sealer") => {
             let body = req.collect().await?.to_bytes();
             handle_sealer_req(body, io).await;
-            Ok(Response::new(full("Sealer actuated")))
+            Ok(response_builder("Sealer actuated"))
         }
         (&Method::POST, "/sealer_position") => {
             let body = req.collect().await?.to_bytes();
             handle_sealer_position_req(body, io).await;
-            Ok(Response::new(full("Sealer to position")))
+            Ok(response_builder("Sealer to position"))
         }
         (&Method::POST, "/hatch") => {
             let body = req.collect().await?.to_bytes();
             handle_hatch_req(body, io, None).await;
-            Ok(Response::new(full("Hatch Moved")))
+            Ok(response_builder("Hatch actuated"))
         }
         (&Method::POST, "/hatches/all") => {
             let body = req.collect().await?.to_bytes();
             handle_hatches_req(body, io).await;
-            Ok(Response::new(full("All Hatches Moved")))
+            Ok(response_builder("All hatches actuated"))
         }
         (&Method::POST, "/hatch_position") => {
             let body = req.collect().await?.to_bytes();
             handle_hatch_position_req(body, io).await;
-            Ok(Response::new(full("Hatch to position")))
+            Ok(response_builder("Hatch to position"))
         }
         (&Method::POST, "/gantry") => {
             let body = req.collect().await?.to_bytes();
             let gantry_position = ascii_to_int(body.as_ref()) as usize;
             handle_gantry_req(gantry_position, io).await;
-            Ok(Response::new(full("Gantry to position")))
+            Ok(response_builder("Gantry moved"))
         }
         (&Method::POST, "/gantry_position") => {
             let body = req.collect().await?.to_bytes();
             handle_gantry_position_req(body, io).await;
-            Ok(Response::new(full("Gantry to position")))
+            Ok(response_builder("Gantry to position"))
         }
         (&Method::POST, "/dispense") => {
             let body = req.collect().await?.aggregate();
             // warn!("DEBUG: {:?}", body.chunk());
             let params_json: serde_json::Value = serde_json::from_reader(body.reader()).unwrap();
             handle_dispenser_req(params_json, io).await;
-            Ok(Response::new(full("Dispensed")))
+            Ok(response_builder("Dispensed"))
         }
         (&Method::POST, "/enable") => {
             enable_and_clear_all(io).await;
-            Ok(Response::new(full("Enabled all")))
+            Ok(response_builder("Motors enabled"))
         }
         (&Method::POST, "/disable") => {
             disable_all(io).await;
-            Ok(Response::new(full("Disabled all")))
+            Ok(response_builder("Motors disabled"))
         }
         (&Method::POST, "/bag_check") => {
             match make_bag_sensor(io).check().await {
@@ -205,7 +201,7 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo, ryo_state: RyoState
                     info!("Bagless!")
                 }
             }
-            Ok(Response::new(full("Checked Bag State")))
+            Ok(response_builder("Checked bag"))
         }
         (_, _) => {
             let mut not_found = Response::new(empty());
@@ -214,38 +210,6 @@ pub async fn ui_request_handler(req: HTTPRequest, io: RyoIo, ryo_state: RyoState
         }
     }
 }
-
-// pub async fn ui_server<T: ToSocketAddrs>(
-//     addr: T,
-//     controllers: RyoIo,
-//     shutdown: Arc<AtomicBool>,
-// ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-//     let listener = TcpListener::bind(addr).await?;
-//     loop {
-//         info!("UI Loop");
-//         if shutdown.load(Ordering::Relaxed) {
-//             break;
-//         }
-//         let (stream, _) = listener.accept().await?;
-//         let io = TokioIo::new(stream);
-//         let controller = controllers.clone();
-//         // Spawn a tokio task to serve multiple connections concurrently
-//         tokio::task::spawn(async move {
-//             // Finally, we bind the incoming connection to our `hello` service
-//             if let Err(err) = http1::Builder::new()
-//                 // `service_fn` converts our function in a `Service`
-//                 .serve_connection(
-//                     io,
-//                     service_fn(|req| ui_request_handler(req, controller.clone())),
-//                 )
-//                 .await
-//             {
-//                 eprintln!("Error serving connection: {:?}", err);
-//             }
-//         });
-//     }
-//     Ok(())
-// }
 
 pub async fn ui_server_with_fb<T: ToSocketAddrs>(
     addr: T,

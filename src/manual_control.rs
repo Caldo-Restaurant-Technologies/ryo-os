@@ -17,8 +17,11 @@ use futures::future::join_all;
 use log::{error, info, warn};
 use std::array;
 use std::time::Duration;
+use http_body_util::combinators::BoxBody;
+use hyper::Response;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
+use crate::hmi::full;
 
 pub enum ActuatorCmd {
     Open,
@@ -34,6 +37,16 @@ pub enum ManualCmd {
     GantryCmd(usize),
     Dispense(usize),
     CancelDispense(usize),
+}
+
+pub fn response_builder(response: &str) -> Response<BoxBody<bytes::Bytes, hyper::Error>> {
+    Response::builder()
+        .status(204)
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+        .header("Access-Control-Allow-Headers", "*")
+        .body(full(response.to_string()))
+        .unwrap()
 }
 
 pub async fn handle_gripper_req(body: Bytes, mut bag_handler: BagHandler) {
