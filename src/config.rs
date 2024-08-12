@@ -212,7 +212,7 @@ pub const PESTO_CAVATAPPI_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(BROCCOLI_PARAMETERS),
     Some(MUSHROOM_PARAMETERS),
     Some(CAVATAPPI_PARAMETERS),
-    Some(TOMATO_PARAMETERS),
+    Some(CHERRY_TOMATO_PARAMETERS),
 ];
 
 pub const BROCCOLI_PARAMETERS: DispenseParameters = DispenseParameters {
@@ -245,7 +245,7 @@ pub const CAVATAPPI_PARAMETERS: DispenseParameters = DispenseParameters {
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
-pub const TOMATO_PARAMETERS: DispenseParameters = DispenseParameters {
+pub const CHERRY_TOMATO_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
         motor_speed: 0.2,
         sample_rate: 50.,
