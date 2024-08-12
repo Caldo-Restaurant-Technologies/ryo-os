@@ -357,7 +357,7 @@ pub const TIMED_DISPENSE_PARAMETERS: DispenseParameters = DispenseParameters {
         retract_before: None,
         retract_after: None,
     },
-    setpoint: Setpoint::Timed(Duration::from_secs(5)),
+    setpoint: Setpoint::Timed(Duration::from_secs(1)),
 };
 pub const TIMED_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(TIMED_DISPENSE_PARAMETERS),
