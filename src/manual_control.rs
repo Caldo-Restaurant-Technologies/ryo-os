@@ -116,6 +116,7 @@ pub async fn handle_hatches_req(body: Bytes, io: RyoIo) {
 }
 
 pub async fn handle_gantry_req(gantry_position: usize, io: RyoIo) {
+    // TODO: i think changing this to make_gantry will make it go fast?
     let gantry_motor = io.cc1.get_motor(GANTRY_MOTOR_ID);
     gantry_motor.set_acceleration(GANTRY_ACCELERATION).await;
     gantry_motor.set_velocity(GANTRY_VELOCITY).await;
