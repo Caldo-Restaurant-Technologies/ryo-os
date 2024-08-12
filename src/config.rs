@@ -504,7 +504,7 @@ pub const DICED_TOMATO_PARAMETERS: DispenseParameters = DispenseParameters {
 
 pub const GARDEN_SALAD_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(LETTUCE_PARAMETERS),
-    Some(TOMATO_PARAMETERS),
+    Some(CHERRY_TOMATO_PARAMETERS),
     Some(ONION_PARAMETERS),
     Some(CARROT_PARAMETERS),
 ];
