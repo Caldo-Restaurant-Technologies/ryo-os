@@ -74,8 +74,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     //TODO: Change so that interface can be defined as a compiler flag passed at compile time
     // Figure out a way to detect at launch
-
-    let interface = RYO_INTERFACE;
+    
+    let interface = || RYO_INTERFACE;
 
     let mut io_set = JoinSet::new();
 

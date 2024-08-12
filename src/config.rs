@@ -519,10 +519,7 @@ pub const LONG_NOODLE_PARAMETERS: DispenseParameters = DispenseParameters {
         retract_before: None,
         retract_after: Some(0.25),
     },
-    setpoint: Setpoint::Weight(WeightedDispense {
-        setpoint: 60.,
-        timeout: DEFAULT_DISPENSER_TIMEOUT,
-    }),
+    setpoint: Setpoint::Timed(Duration::from_secs(5))
 };
 pub const LONG_PASTA_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(LONG_NOODLE_PARAMETERS),
