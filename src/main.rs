@@ -46,12 +46,12 @@ type EtherCATIO = ek1100_io::Controller;
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     // console_subscriber::init();
-    let host = env::args()
-        .nth(1)
-        .expect("Is this running locally or on Ryo?");
+    // let host = env::args()
+    //     .nth(1)
+    //     .expect("Is this running locally or on Ryo?");
 
     let task = env::args()
-        .nth(2)
+        .nth(1)
         .expect("Do you want to run a cycle or hmi?");
 
     let run_state = match task.as_str() {
@@ -60,10 +60,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         _ => RyoRunState::NewJob,
     };
 
-    let recipe = match env::args().nth(3) {
+    let recipe = match env::args().nth(2) {
         Some(rec) => match rec.as_str() {
             "potato" => POTATO_HASH_RECIPE,
             "cav" => PESTO_CAVATAPPI_RECIPE,
+            "salad" => GARDEN_SALAD_RECIPE,
+            "shrimp" => SHRIMP_RECIPE,
+            "noods" => LONG_PASTA_RECIPE,
             _ => TIMED_RECIPE,
         },
         None => TIMED_RECIPE,
@@ -72,11 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     //TODO: Change so that interface can be defined as a compiler flag passed at compile time
     // Figure out a way to detect at launch
 
-    let interface = || match host.as_str() {
-        "local-test" => LOCAL_INTERFACE,
-        "ryo" => RYO_INTERFACE,
-        _ => RYO_INTERFACE,
-    };
+    let interface = RYO_INTERFACE;
 
     let mut io_set = JoinSet::new();
 

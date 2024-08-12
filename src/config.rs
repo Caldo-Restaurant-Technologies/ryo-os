@@ -501,3 +501,38 @@ pub const DICED_TOMATO_PARAMETERS: DispenseParameters = DispenseParameters {
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
+
+pub const GARDEN_SALAD_RECIPE: [Option<DispenseParameters>; 4] = [
+    Some(LETTUCE_PARAMETERS),
+    Some(TOMATO_PARAMETERS),
+    Some(ONION_PARAMETERS),
+    Some(CARROT_PARAMETERS),
+];
+
+pub const LONG_NOODLE_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.5,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 17.,
+        stop_offset: 15.,
+        retract_before: None,
+        retract_after: Some(0.25),
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 60.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const LONG_PASTA_RECIPE: [Option<DispenseParameters>; 4] = [
+    Some(LONG_NOODLE_PARAMETERS),
+    None,
+    None,
+    None,
+];
+pub const SHRIMP_RECIPE: [Option<DispenseParameters>; 4] = [
+    Some(SHRIMP_PARAMETERS),
+    None,
+    None,
+    None,
+];
