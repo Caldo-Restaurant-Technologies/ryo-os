@@ -67,6 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             "salad" => GARDEN_SALAD_RECIPE,
             "shrimp" => SHRIMP_RECIPE,
             "noods" => LONG_PASTA_RECIPE,
+            "tortelloni" => TORTELLONI_RECIPE,
             _ => TIMED_RECIPE,
         },
         None => TIMED_RECIPE,

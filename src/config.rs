@@ -381,6 +381,12 @@ pub const TORTELLONI_PARAMETERS: DispenseParameters = DispenseParameters {
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
+pub const TORTELLONI_RECIPE: [Option<DispenseParameters>; 4] = [
+    Some(TORTELLONI_PARAMETERS),
+    None,
+    None,
+    None,
+];
 pub const TOFU_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
         motor_speed: 0.3,
