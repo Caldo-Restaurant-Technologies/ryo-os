@@ -540,4 +540,71 @@ pub const SHRIMP_RECIPE: [Option<DispenseParameters>; 4] = [
     None,
 ];
 
-pub const GANTRY_PHOTO_EYE: bool = false;
+
+pub const PUSA_ONIONS_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.2,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 3.,
+        stop_offset: 1.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 12.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const PUSA_CHICKEN_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.2,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 9.,
+        stop_offset: 3.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 20.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const PUSA_PEPPERS_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.3,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 7.,
+        stop_offset: 3.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 32.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+pub const PUSA_MUSHROOMS_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.2,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 9.,
+        stop_offset: 3.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 20.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
+
+pub const PUSA_OMELETTE_RECIPE: [Option<DispenseParameters>; 4] = [
+    Some(PUSA_MUSHROOMS_PARAMETERS),
+    Some(PUSA_PEPPERS_PARAMETERS),
+    Some(PUSA_CHICKEN_PARAMETERS),
+    Some(PUSA_ONIONS_PARAMETERS),
+];

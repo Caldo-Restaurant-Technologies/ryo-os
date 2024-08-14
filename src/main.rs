@@ -79,6 +79,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 is_single_ingredient = true;
                 TORTELLONI_RECIPE
             }
+            "pusa" => {
+                is_single_ingredient = false;
+                PUSA_OMELETTE_RECIPE
+            }
             _ => TIMED_RECIPE,
         },
         None => TIMED_RECIPE,
