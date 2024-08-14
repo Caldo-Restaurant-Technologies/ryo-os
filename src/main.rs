@@ -22,6 +22,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use std::{array, env};
+use control_components::subsystems::dispenser::DispenseParameters;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tokio::task::{spawn_blocking, JoinHandle, JoinSet};
@@ -77,7 +78,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             }
             "tortelloni" => {
                 is_single_ingredient = true;
-                TORTELLONI_RECIPE
+                if let Some(node) = env::args().nth(3) {
+                    let mut r: [Option<DispenseParameters>; 4] = array::from_fn(|_| None);
+                    match node.as_str() {
+                        "0" => {
+                            r[0] = Some(TORTELLONI_PARAMETERS);
+                        }
+                        "1" => {
+                            r[0] = Some(TORTELLONI_PARAMETERS);
+                        }
+                        "2" => {
+                            r[0] = Some(TORTELLONI_PARAMETERS);
+                        }
+                        "3" => {
+                            r[0] = Some(TORTELLONI_PARAMETERS);
+                        }
+                        _ => {
+                            error!("Incorrect command line inputs. Try again");
+                            return Ok(())
+                        }
+                    }
+                    r
+                } else {
+                    TORTELLONI_RECIPE
+                }
+
             }
             "pusa" => {
                 is_single_ingredient = false;
@@ -87,7 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         },
         None => TIMED_RECIPE,
     };
-
+    
     //TODO: Change so that interface can be defined as a compiler flag passed at compile time
     // Figure out a way to detect at launch
     
