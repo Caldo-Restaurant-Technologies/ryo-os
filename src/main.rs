@@ -245,6 +245,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 info!("Starting cycle");
                 // TODO: don't need this, refactor later
                 let _ = pull_before_flight(ryo_io.clone()).await;
+                ryo_state.set_run_state(RyoRunState::Running);
             }
             RyoRunState::Running => {
                 ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
