@@ -104,9 +104,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 }
 
             }
-            "pusa" => {
+            "usa" => {
                 is_single_ingredient = false;
-                PUSA_OMELETTE_RECIPE
+                USA_OMELETTE_RECIPE
             }
             _ => TIMED_RECIPE,
         },

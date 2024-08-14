@@ -541,7 +541,7 @@ pub const SHRIMP_RECIPE: [Option<DispenseParameters>; 4] = [
 ];
 
 
-pub const PUSA_ONIONS_PARAMETERS: DispenseParameters = DispenseParameters {
+pub const USA_ONIONS_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
         motor_speed: 0.2,
         sample_rate: 50.,
@@ -556,7 +556,7 @@ pub const PUSA_ONIONS_PARAMETERS: DispenseParameters = DispenseParameters {
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
-pub const PUSA_CHICKEN_PARAMETERS: DispenseParameters = DispenseParameters {
+pub const USA_CHICKEN_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
         motor_speed: 0.2,
         sample_rate: 50.,
@@ -571,7 +571,7 @@ pub const PUSA_CHICKEN_PARAMETERS: DispenseParameters = DispenseParameters {
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
-pub const PUSA_PEPPERS_PARAMETERS: DispenseParameters = DispenseParameters {
+pub const USA_PEPPERS_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
         motor_speed: 0.3,
         sample_rate: 50.,
@@ -586,7 +586,7 @@ pub const PUSA_PEPPERS_PARAMETERS: DispenseParameters = DispenseParameters {
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
-pub const PUSA_MUSHROOMS_PARAMETERS: DispenseParameters = DispenseParameters {
+pub const USA_MUSHROOMS_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
         motor_speed: 0.2,
         sample_rate: 50.,
@@ -602,9 +602,9 @@ pub const PUSA_MUSHROOMS_PARAMETERS: DispenseParameters = DispenseParameters {
     }),
 };
 
-pub const PUSA_OMELETTE_RECIPE: [Option<DispenseParameters>; 4] = [
-    Some(PUSA_MUSHROOMS_PARAMETERS),
-    Some(PUSA_PEPPERS_PARAMETERS),
-    Some(PUSA_CHICKEN_PARAMETERS),
-    Some(PUSA_ONIONS_PARAMETERS),
+pub const USA_OMELETTE_RECIPE: [Option<DispenseParameters>; 4] = [
+    Some(USA_MUSHROOMS_PARAMETERS),
+    Some(USA_PEPPERS_PARAMETERS),
+    Some(USA_CHICKEN_PARAMETERS),
+    Some(USA_ONIONS_PARAMETERS),
 ];
