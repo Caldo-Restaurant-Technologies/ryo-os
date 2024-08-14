@@ -539,3 +539,5 @@ pub const SHRIMP_RECIPE: [Option<DispenseParameters>; 4] = [
     None,
     None,
 ];
+
+pub const GANTRY_PHOTO_EYE: bool = false;

@@ -60,14 +60,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         _ => RyoRunState::NewJob,
     };
 
+    // TODO: this is a stupid fix to handled single ingredients but will fix next week
+    let mut is_single_ingredient = false;
     let recipe = match env::args().nth(2) {
         Some(rec) => match rec.as_str() {
             "potato" => POTATO_HASH_RECIPE,
             "cav" => PESTO_CAVATAPPI_RECIPE,
             "salad" => GARDEN_SALAD_RECIPE,
-            "shrimp" => SHRIMP_RECIPE,
-            "noods" => LONG_PASTA_RECIPE,
-            "tortelloni" => TORTELLONI_RECIPE,
+            "shrimp" => {
+                is_single_ingredient = true;
+                SHRIMP_RECIPE
+            }
+            "noods" => {
+                is_single_ingredient = true;
+                LONG_PASTA_RECIPE
+            }
+            "tortelloni" => {
+                is_single_ingredient = true;
+                TORTELLONI_RECIPE
+            }
             _ => TIMED_RECIPE,
         },
         None => TIMED_RECIPE,
@@ -188,6 +199,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("Starting main loop");
 
     let mut ryo_state = RyoState::new_with_recipe(recipe);
+    // TODO: this is a stupid fix 
+    if is_single_ingredient {
+        ryo_state.set_is_single_ingredient(true);
+    }
     ryo_state.set_run_state(run_state);
 
     let mut loop_interval = interval(Duration::from_millis(100));
@@ -199,7 +214,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         match ryo_state.get_run_state() {
             RyoRunState::NewJob => {
                 info!("Starting cycle");
-                ryo_state = pull_before_flight(ryo_io.clone()).await;
+                // TODO: don't need this, refactor later
+                let _ = pull_before_flight(ryo_io.clone()).await;
             }
             RyoRunState::Running => {
                 ryo_state = single_cycle(ryo_state, ryo_io.clone()).await;
@@ -284,6 +300,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
             let gantry = make_gantry(io.cc1.clone()).await;
             let _ = gantry.absolute_move(GANTRY_NODE_POSITIONS[0]).await;
             let _ = gantry.wait_for_move(GANTRY_SAMPLE_INTERVAL).await;
+            // TODO: add bag check bypass here ?
             match make_bag_sensor(io.clone()).check().await {
                 BagSensorState::Bagless => {
                     warn!("Lost bag");
