@@ -85,13 +85,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             r[0] = Some(TORTELLONI_PARAMETERS);
                         }
                         "1" => {
-                            r[0] = Some(TORTELLONI_PARAMETERS);
+                            r[1] = Some(TORTELLONI_PARAMETERS);
                         }
                         "2" => {
-                            r[0] = Some(TORTELLONI_PARAMETERS);
+                            r[2] = Some(TORTELLONI_PARAMETERS);
                         }
                         "3" => {
-                            r[0] = Some(TORTELLONI_PARAMETERS);
+                            r[3] = Some(TORTELLONI_PARAMETERS);
                         }
                         _ => {
                             error!("Incorrect command line inputs. Try again");
