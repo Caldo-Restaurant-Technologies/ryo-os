@@ -386,13 +386,13 @@ pub const TORTELLONI_SPLIT_PARAMETERS: DispenseParameters = DispenseParameters {
         motor_speed: 0.2,
         sample_rate: 50.,
         cutoff_frequency: 0.5,
-        check_offset: 33.,
-        stop_offset: 10.,
+        check_offset: 10.,
+        stop_offset: 2.,
         retract_before: None,
         retract_after: Some(0.25)
     },
     setpoint: Setpoint::Weight(WeightedDispense {
-        setpoint: 160.,
+        setpoint: 50.,
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
