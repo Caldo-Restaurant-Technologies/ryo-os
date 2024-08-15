@@ -368,16 +368,16 @@ pub const TIMED_RECIPE: [Option<DispenseParameters>; 4] = [
 
 pub const TORTELLONI_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
-        motor_speed: 0.3,
+        motor_speed: 0.2,
         sample_rate: 50.,
         cutoff_frequency: 0.5,
         check_offset: 35.,
-        stop_offset: 8.,
+        stop_offset: 10.,
         retract_before: None,
         retract_after: Some(0.25)
     },
     setpoint: Setpoint::Weight(WeightedDispense {
-        setpoint: 93.,
+        setpoint: 170.,
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
