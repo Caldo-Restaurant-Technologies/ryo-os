@@ -371,13 +371,13 @@ pub const TORTELLONI_PARAMETERS: DispenseParameters = DispenseParameters {
         motor_speed: 0.2,
         sample_rate: 50.,
         cutoff_frequency: 0.5,
-        check_offset: 35.,
+        check_offset: 33.,
         stop_offset: 10.,
         retract_before: None,
         retract_after: Some(0.25)
     },
     setpoint: Setpoint::Weight(WeightedDispense {
-        setpoint: 170.,
+        setpoint: 160.,
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
