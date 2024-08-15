@@ -396,6 +396,21 @@ pub const TORTELLONI_SPLIT_PARAMETERS: DispenseParameters = DispenseParameters {
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
+pub const TORTELLONI_SPLIT_B_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.2,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 10.,
+        stop_offset: 2.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 30.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
 pub const TORTELLONI_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(TORTELLONI_PARAMETERS),
     None,
@@ -411,8 +426,8 @@ pub const TORTELLONI_ALL_RECIPE: [Option<DispenseParameters>; 4] = [
 pub const TORTELLONI_SPLIT_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(TORTELLONI_SPLIT_PARAMETERS),
     Some(TORTELLONI_SPLIT_PARAMETERS),
-    Some(TORTELLONI_SPLIT_PARAMETERS),
-    Some(TORTELLONI_SPLIT_PARAMETERS)
+    Some(TORTELLONI_SPLIT_B_PARAMETERS),
+    Some(TORTELLONI_SPLIT_B_PARAMETERS)
 ];
 pub const TOFU_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
