@@ -118,9 +118,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             }
             _ => TIMED_RECIPE,
         },
-        None => TIMED_RECIPE,
+        None => {
+            //TODO: fix this later damn it
+            is_single_ingredient = false;
+            TORTELLONI_SPLIT_RECIPE
+        },
     };
-    
+
     //TODO: Change so that interface can be defined as a compiler flag passed at compile time
     // Figure out a way to detect at launch
     
@@ -236,7 +240,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("Starting main loop");
 
     let mut ryo_state = RyoState::new_with_recipe(recipe);
-    // TODO: this is a stupid fix 
+    // TODO: this is a stupid fix
     if is_single_ingredient {
         ryo_state.set_is_single_ingredient(true);
     }
