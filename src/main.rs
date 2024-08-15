@@ -189,28 +189,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .expect("Register hook");
     let app_state_for_fb = app_state.clone();
     let system_mode_for_fb = system_mode.clone();
-    let shutdown_app = shutdown.clone();
-    let app_scales = ryo_io.scale_txs.clone();
-    let app_handler = tokio::spawn(async move {
-        firebase
-            .update(
-                app_scales.as_slice(),
-                app_state_for_fb,
-                system_mode_for_fb,
-                shutdown_app,
-            )
-            .await;
-    });
+    // let shutdown_app = shutdown.clone();
+    // let app_scales = ryo_io.scale_txs.clone();
+    // let app_handler = tokio::spawn(async move {
+    //     firebase
+    //         .update(
+    //             app_scales.as_slice(),
+    //             app_state_for_fb,
+    //             system_mode_for_fb,
+    //             shutdown_app,
+    //         )
+    //         .await;
+    // });
 
-    let weight_server_txs = ryo_io.scale_txs.clone();
-    let weight_server_shutdown = shutdown.clone();
-    let weight_server = tokio::spawn(async move {
-        serve_weights(
-            weight_server_txs.as_slice(),
-            Arc::clone(&weight_server_shutdown),
-        )
-        .await
-    });
+    // let weight_server_txs = ryo_io.scale_txs.clone();
+    // let weight_server_shutdown = shutdown.clone();
+    // let weight_server = tokio::spawn(async move {
+    //     serve_weights(
+    //         weight_server_txs.as_slice(),
+    //         Arc::clone(&weight_server_shutdown),
+    //     )
+    //     .await
+    // });
 
     loop {
         state = gantry.get_status().await;
@@ -282,8 +282,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         loop_interval.tick().await;
     }
 
-    let _ = app_handler.await;
-    let _ = weight_server.await;
+    // let _ = app_handler.await;
+    // let _ = weight_server.await;
     let _ = sealer_handle.await;
     while (io_set.join_next().await).is_some() {}
     Ok(())
