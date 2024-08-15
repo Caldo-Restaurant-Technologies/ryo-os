@@ -80,6 +80,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 is_single_ingredient = true;
                 TORTELLONI_ALL_RECIPE
             }
+            "tortelloni_split" => {
+                is_single_ingredient = false;
+                TORTELLONI_SPLIT_RECIPE
+            }
             "tortelloni" => {
                 is_single_ingredient = true;
                 if let Some(node) = env::args().nth(3) {

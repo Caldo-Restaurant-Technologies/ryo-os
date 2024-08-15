@@ -159,7 +159,7 @@ pub const NODE_COEFFICIENTS: [[f64; 4]; 4] = [
 
 pub const NODE_A_LOW_THRESHOLD: f64 = 8200.;
 pub const NODE_B_LOW_THRESHOLD: f64 = 7200.;
-pub const NODE_C_LOW_THRESHOLD: f64 = 6950.;
+pub const NODE_C_LOW_THRESHOLD: f64 = 7150.;
 pub const NODE_D_LOW_THRESHOLD: f64 = 7500.;
 pub const NODE_LOW_THRESHOLDS: [f64; 4] = [
     NODE_A_LOW_THRESHOLD,
@@ -381,6 +381,21 @@ pub const TORTELLONI_PARAMETERS: DispenseParameters = DispenseParameters {
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
+pub const TORTELLONI_SPLIT_PARAMETERS: DispenseParameters = DispenseParameters {
+    parameters: Parameters {
+        motor_speed: 0.2,
+        sample_rate: 50.,
+        cutoff_frequency: 0.5,
+        check_offset: 33.,
+        stop_offset: 10.,
+        retract_before: None,
+        retract_after: Some(0.25)
+    },
+    setpoint: Setpoint::Weight(WeightedDispense {
+        setpoint: 160.,
+        timeout: DEFAULT_DISPENSER_TIMEOUT,
+    }),
+};
 pub const TORTELLONI_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(TORTELLONI_PARAMETERS),
     None,
@@ -392,6 +407,12 @@ pub const TORTELLONI_ALL_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(TORTELLONI_PARAMETERS),
     Some(TORTELLONI_PARAMETERS),
     Some(TORTELLONI_PARAMETERS)
+];
+pub const TORTELLONI_SPLIT_RECIPE: [Option<DispenseParameters>; 4] = [
+    Some(TORTELLONI_SPLIT_PARAMETERS),
+    Some(TORTELLONI_SPLIT_PARAMETERS),
+    Some(TORTELLONI_SPLIT_PARAMETERS),
+    Some(TORTELLONI_SPLIT_PARAMETERS)
 ];
 pub const TOFU_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
