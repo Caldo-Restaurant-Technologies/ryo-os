@@ -157,8 +157,8 @@ pub const NODE_COEFFICIENTS: [[f64; 4]; 4] = [
     NODE_D_COEFFICIENTS,
 ];
 
-pub const NODE_A_LOW_THRESHOLD: f64 = 8100.;
-pub const NODE_B_LOW_THRESHOLD: f64 = 7000.;
+pub const NODE_A_LOW_THRESHOLD: f64 = 8200.;
+pub const NODE_B_LOW_THRESHOLD: f64 = 7200.;
 pub const NODE_C_LOW_THRESHOLD: f64 = 6950.;
 pub const NODE_D_LOW_THRESHOLD: f64 = 7500.;
 pub const NODE_LOW_THRESHOLDS: [f64; 4] = [
