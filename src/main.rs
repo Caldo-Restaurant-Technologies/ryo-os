@@ -180,15 +180,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _ = gantry.enable().await;
     sleep(Duration::from_secs(10)).await;
     info!("Connecting to Firebase");
-    let mut firebase = RyoFirebaseClient::new();
+    // let mut firebase = RyoFirebaseClient::new();
     let app_state = Arc::new(Mutex::new(app_integration::Status::default()));
     let mut state;
     let system_mode = Arc::new(Mutex::new(app_integration::SystemMode::UI));
     let shutdown = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
         .expect("Register hook");
-    let app_state_for_fb = app_state.clone();
-    let system_mode_for_fb = system_mode.clone();
+    // let app_state_for_fb = app_state.clone();
+    // let system_mode_for_fb = system_mode.clone();
     // let shutdown_app = shutdown.clone();
     // let app_scales = ryo_io.scale_txs.clone();
     // let app_handler = tokio::spawn(async move {
