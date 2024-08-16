@@ -183,7 +183,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // let mut firebase = RyoFirebaseClient::new();
     let app_state = Arc::new(Mutex::new(app_integration::Status::default()));
     let mut state;
-    let system_mode = Arc::new(Mutex::new(app_integration::SystemMode::UI));
+    let system_mode = Arc::new(Mutex::new(app_integration::SystemMode::Cycle));
     let shutdown = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
         .expect("Register hook");
