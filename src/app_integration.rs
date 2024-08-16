@@ -282,7 +282,7 @@ impl RyoFirebaseClient {
                 let weight = rx_resp.await.expect("Failed to unwrap weight");
                 weights.push(weight);
             }
-            self.set_weight_readings(weights.as_slice()).await;
+            //self.set_weight_readings(weights.as_slice()).await;
 
             if let Ok(status) = self.firebase.at("Status").get::<Status>().await {
                 let mut state = state.lock().await;
