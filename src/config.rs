@@ -392,7 +392,7 @@ pub const TORTELLONI_SPLIT_PARAMETERS: DispenseParameters = DispenseParameters {
         retract_after: Some(0.25)
     },
     setpoint: Setpoint::Weight(WeightedDispense {
-        setpoint: 50.,
+        setpoint: 30.,
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
@@ -407,7 +407,7 @@ pub const TORTELLONI_SPLIT_B_PARAMETERS: DispenseParameters = DispenseParameters
         retract_after: Some(0.25)
     },
     setpoint: Setpoint::Weight(WeightedDispense {
-        setpoint: 30.,
+        setpoint: 20.,
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
