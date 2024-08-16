@@ -383,11 +383,11 @@ pub const TORTELLONI_PARAMETERS: DispenseParameters = DispenseParameters {
 };
 pub const TORTELLONI_SPLIT_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
-        motor_speed: 0.2,
+        motor_speed: 0.3,
         sample_rate: 50.,
         cutoff_frequency: 0.5,
-        check_offset: 10.,
-        stop_offset: 2.,
+        check_offset: 20.,
+        stop_offset: 10.,
         retract_before: None,
         retract_after: Some(0.25)
     },
