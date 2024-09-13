@@ -83,7 +83,7 @@ pub const NODE_D_FB: usize = 6;
 
 pub const RYO_MOTOR_COUNT: usize = 7;
 pub const RYO_INPUT_COUNT: usize = 3;
-pub const CC_STEP_COUNTS: isize = 800;
+pub const CC_STEP_COUNTS: isize = 200;
 pub const STEPPER_MOTOR_COUNTS: isize = 200; //TODO: Check hardware counts or change to a common number
 
 pub const CLEAR_CORE_1_ADDR: &str = "192.168.1.11:8888";
