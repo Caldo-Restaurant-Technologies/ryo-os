@@ -9,7 +9,6 @@ use crate::ryo::{
     RyoRunState, RyoState,
 };
 use crate::sealer::{sealer, SealerCmd};
-use crate::state_server::serve_weights;
 use control_components::components::clear_core_motor::Status;
 use control_components::components::scale::{Scale, ScaleCmd};
 use control_components::controllers::{clear_core, ek1100_io};
@@ -46,10 +45,6 @@ type EtherCATIO = ek1100_io::Controller;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    // console_subscriber::init();
-    // let host = env::args()
-    //     .nth(1)
-    //     .expect("Is this running locally or on Ryo?");
 
     let task = env::args()
         .nth(1)
@@ -129,7 +124,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Figure out a way to detect at launch
     
     let interface = || RYO_INTERFACE;
-
+    //Spawn IO
+    
+    //Spawn Scales
     let mut io_set = JoinSet::new();
 
     let scales_handles: [JoinHandle<Scale>; NUMBER_OF_NODES] = array::from_fn(|scale_id| {
@@ -144,7 +141,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let scale_txs: [Sender<ScaleCmd>; 4] = array::from_fn(|_scale_id| {
         let (tx, actor) = scales.pop().unwrap().unwrap().actor_tx_pair();
         io_set.spawn(actor);
-        // info!("Spawned {phidget_id} client-actor");
         tx
     });
 
