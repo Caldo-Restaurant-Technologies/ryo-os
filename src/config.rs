@@ -125,7 +125,7 @@ pub const CC2_MOTORS: [MotorBuilder; 4] = [
     },
 ];
 
-pub const PHIDGET_SNS: [i32; 4] = [716709, 716623, 716625, 716620];
+pub const PHIDGET_SNS: [i32; 4] = [716709, 716692, 716625, 716620];
 pub const NODE_A_COEFFICIENTS: [f64; 4] = [
     -4373300.24661942,
     -4616499.81690381,
@@ -374,7 +374,7 @@ pub const TORTELLONI_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 33.,
         stop_offset: 10.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 160.,
@@ -389,7 +389,7 @@ pub const TORTELLONI_SPLIT_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 20.,
         stop_offset: 10.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 30.,
@@ -404,30 +404,26 @@ pub const TORTELLONI_SPLIT_B_PARAMETERS: DispenseParameters = DispenseParameters
         check_offset: 10.,
         stop_offset: 2.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 20.,
         timeout: DEFAULT_DISPENSER_TIMEOUT,
     }),
 };
-pub const TORTELLONI_RECIPE: [Option<DispenseParameters>; 4] = [
-    Some(TORTELLONI_PARAMETERS),
-    None,
-    None,
-    None,
-];
+pub const TORTELLONI_RECIPE: [Option<DispenseParameters>; 4] =
+    [Some(TORTELLONI_PARAMETERS), None, None, None];
 pub const TORTELLONI_ALL_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(TORTELLONI_PARAMETERS),
     Some(TORTELLONI_PARAMETERS),
     Some(TORTELLONI_PARAMETERS),
-    Some(TORTELLONI_PARAMETERS)
+    Some(TORTELLONI_PARAMETERS),
 ];
 pub const TORTELLONI_SPLIT_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(TORTELLONI_SPLIT_PARAMETERS),
     Some(TORTELLONI_SPLIT_PARAMETERS),
     Some(TORTELLONI_SPLIT_B_PARAMETERS),
-    Some(TORTELLONI_SPLIT_B_PARAMETERS)
+    Some(TORTELLONI_SPLIT_B_PARAMETERS),
 ];
 pub const TOFU_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
@@ -437,7 +433,7 @@ pub const TOFU_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 45.,
         stop_offset: 37.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 125.,
@@ -452,7 +448,7 @@ pub const STEAK_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 38.,
         stop_offset: 27.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 125.,
@@ -467,7 +463,7 @@ pub const SHRIMP_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 35.,
         stop_offset: 30.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 70.,
@@ -482,7 +478,7 @@ pub const GNOCCHI_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 35.,
         stop_offset: 8.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 93.,
@@ -497,7 +493,7 @@ pub const CHICKEN_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 35.,
         stop_offset: 8.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 93.,
@@ -512,7 +508,7 @@ pub const LETTUCE_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 14.,
         stop_offset: 5.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 30.,
@@ -527,7 +523,7 @@ pub const CARROT_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 7.,
         stop_offset: 5.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 20.,
@@ -542,7 +538,7 @@ pub const DICED_TOMATO_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 17.,
         stop_offset: 10.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 35.,
@@ -567,21 +563,12 @@ pub const LONG_NOODLE_PARAMETERS: DispenseParameters = DispenseParameters {
         retract_before: None,
         retract_after: Some(0.25),
     },
-    setpoint: Setpoint::Timed(Duration::from_secs(5))
+    setpoint: Setpoint::Timed(Duration::from_secs(5)),
 };
-pub const LONG_PASTA_RECIPE: [Option<DispenseParameters>; 4] = [
-    Some(LONG_NOODLE_PARAMETERS),
-    None,
-    None,
-    None,
-];
-pub const SHRIMP_RECIPE: [Option<DispenseParameters>; 4] = [
-    Some(SHRIMP_PARAMETERS),
-    None,
-    None,
-    None,
-];
-
+pub const LONG_PASTA_RECIPE: [Option<DispenseParameters>; 4] =
+    [Some(LONG_NOODLE_PARAMETERS), None, None, None];
+pub const SHRIMP_RECIPE: [Option<DispenseParameters>; 4] =
+    [Some(SHRIMP_PARAMETERS), None, None, None];
 
 pub const USA_ONIONS_PARAMETERS: DispenseParameters = DispenseParameters {
     parameters: Parameters {
@@ -591,7 +578,7 @@ pub const USA_ONIONS_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 3.,
         stop_offset: 1.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 12.,
@@ -606,7 +593,7 @@ pub const USA_CHICKEN_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 9.,
         stop_offset: 3.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 20.,
@@ -621,7 +608,7 @@ pub const USA_PEPPERS_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 7.,
         stop_offset: 3.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 32.,
@@ -636,7 +623,7 @@ pub const USA_MUSHROOMS_PARAMETERS: DispenseParameters = DispenseParameters {
         check_offset: 9.,
         stop_offset: 3.,
         retract_before: None,
-        retract_after: Some(0.25)
+        retract_after: Some(0.25),
     },
     setpoint: Setpoint::Weight(WeightedDispense {
         setpoint: 20.,
@@ -650,3 +637,4 @@ pub const USA_OMELETTE_RECIPE: [Option<DispenseParameters>; 4] = [
     Some(USA_CHICKEN_PARAMETERS),
     Some(USA_ONIONS_PARAMETERS),
 ];
+

@@ -191,16 +191,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let system_mode_for_fb = system_mode.clone();
     let shutdown_app = shutdown.clone();
     let app_scales = ryo_io.scale_txs.clone();
-    tokio::spawn(async move {
-        firebase
-            .update(
-                app_scales.as_slice(),
-                app_state_for_fb,
-                system_mode_for_fb,
-                shutdown_app,
-            )
-            .await;
-    });
+//    tokio::spawn(async move {
+//        firebase
+//            .update(
+//                app_scales.as_slice(),
+//                app_state_for_fb,
+//                system_mode_for_fb,
+//                shutdown_app,
+//            )
+//            .await;
+//    });
     
     // let weight_server_txs = ryo_io.scale_txs.clone();
     // let weight_server_shutdown = shutdown.clone();
