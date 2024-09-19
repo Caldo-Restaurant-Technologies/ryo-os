@@ -198,15 +198,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .await;
     });
     
-    // let weight_server_txs = ryo_io.scale_txs.clone();
-    // let weight_server_shutdown = shutdown.clone();
-    // tokio::spawn(async move {
-    //     serve_weights(
-    //         weight_server_txs.as_slice(),
-    //         Arc::clone(&weight_server_shutdown),
-    //     )
-    //     .await
-    // });
 
     loop {
         state = gantry.get_status().await;
