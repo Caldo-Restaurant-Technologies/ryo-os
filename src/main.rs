@@ -189,16 +189,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let system_mode_for_fb = system_mode.clone();
     let shutdown_app = shutdown.clone();
     let app_scales = ryo_io.scale_txs.clone();
-//    tokio::spawn(async move {
-//        firebase
-//            .update(
-//                app_scales.as_slice(),
-//                app_state_for_fb,
-//                system_mode_for_fb,
-//                shutdown_app,
-//            )
-//            .await;
-//    });
+   tokio::spawn(async move {
+       firebase
+           .update(
+               app_scales.as_slice(),
+               app_state_for_fb,
+               system_mode_for_fb,
+               shutdown_app,
+           )
+           .await;
+   });
     
     loop {
         state = gantry.get_status().await;
@@ -296,7 +296,7 @@ async fn single_cycle(mut state: RyoState, io: RyoIo) -> RyoState {
         BagState::Bagful(BagFilledState::Filled) => {
             info!("Bag already filled")
         }
-        BagState::Bagful(BagFilledState::Filling)
+        BagState::Bagful(BagFilledState::Filling) 
         | BagState::Bagful(BagFilledState::Empty)
         | BagState::Bagless => {
             info!("Bag not full, dispensing");
