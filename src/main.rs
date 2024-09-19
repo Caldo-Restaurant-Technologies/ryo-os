@@ -155,9 +155,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     sleep(Duration::from_secs(2)).await;
     io_set.spawn(cl1);
     io_set.spawn(cl2);
-
-    info!("Controller-Client pairs created successfully");
-
+    info!("Spawned IO Actors");
+    
+    
     let ryo_io = RyoIo {
         cc1,
         cc2,
@@ -166,14 +166,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         sealer_tx,
     };
 
+    //Spawn sealer task
     let sealer_io = ryo_io.clone();
     let sealer_handle = tokio::spawn(async move {
         sealer(sealer_io, sealer_rx).await;
     });
-
+    //Gantry
     let gantry = make_gantry(ryo_io.cc1.clone()).await;
     gantry.clear_alerts().await;
     let _ = gantry.enable().await;
+    //Allow some time for things to initialize correctly the first time they run
     sleep(Duration::from_secs(10)).await;
     info!("Connecting to Firebase");
     let mut firebase = RyoFirebaseClient::new();
@@ -198,16 +200,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .await;
     });
     
-    // let weight_server_txs = ryo_io.scale_txs.clone();
-    // let weight_server_shutdown = shutdown.clone();
-    // tokio::spawn(async move {
-    //     serve_weights(
-    //         weight_server_txs.as_slice(),
-    //         Arc::clone(&weight_server_shutdown),
-    //     )
-    //     .await
-    // });
-
     loop {
         state = gantry.get_status().await;
         match state {
